@@ -29,6 +29,16 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
     loadCanvasJson((window as any).__editorCanvas, active.fabricJson);
   }, [doc.activePageId]);
 
+
+  useEffect(() => {
+    const canvas = (window as any).__editorCanvas;
+    if (!canvas) return;
+    canvas.setWidth(doc.canvas.width);
+    canvas.setHeight(doc.canvas.height);
+    canvas.backgroundColor = doc.canvas.background;
+    canvas.renderAll();
+  }, [doc.canvas.width, doc.canvas.height, doc.canvas.background]);
+
   useEffect(() => {
     const handle = () => {
       const c = (window as any).__editorCanvas;

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { createBlankDoc, type DocModel, type ExportFormat } from "./documentModel";
 
-export type PanelTab = "select" | "templates" | "uploads" | "text" | "tables" | "pages" | "layers";
+export type PanelTab = "select" | "templates" | "uploads" | "text" | "tables" | "pages" | "layers" | "settings";
 
 type EditorStore = {
   doc: DocModel;

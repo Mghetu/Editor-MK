@@ -1,4 +1,4 @@
-import { AppWindow, Layers, LayoutTemplate, MousePointerClick, Table2, Type, Upload, Files, X } from "lucide-react";
+import { AppWindow, Layers, LayoutTemplate, MousePointerClick, Settings, Table2, Type, Upload, Files, X } from "lucide-react";
 import { useEditorStore, type PanelTab } from "../state/useEditorStore";
 import { LayersPanel } from "./panels/LayersPanel";
 import { PagesPanel } from "./panels/PagesPanel";
@@ -6,6 +6,7 @@ import { TablesPanel } from "./panels/TablesPanel";
 import { TemplatesPanel } from "./panels/TemplatesPanel";
 import { TextPanel } from "./panels/TextPanel";
 import { UploadsPanel } from "./panels/UploadsPanel";
+import { SettingsPanel } from "./panels/SettingsPanel";
 
 const tabs: { key: PanelTab; label: string; icon: any }[] = [
   { key: "select", label: "Select", icon: MousePointerClick },
@@ -14,7 +15,8 @@ const tabs: { key: PanelTab; label: string; icon: any }[] = [
   { key: "text", label: "Text", icon: Type },
   { key: "tables", label: "Tables", icon: Table2 },
   { key: "pages", label: "Pages", icon: Files },
-  { key: "layers", label: "Layers", icon: Layers }
+  { key: "layers", label: "Layers", icon: Layers },
+  { key: "settings", label: "Settings", icon: Settings }
 ];
 
 export function LeftSidebar() {
@@ -52,6 +54,7 @@ export function LeftSidebar() {
             {activeTab === "tables" && <TablesPanel />}
             {activeTab === "pages" && <PagesPanel />}
             {activeTab === "layers" && <LayersPanel />}
+            {activeTab === "settings" && <SettingsPanel />}
           </div>
         </div>
       )}
