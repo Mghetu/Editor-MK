@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "templates": [
+    {
+      "id": "starter-1",
+      "name": "Starter Square",
+      "size": { "w": 1080, "h": 1080 },
+      "preview": "data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%27320%27%20height%3D%27180%27%20viewBox%3D%270%200%20320%20180%27%3E%3Crect%20width%3D%27320%27%20height%3D%27180%27%20fill%3D%27%23e2e8f0%27/%3E%3Ctext%20x%3D%2750%25%27%20y%3D%2750%25%27%20dominant-baseline%3D%27middle%27%20text-anchor%3D%27middle%27%20font-family%3D%27Arial%27%20font-size%3D%2720%27%20fill%3D%27%230f172a%27%3EStarter%20Template%3C/text%3E%3C/svg%3E",
+      "json": "/templates/starter-1.json",
+      "pages": 1
+    }
+  ]
+}

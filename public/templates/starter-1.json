@@ -1,0 +1,22 @@
+{
+  "version": "6.4.3",
+  "objects": [
+    {
+      "type": "rect",
+      "left": 0,
+      "top": 0,
+      "width": 1080,
+      "height": 1080,
+      "fill": "#f8fafc"
+    },
+    {
+      "type": "i-text",
+      "text": "Starter Template",
+      "left": 280,
+      "top": 500,
+      "fontSize": 72,
+      "fill": "#0f172a",
+      "data": { "id": "tpl-title", "type": "text", "name": "Title" }
+    }
+  ]
+}
