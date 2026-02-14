@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { useEditorStore } from "../../state/useEditorStore";
 import {
   applyCrop,
   cancelCrop,
   closeCropSession,
+  cropCanvasToFrame,
   resizeCropFrame,
   startCrop,
   type CropMode
@@ -14,6 +16,7 @@ export function ImageInspector() {
   const [mode, setMode] = useState<CropMode>("rect");
   const [customW, setCustomW] = useState(400);
   const [customH, setCustomH] = useState(400);
+  const { updateDoc } = useEditorStore();
 
   const canvas = (window as any).__editorCanvas;
   const image = canvas?.getActiveObject() as any;
@@ -29,14 +32,19 @@ export function ImageInspector() {
 
   const onApply = () => {
     if (!session) return;
-    applyCrop(session, mode);
+    const bounds = applyCrop(session, mode);
+    cropCanvasToFrame(canvas, bounds);
+    updateDoc((d) => ({
+      ...d,
+      canvas: { ...d.canvas, width: Math.round(bounds.width), height: Math.round(bounds.height) }
+    }));
     closeCropSession(canvas, session);
     setSession(null);
   };
 
   const onCancel = () => {
     if (!session) return;
-    cancelCrop(session);
+    cancelCrop(canvas, session);
     closeCropSession(canvas, session);
     setSession(null);
   };
@@ -76,7 +84,7 @@ export function ImageInspector() {
             <input className="w-20 rounded border p-1" type="number" value={customH} onChange={(e) => setCustomH(Number(e.target.value))} />
             <button className="rounded border px-2 py-1" onClick={() => resizeCropFrame(session, canvas, customW, customH)}>Set</button>
           </div>
-          <p className="text-xs text-slate-500">Drag the frame or image. The frame size affects crop only, not page size.</p>
+          <p className="text-xs text-slate-500">Apply will resize the canvas to the crop frame.</p>
           <div className="space-x-2">
             <button className="rounded bg-sky-600 px-2 py-1 text-white" onClick={onApply}>Apply</button>
             <button className="rounded border px-2 py-1" onClick={onCancel}>Cancel</button>

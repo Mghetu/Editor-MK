@@ -31,12 +31,12 @@ export const clampImageToFrame = (image: any, frame: any) => {
   });
 };
 
-export const fitFrameInsideCanvas = (frame: any, canvas: any) => {
-  const maxW = canvas.getWidth?.() ?? 0;
-  const maxH = canvas.getHeight?.() ?? 0;
-  const { left, top, width, height } = getFrameBounds(frame);
-  frame.set({
-    left: Math.max(0, Math.min(left, maxW - width)),
-    top: Math.max(0, Math.min(top, maxH - height))
-  });
+export const ensureFrameVisibleByExpandingCanvas = (frame: any, canvas: any) => {
+  const b = getFrameBounds(frame);
+  const nextW = Math.max(canvas.getWidth?.() ?? 0, Math.ceil(b.left + b.width + 24));
+  const nextH = Math.max(canvas.getHeight?.() ?? 0, Math.ceil(b.top + b.height + 24));
+  if (nextW !== canvas.getWidth?.() || nextH !== canvas.getHeight?.()) {
+    canvas.setWidth(nextW);
+    canvas.setHeight(nextH);
+  }
 };

@@ -1,7 +1,7 @@
 import { Rect } from "fabric";
 import type { Canvas } from "fabric";
 import { makeCircleClip } from "./circleMask";
-import { clampImageToFrame, fitFrameInsideCanvas, getFrameBounds } from "./cropMath";
+import { clampImageToFrame, ensureFrameVisibleByExpandingCanvas, getFrameBounds } from "./cropMath";
 import { createCropOverlay, type CropOverlay } from "./cropOverlay";
 
 export type CropMode = "rect" | "circle";
@@ -9,7 +9,7 @@ export type CropMode = "rect" | "circle";
 type CropSession = {
   overlay: CropOverlay;
   image: any;
-  original: { left: number; top: number; scaleX: number; scaleY: number; clipPath: any };
+  original: { left: number; top: number; scaleX: number; scaleY: number; clipPath: any; canvasW: number; canvasH: number };
   unbind: () => void;
 };
 
@@ -29,14 +29,16 @@ export const startCrop = (canvas: Canvas, image: any): CropSession | null => {
     top: image.top ?? 0,
     scaleX: image.scaleX ?? 1,
     scaleY: image.scaleY ?? 1,
-    clipPath: image.clipPath
+    clipPath: image.clipPath,
+    canvasW: canvas.getWidth(),
+    canvasH: canvas.getHeight()
   };
 
   image.set({ selectable: true, evented: true });
   canvas.setActiveObject(overlay.frame);
 
   const onFrameUpdate = () => {
-    fitFrameInsideCanvas(overlay.frame, canvas);
+    ensureFrameVisibleByExpandingCanvas(overlay.frame, canvas);
     clampImageToFrame(image, overlay.frame);
     overlay.refresh();
   };
@@ -70,7 +72,7 @@ export const startCrop = (canvas: Canvas, image: any): CropSession | null => {
 export const resizeCropFrame = (session: CropSession, canvas: Canvas, w: number, h: number) => {
   const frame = session.overlay.frame;
   frame.set({ width: Math.max(20, w), height: Math.max(20, h), scaleX: 1, scaleY: 1 });
-  fitFrameInsideCanvas(frame, canvas);
+  ensureFrameVisibleByExpandingCanvas(frame, canvas);
   clampImageToFrame(session.image, frame);
   session.overlay.refresh();
 };
@@ -95,15 +97,31 @@ export const applyCrop = (session: CropSession, mode: CropMode) => {
     imgScaleX: image.scaleX,
     imgScaleY: image.scaleY
   });
+
+  return { left, top, width, height };
 };
 
-export const cancelCrop = (session: CropSession) => {
+export const cropCanvasToFrame = (canvas: Canvas, bounds: { left: number; top: number; width: number; height: number }) => {
+  canvas.getObjects().forEach((obj: any) => {
+    obj.set({
+      left: (obj.left ?? 0) - bounds.left,
+      top: (obj.top ?? 0) - bounds.top
+    });
+  });
+  canvas.setWidth(Math.max(1, Math.round(bounds.width)));
+  canvas.setHeight(Math.max(1, Math.round(bounds.height)));
+  canvas.renderAll();
+};
+
+export const cancelCrop = (canvas: Canvas, session: CropSession) => {
   const { image, original } = session;
   image.left = original.left;
   image.top = original.top;
   image.scaleX = original.scaleX;
   image.scaleY = original.scaleY;
   image.clipPath = original.clipPath;
+  canvas.setWidth(original.canvasW);
+  canvas.setHeight(original.canvasH);
 };
 
 export const closeCropSession = (canvas: Canvas, session: CropSession) => {
