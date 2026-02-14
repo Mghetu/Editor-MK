@@ -1,4 +1,5 @@
 import type { Canvas } from "fabric";
+import { applyObjectHandleStyle } from "./handleStyle";
 
 type JsonLike = Record<string, unknown>;
 
@@ -40,5 +41,6 @@ export const loadCanvasJson = async (canvas: Canvas, json: unknown) => {
   const input = typeof json === "string" ? JSON.parse(json) : json;
   const safeJson = sanitizeFabricObject(input);
   await canvas.loadFromJSON(safeJson as object);
+  canvas.getObjects().forEach((obj: any) => applyObjectHandleStyle(obj));
   canvas.renderAll();
 };
