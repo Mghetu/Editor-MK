@@ -6,9 +6,11 @@ import { RightInspector } from "./ui/RightInspector";
 import { TopBar } from "./ui/TopBar";
 import { Footer } from "./ui/Footer";
 import { Toolbar } from "./ui/Toolbar";
+import { useEditorStore } from "./state/useEditorStore";
 
 export function EditorShell() {
   const [stage, setStage] = useState<StageApi | null>(null);
+  const { activeTab } = useEditorStore();
 
   useEffect(() => {
     if (!stage) return;
@@ -17,11 +19,13 @@ export function EditorShell() {
     return off;
   }, [stage]);
 
+  const leftWidth = activeTab === "select" ? "74px" : "360px";
+
   return (
     <div className="grid h-full grid-rows-[56px_44px_1fr] bg-slate-50">
       <TopBar undo={() => stage?.history.undo()} redo={() => stage?.history.redo()} />
       <Toolbar />
-      <div className="grid h-full grid-cols-[360px_1fr_300px]">
+      <div className="grid h-full" style={{ gridTemplateColumns: `${leftWidth} 1fr 300px` }}>
         <LeftSidebar />
         <div className="grid h-full grid-rows-[1fr_48px]">
           <CanvasStage onReady={setStage} />

@@ -1,11 +1,11 @@
-import { ChevronDown, Download, Redo2, Undo2, Upload } from "lucide-react";
+import { ChevronDown, Download, MousePointerClick, Redo2, Undo2, Upload } from "lucide-react";
 import { exportCurrentPage } from "../engine/export/exportPage";
 import { exportAllPagesZip } from "../engine/export/exportZip";
 import { loadCanvasJson, saveCanvasJson } from "../engine/serialize";
 import { useEditorStore } from "../state/useEditorStore";
 
 export function TopBar({ undo, redo }: { undo: () => void; redo: () => void }) {
-  const { doc, setExportFormat, updateDoc } = useEditorStore();
+  const { doc, setExportFormat, updateDoc, setTab, activeTab } = useEditorStore();
 
   const openJson = (file?: File) => {
     if (!file) return;
@@ -48,6 +48,9 @@ export function TopBar({ undo, redo }: { undo: () => void; redo: () => void }) {
         <Upload size={16} />
       </button>
       <button className="rounded border px-2 py-1 text-xs" onClick={saveJson}>Save JSON</button>
+      <button className={`rounded p-2 hover:bg-slate-100 ${activeTab === "select" ? "bg-slate-100" : ""}`} onClick={() => setTab("select")} title="Select tool">
+        <MousePointerClick size={16} />
+      </button>
 
       <div className="mx-1 h-6 w-px bg-slate-200" />
 

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { createBlankDoc, type DocModel, type ExportFormat } from "./documentModel";
 
-export type PanelTab = "templates" | "uploads" | "text" | "tables" | "pages" | "layers";
+export type PanelTab = "select" | "templates" | "uploads" | "text" | "tables" | "pages" | "layers";
 
 type EditorStore = {
   doc: DocModel;
@@ -16,7 +16,7 @@ type EditorStore = {
 
 export const useEditorStore = create<EditorStore>((set) => ({
   doc: createBlankDoc(),
-  activeTab: "templates",
+  activeTab: "select",
   setTab: (tab) => set({ activeTab: tab }),
   setSelection: (selectedObjectId, selectedObjectType) => set({ selectedObjectId, selectedObjectType }),
   setExportFormat: (format) =>
