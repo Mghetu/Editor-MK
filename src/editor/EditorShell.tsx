@@ -5,6 +5,7 @@ import { LeftSidebar } from "./ui/LeftSidebar";
 import { RightInspector } from "./ui/RightInspector";
 import { TopBar } from "./ui/TopBar";
 import { Footer } from "./ui/Footer";
+import { Toolbar } from "./ui/Toolbar";
 
 export function EditorShell() {
   const [stage, setStage] = useState<StageApi | null>(null);
@@ -17,8 +18,9 @@ export function EditorShell() {
   }, [stage]);
 
   return (
-    <div className="grid h-full grid-rows-[56px_1fr] bg-slate-50">
+    <div className="grid h-full grid-rows-[56px_44px_1fr] bg-slate-50">
       <TopBar undo={() => stage?.history.undo()} redo={() => stage?.history.redo()} />
+      <Toolbar />
       <div className="grid h-full grid-cols-[360px_1fr_300px]">
         <LeftSidebar />
         <div className="grid h-full grid-rows-[1fr_48px]">
