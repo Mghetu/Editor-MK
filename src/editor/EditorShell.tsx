@@ -4,6 +4,7 @@ import { bindHotkeys } from "./hotkeys";
 import { LeftSidebar } from "./ui/LeftSidebar";
 import { RightInspector } from "./ui/RightInspector";
 import { TopBar } from "./ui/TopBar";
+import { Footer } from "./ui/Footer";
 
 export function EditorShell() {
   const [stage, setStage] = useState<StageApi | null>(null);
@@ -16,11 +17,14 @@ export function EditorShell() {
   }, [stage]);
 
   return (
-    <div className="grid h-full grid-rows-[56px_1fr]">
+    <div className="grid h-full grid-rows-[56px_1fr] bg-slate-50">
       <TopBar undo={() => stage?.history.undo()} redo={() => stage?.history.redo()} />
-      <div className="grid h-full grid-cols-[340px_1fr_280px]">
+      <div className="grid h-full grid-cols-[360px_1fr_300px]">
         <LeftSidebar />
-        <CanvasStage onReady={setStage} />
+        <div className="grid h-full grid-rows-[1fr_48px]">
+          <CanvasStage onReady={setStage} />
+          <Footer />
+        </div>
         <RightInspector />
       </div>
     </div>
