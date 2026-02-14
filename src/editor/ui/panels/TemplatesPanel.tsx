@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { loadTemplateManifest, type TemplateManifest } from "../../features/templates/manifest";
 import { useEditorStore } from "../../state/useEditorStore";
+import { loadCanvasJson } from "../../engine/serialize";
 
 export function TemplatesPanel() {
   const [manifest, setManifest] = useState<TemplateManifest | null>(null);
@@ -14,8 +15,7 @@ export function TemplatesPanel() {
     const res = await fetch(`/Editor-MK${jsonUrl}`.replace("/Editor-MK/Editor-MK", "/Editor-MK"));
     const json = await res.json();
     updateDoc((doc) => ({ ...doc, canvas: { ...doc.canvas, width: w, height: h }, pages: [{ ...doc.pages[0], fabricJson: json }], activePageId: doc.pages[0].id }));
-    await (window as any).__editorCanvas.loadFromJSON(json);
-    (window as any).__editorCanvas.renderAll();
+    await loadCanvasJson((window as any).__editorCanvas, json);
   };
 
   return (
