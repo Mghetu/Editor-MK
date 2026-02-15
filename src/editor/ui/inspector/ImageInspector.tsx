@@ -4,42 +4,51 @@ import {
   applyCrop,
   cancelCrop,
   closeCropSession,
-  cropCanvasToFrame,
-  resizeCropFrame,
-  startCrop,
-  type CropMode
+  type CropLiveInfo,
+  resetCrop,
+  setCropPreset,
+  setCustomCropSizePx,
+  startCrop
 } from "../../features/crop/cropController";
-import { presets } from "../../features/crop/cropMath";
+
+const PRESETS: Array<{ key: "1:1" | "9:16" | "16:9" | "300x300" | "600x250"; label: string }> = [
+  { key: "1:1", label: "1:1" },
+  { key: "9:16", label: "9:16" },
+  { key: "16:9", label: "16:9" },
+  { key: "300x300", label: "300×300px" },
+  { key: "600x250", label: "600×250px" }
+];
 
 export function ImageInspector() {
   const [session, setSession] = useState<any>(null);
-  const [mode, setMode] = useState<CropMode>("rect");
-  const [customW, setCustomW] = useState(400);
-  const [customH, setCustomH] = useState(400);
+  // Compatibility state for skewed branches that still reference cropImage/setCropImage.
+  const [cropImage, setCropImage] = useState<any>(null);
+  const [customW, setCustomW] = useState(300);
+  const [customH, setCustomH] = useState(300);
+  const [live, setLive] = useState<CropLiveInfo | null>(null);
   const { updateDoc } = useEditorStore();
 
   const canvas = (window as any).__editorCanvas;
   const image = canvas?.getActiveObject() as any;
+  const selectedImage = image?.data?.type === "image" ? image : cropImage;
 
   const onStartCrop = () => {
-    const next = startCrop(canvas, image);
-    if (next) {
-      setSession(next);
-      canvas.setActiveObject(next.overlay.frame);
-      canvas.renderAll();
-    }
+    const next = startCrop(canvas, selectedImage, setLive);
+    if (!next) return;
+    setSession(next);
+    setCropImage(selectedImage);
+    canvas.setActiveObject(next.overlay.frame);
+    canvas.requestRenderAll();
   };
 
   const onApply = () => {
     if (!session) return;
-    const bounds = applyCrop(session, mode);
-    cropCanvasToFrame(canvas, bounds);
-    updateDoc((d) => ({
-      ...d,
-      canvas: { ...d.canvas, width: Math.round(bounds.width), height: Math.round(bounds.height) }
-    }));
+    applyCrop(session, canvas);
     closeCropSession(canvas, session);
     setSession(null);
+    setCropImage(null);
+    setLive(null);
+    updateDoc((d) => ({ ...d }));
   };
 
   const onCancel = () => {
@@ -47,6 +56,8 @@ export function ImageInspector() {
     cancelCrop(canvas, session);
     closeCropSession(canvas, session);
     setSession(null);
+    setCropImage(null);
+    setLive(null);
   };
 
   return (
@@ -58,36 +69,58 @@ export function ImageInspector() {
         min={0}
         max={1}
         step={0.05}
-        defaultValue={image?.opacity ?? 1}
+        value={selectedImage?.opacity ?? 1}
         className="mb-3 w-full"
         onChange={(e) => {
-          image?.set("opacity", Number(e.target.value));
-          canvas.renderAll();
+          selectedImage?.set("opacity", Number(e.target.value));
+          canvas?.renderAll();
         }}
       />
-      <button className="rounded border px-3 py-1" onClick={onStartCrop}>
+
+      <button className="rounded border px-3 py-1" onClick={onStartCrop} disabled={!!session || !selectedImage}>
         Crop
       </button>
+
       {session && (
         <div className="mt-3 space-y-2">
-          <div className="space-x-2">
-            <button className={`rounded border px-2 py-1 ${mode === "rect" ? "bg-sky-50" : ""}`} onClick={() => setMode("rect")}>Rect</button>
-            <button className={`rounded border px-2 py-1 ${mode === "circle" ? "bg-sky-50" : ""}`} onClick={() => setMode("circle")}>Circle</button>
+          <div className="flex flex-wrap gap-2">
+            {PRESETS.map((preset) => (
+              <button key={preset.key} className="rounded border px-2 py-1" onClick={() => setCropPreset(session, canvas, preset.key, setLive)}>
+                {preset.label}
+              </button>
+            ))}
           </div>
-          <div className="space-x-2">
-            <button className="rounded border px-2 py-1" onClick={() => resizeCropFrame(session, canvas, presets.p400.w, presets.p400.h)}>400×400</button>
-            <button className="rounded border px-2 py-1" onClick={() => resizeCropFrame(session, canvas, presets.p600x300.w, presets.p600x300.h)}>600×300</button>
-            <button className="rounded border px-2 py-1" onClick={() => resizeCropFrame(session, canvas, presets.p350x200.w, presets.p350x200.h)}>350×200</button>
+
+          <div className="flex items-center gap-2">
+            <input className="w-24 rounded border p-1" type="number" value={customW} onChange={(e) => setCustomW(Number(e.target.value))} />
+            <span>×</span>
+            <input className="w-24 rounded border p-1" type="number" value={customH} onChange={(e) => setCustomH(Number(e.target.value))} />
+            <button className="rounded border px-2 py-1" onClick={() => setCustomCropSizePx(session, canvas, customW, customH, setLive)}>
+              Set px
+            </button>
           </div>
-          <div className="flex gap-2">
-            <input className="w-20 rounded border p-1" type="number" value={customW} onChange={(e) => setCustomW(Number(e.target.value))} />
-            <input className="w-20 rounded border p-1" type="number" value={customH} onChange={(e) => setCustomH(Number(e.target.value))} />
-            <button className="rounded border px-2 py-1" onClick={() => resizeCropFrame(session, canvas, customW, customH)}>Set</button>
-          </div>
-          <p className="text-xs text-slate-500">Apply will resize the canvas to the crop frame.</p>
+
+          {live && (
+            <div className="rounded bg-slate-50 p-2 text-xs text-slate-700">
+              <div>
+                Crop: {Math.round(live.cropW)} × {Math.round(live.cropH)} px
+              </div>
+              <div>
+                Frame: {Math.round(live.frameW)} × {Math.round(live.frameH)}
+              </div>
+            </div>
+          )}
+
           <div className="space-x-2">
-            <button className="rounded bg-sky-600 px-2 py-1 text-white" onClick={onApply}>Apply</button>
-            <button className="rounded border px-2 py-1" onClick={onCancel}>Cancel</button>
+            <button className="rounded bg-sky-600 px-2 py-1 text-white" onClick={onApply}>
+              Apply
+            </button>
+            <button className="rounded border px-2 py-1" onClick={onCancel}>
+              Cancel
+            </button>
+            <button className="rounded border px-2 py-1" onClick={() => resetCrop(session, canvas, setLive)}>
+              Reset
+            </button>
           </div>
         </div>
       )}
