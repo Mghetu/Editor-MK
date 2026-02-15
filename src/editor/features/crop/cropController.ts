@@ -143,6 +143,14 @@ export const startCrop = (
     unbind: () => undefined
   };
 
+  const cropSession: CropSession = {
+    overlay,
+    image,
+    snapshot,
+    source: getSourceSize(image),
+    unbind: () => undefined
+  };
+
   canvas.on("mouse:down", onMouseDown);
   canvas.on("mouse:move", onMouseMove);
   canvas.on("mouse:up", onMouseUp);
