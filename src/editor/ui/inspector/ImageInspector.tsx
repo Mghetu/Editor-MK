@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useEditorStore } from "../../state/useEditorStore";
+import { exportSelectedImage } from "../../engine/export/exportImage";
 import {
   applyCrop,
   cancelCrop,
@@ -27,7 +28,7 @@ export function ImageInspector() {
   const [customW, setCustomW] = useState(300);
   const [customH, setCustomH] = useState(300);
   const [live, setLive] = useState<CropLiveInfo | null>(null);
-  const { updateDoc } = useEditorStore();
+  const { updateDoc, doc } = useEditorStore();
 
   const canvas = (window as any).__editorCanvas;
   const image = canvas?.getActiveObject() as any;
@@ -80,6 +81,20 @@ export function ImageInspector() {
 
       <button className="rounded border px-3 py-1" onClick={onStartCrop} disabled={!!session || !selectedImage}>
         Crop
+      </button>
+
+      <button
+        className="ml-2 rounded border px-3 py-1"
+        disabled={!selectedImage || selectedImage?.data?.type !== "image"}
+        onClick={async () => {
+          try {
+            await exportSelectedImage(selectedImage, doc.export.format, doc.export.multiplier, selectedImage?.data?.name || "image");
+          } catch (err) {
+            alert(err instanceof Error ? err.message : "Failed to export image.");
+          }
+        }}
+      >
+        Export Image
       </button>
 
       {session && (
