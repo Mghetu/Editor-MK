@@ -1,5 +1,13 @@
 import { Lock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import {
+  ensureRectRadiusMetadata,
+  ensureShapeStrokeUniform,
+  getRectRadiusPx,
+  isRectLikeShape,
+  normalizeRectAfterTransform,
+  setRectRadiusPx
+} from "../../features/shapes/shapeGeometry";
 
 const readRenderedSize = (obj: any) => ({
   width: Math.max(1, Math.round(Math.abs(obj?.getScaledWidth?.() ?? obj?.width ?? 1))),
@@ -17,7 +25,6 @@ export function ShapeInspector() {
   const obj = canvas?.getActiveObject?.() as any;
 
   const shapeKind = obj?.data?.shapeKind as "rect" | "square" | "circle" | undefined;
-  const isRectLike = shapeKind === "rect" || shapeKind === "square";
   const isRectangle = shapeKind === "rect";
 
   const initial = useMemo(() => readRenderedSize(obj), [obj]);
@@ -34,15 +41,13 @@ export function ShapeInspector() {
       const active = canvas?.getActiveObject?.() as any;
       if (!active || active?.data?.type !== "shape") return;
 
-      // Keep visual stroke width constant while shape is resized.
-      if (active.strokeUniform !== true) {
-        active.set("strokeUniform", true);
-      }
+      ensureShapeStrokeUniform(active);
+      ensureRectRadiusMetadata(active);
 
       const size = readRenderedSize(active);
       setWidth(size.width);
       setHeight(size.height);
-      setRadius(Math.max(0, Number(active?.rx ?? 0)));
+      setRadius(Math.max(0, getRectRadiusPx(active) || 0));
       setFillColor(normalizeColor(active?.fill, "#E2E8F0"));
       setStrokeColor(normalizeColor(active?.stroke, "#334155"));
       setStrokeWidth(Math.max(0, Number(active?.strokeWidth ?? 1)));
@@ -72,21 +77,30 @@ export function ShapeInspector() {
   };
 
   const mutateSize = (nextW: number, nextH: number) => {
-    const baseW = Math.max(1, Number(obj.width ?? 1));
-    const baseH = Math.max(1, Number(obj.height ?? 1));
-    const scaleSignX = (obj.scaleX ?? 1) < 0 ? -1 : 1;
-    const scaleSignY = (obj.scaleY ?? 1) < 0 ? -1 : 1;
+    const widthPx = Math.max(1, Number.isFinite(nextW) ? nextW : 1);
+    const heightPx = Math.max(1, Number.isFinite(nextH) ? nextH : 1);
 
     mutate(() => {
-      obj.set({
-        scaleX: scaleSignX * (Math.max(1, nextW) / baseW),
-        scaleY: scaleSignY * (Math.max(1, nextH) / baseH),
-        strokeUniform: true
-      });
+      if (isRectLikeShape(obj)) {
+        const signX = (obj.scaleX ?? 1) < 0 ? -1 : 1;
+        const signY = (obj.scaleY ?? 1) < 0 ? -1 : 1;
+        obj.set({ width: widthPx, height: heightPx, scaleX: signX, scaleY: signY });
+        normalizeRectAfterTransform(obj);
+      } else {
+        const baseW = Math.max(1, Number(obj.width ?? 1));
+        const baseH = Math.max(1, Number(obj.height ?? 1));
+        const scaleSignX = (obj.scaleX ?? 1) < 0 ? -1 : 1;
+        const scaleSignY = (obj.scaleY ?? 1) < 0 ? -1 : 1;
+        obj.set({
+          scaleX: scaleSignX * (widthPx / baseW),
+          scaleY: scaleSignY * (heightPx / baseH),
+          strokeUniform: true
+        });
+      }
     });
 
-    setWidth(Math.max(1, Math.round(nextW)));
-    setHeight(Math.max(1, Math.round(nextH)));
+    setWidth(Math.round(widthPx));
+    setHeight(Math.round(heightPx));
   };
 
   const onWidthChange = (value: number) => {
@@ -111,7 +125,10 @@ export function ShapeInspector() {
 
   const onCornerRadiusChange = (value: number) => {
     const next = Math.max(0, Number.isFinite(value) ? value : 0);
-    mutate(() => obj.set({ rx: next, ry: next }));
+    mutate(() => {
+      setRectRadiusPx(obj, next);
+      normalizeRectAfterTransform(obj);
+    });
     setRadius(next);
   };
 
@@ -208,7 +225,7 @@ export function ShapeInspector() {
         </div>
       )}
 
-      {isRectLike && <p className="text-xs text-slate-500">Aspect ratio lock defaults to on.</p>}
+      {isRectLikeShape(obj) && <p className="text-xs text-slate-500">Aspect ratio lock defaults to on.</p>}
     </div>
   );
 }

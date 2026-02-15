@@ -1,5 +1,9 @@
 import { Canvas, FabricImage } from "fabric";
 import { applyGlobalHandleStyle, applyObjectHandleStyle } from "./handleStyle";
+import { ensureRectRadiusMetadata, ensureShapeStrokeUniform, normalizeRectAfterTransform } from "../features/shapes/shapeGeometry";
+
+const customImageProps = new Set([...(FabricImage.customProperties ?? []), "cropN"]);
+FabricImage.customProperties = Array.from(customImageProps);
 
 const customImageProps = new Set([...(FabricImage.customProperties ?? []), "cropN"]);
 FabricImage.customProperties = Array.from(customImageProps);
@@ -19,9 +23,19 @@ export const createCanvas = (el: HTMLCanvasElement, width: number, height: numbe
   canvas.on("object:added", ({ target }) => {
     if (!target) return;
     applyObjectHandleStyle(target as any);
+    ensureShapeStrokeUniform(target as any);
+    ensureRectRadiusMetadata(target as any);
     target.setCoords();
     canvas.requestRenderAll();
   });
+
+  canvas.on("object:modified", ({ target }) => {
+    if (!target) return;
+    normalizeRectAfterTransform(target as any);
+    target.setCoords();
+    canvas.requestRenderAll();
+  });
+
 
   return canvas;
 };

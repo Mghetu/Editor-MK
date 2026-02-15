@@ -11,7 +11,8 @@ const SHAPE_STYLE = {
 } as const;
 
 const finalize = (canvas: Canvas, obj: any, name: string, shapeKind: ShapeKind) => {
-  obj.set("data", { id: crypto.randomUUID(), type: "shape", name, shapeKind });
+  const cornerRadiusPx = shapeKind === "circle" ? undefined : Math.max(0, Number(obj?.rx ?? obj?.ry ?? 0));
+  obj.set("data", { id: crypto.randomUUID(), type: "shape", name, shapeKind, cornerRadiusPx });
   canvas.add(obj);
   canvas.setActiveObject(obj);
   canvas.renderAll();
