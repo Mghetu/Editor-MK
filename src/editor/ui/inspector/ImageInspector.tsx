@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useEditorStore } from "../../state/useEditorStore";
 import {
   applyCrop,
@@ -14,6 +14,7 @@ import {
 
 export function ImageInspector() {
   const [session, setSession] = useState<any>(null);
+  const [cropImage, setCropImage] = useState<any>(null);
   const [ratioId, setRatioId] = useState("1:1");
   const [customW, setCustomW] = useState(400);
   const [customH, setCustomH] = useState(400);
@@ -21,12 +22,23 @@ export function ImageInspector() {
   const { updateDoc } = useEditorStore();
 
   const canvas = (window as any).__editorCanvas;
-  const image = canvas?.getActiveObject() as any;
+  const active = canvas?.getActiveObject() as any;
+  const selectedImage = active?.data?.type === "image" ? active : cropImage;
+
+  useEffect(() => {
+    return () => {
+      if (!canvas || !session) return;
+      cancelCrop(canvas, session);
+      closeCropSession(canvas, session);
+    };
+  }, [canvas, session]);
 
   const onStartCrop = () => {
-    const next = startCrop(canvas, image, setLive);
+    if (!canvas || !selectedImage || selectedImage.data?.type !== "image") return;
+    const next = startCrop(canvas, selectedImage, setLive);
     if (!next) return;
     setSession(next);
+    setCropImage(selectedImage);
     setRatioId("1:1");
     setCropRatio(next, 1, canvas);
     canvas.renderAll();
@@ -38,6 +50,7 @@ export function ImageInspector() {
     updateDoc((d) => ({ ...d }));
     closeCropSession(canvas, session);
     setSession(null);
+    setCropImage(null);
     setLive(null);
   };
 
@@ -46,6 +59,7 @@ export function ImageInspector() {
     cancelCrop(canvas, session);
     closeCropSession(canvas, session);
     setSession(null);
+    setCropImage(null);
     setLive(null);
   };
 
@@ -63,14 +77,17 @@ export function ImageInspector() {
         min={0}
         max={1}
         step={0.05}
-        defaultValue={image?.opacity ?? 1}
+        value={selectedImage?.opacity ?? 1}
         className="mb-3 w-full"
         onChange={(e) => {
-          image?.set("opacity", Number(e.target.value));
-          canvas.renderAll();
+          selectedImage?.set("opacity", Number(e.target.value));
+          if (session?.previewImage) {
+            session.previewImage.set("opacity", Number(e.target.value));
+          }
+          canvas?.renderAll();
         }}
       />
-      <button className="rounded border px-3 py-1" onClick={onStartCrop}>
+      <button className="rounded border px-3 py-1" onClick={onStartCrop} disabled={!selectedImage || !!session}>
         Crop
       </button>
       {session && (
@@ -106,7 +123,7 @@ export function ImageInspector() {
                 Crop: {Math.round(live.cropW)} × {Math.round(live.cropH)} px
               </div>
               <div>
-                On-canvas: {Math.round(live.frameW)} × {Math.round(live.frameH)}
+                Frame: {Math.round(live.frameW)} × {Math.round(live.frameH)}
               </div>
             </div>
           )}

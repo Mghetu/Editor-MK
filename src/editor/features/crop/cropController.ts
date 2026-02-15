@@ -255,10 +255,15 @@ export const startCrop = (canvas: Canvas, image: any, onChange?: (info: CropLive
     strokeWidth: 2,
     hasRotatingPoint: false,
     lockRotation: true,
+    lockMovementX: true,
+    lockMovementY: true,
+    lockScalingX: true,
+    lockScalingY: true,
     transparentCorners: false,
     cornerColor: "#0ea5e9",
     excludeFromExport: true
   });
+  frame.set("data", { id: image.data?.id ?? crypto.randomUUID(), type: "crop-frame", name: "Crop Frame" });
 
   const previewImage = new FabricImage(image.getElement(), {
     originX: image.originX,
@@ -327,7 +332,7 @@ export const startCrop = (canvas: Canvas, image: any, onChange?: (info: CropLive
       session.drag = { kind: "resize", corner, anchorLocal: cornerLocal(frame, oppositeCorner(corner)) };
       return;
     }
-    if (opt.target === frame || opt.target === previewImage) {
+    if (opt.target === previewImage || (opt.target === frame && !corner)) {
       session.drag = { kind: "pan", lastCanvasPoint: { x: pointer.x, y: pointer.y } };
     }
   };
@@ -549,7 +554,8 @@ export const closeCropSession = (canvas: Canvas, session: CropSession) => {
     lockScalingX: session.snapshot.lockScalingX,
     lockScalingY: session.snapshot.lockScalingY,
     lockRotation: session.snapshot.lockRotation,
-    selectable: session.snapshot.selectable
+    selectable: session.snapshot.selectable,
+    visible: true
   });
   canvas.setActiveObject(session.image);
   canvas.requestRenderAll();
