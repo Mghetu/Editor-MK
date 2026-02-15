@@ -136,8 +136,10 @@ export const startCrop = (
     unbind: () => undefined
   };
 
-  canvas.on("object:moving", movingHandler);
-  canvas.on("object:scaling", scalingHandler);
+  canvas.on("mouse:down", onMouseDown);
+  canvas.on("mouse:move", onMouseMove);
+  canvas.on("mouse:up", onMouseUp);
+  window.addEventListener("keydown", onKeyDown);
 
   session.unbind = () => {
     canvas.off("object:moving", movingHandler);
