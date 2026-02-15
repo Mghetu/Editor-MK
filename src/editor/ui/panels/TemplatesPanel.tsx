@@ -12,7 +12,7 @@ export function TemplatesPanel() {
   }, []);
 
   const apply = async (jsonUrl: string, w: number, h: number) => {
-    const res = await fetch(`/Editor-MK${jsonUrl}`.replace("/Editor-MK/Editor-MK", "/Editor-MK"));
+    const res = await fetch(new URL(jsonUrl.replace(/^\//, ""), import.meta.env.BASE_URL).toString());
     const json = await res.json();
     updateDoc((doc) => ({ ...doc, canvas: { ...doc.canvas, width: w, height: h }, pages: [{ ...doc.pages[0], fabricJson: json }], activePageId: doc.pages[0].id }));
     await loadCanvasJson((window as any).__editorCanvas, json);

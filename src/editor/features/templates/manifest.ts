@@ -4,6 +4,6 @@ export type TemplateManifest = {
 };
 
 export const loadTemplateManifest = async () => {
-  const res = await fetch("/Editor-MK/templates/manifest.json");
+  const res = await fetch(new URL("templates/manifest.json", import.meta.env.BASE_URL).toString());
   return (await res.json()) as TemplateManifest;
 };

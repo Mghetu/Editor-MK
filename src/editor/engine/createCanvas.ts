@@ -1,5 +1,8 @@
-import { Canvas } from "fabric";
+import { Canvas, FabricImage } from "fabric";
 import { applyGlobalHandleStyle, applyObjectHandleStyle } from "./handleStyle";
+
+const customImageProps = new Set([...(FabricImage.customProperties ?? []), "cropN"]);
+FabricImage.customProperties = Array.from(customImageProps);
 
 export const createCanvas = (el: HTMLCanvasElement, width: number, height: number, background: string) => {
   applyGlobalHandleStyle();
