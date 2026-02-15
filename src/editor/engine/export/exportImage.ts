@@ -22,8 +22,12 @@ export const exportSelectedImage = async (
   const sw = Math.max(1, Math.round(image.width ?? element.naturalWidth ?? 1));
   const sh = Math.max(1, Math.round(image.height ?? element.naturalHeight ?? 1));
 
-  const outW = Math.max(1, Math.round(sw * Math.max(0.1, multiplier)));
-  const outH = Math.max(1, Math.round(sh * Math.max(0.1, multiplier)));
+  // Export at the current on-canvas displayed size (not original source size),
+  // then apply optional multiplier.
+  const displayW = Math.max(1, Math.round(Math.abs(image.getScaledWidth?.() ?? sw)));
+  const displayH = Math.max(1, Math.round(Math.abs(image.getScaledHeight?.() ?? sh)));
+  const outW = Math.max(1, Math.round(displayW * Math.max(0.1, multiplier)));
+  const outH = Math.max(1, Math.round(displayH * Math.max(0.1, multiplier)));
 
   const outCanvas = document.createElement("canvas");
   outCanvas.width = outW;
