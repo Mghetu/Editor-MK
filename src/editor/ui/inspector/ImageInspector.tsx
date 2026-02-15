@@ -5,6 +5,7 @@ import {
   cancelCrop,
   CROP_RATIO_PRESETS,
   closeCropSession,
+  type CropLiveInfo,
   resetCrop,
   setCropPreset,
   setCustomCropSizePx,
@@ -23,7 +24,7 @@ export function ImageInspector() {
   const [session, setSession] = useState<any>(null);
   const [customW, setCustomW] = useState(300);
   const [customH, setCustomH] = useState(300);
-  const [live, setLive] = useState<{ cropW: number; cropH: number; frameW: number; frameH: number } | null>(null);
+  const [live, setLive] = useState<CropLiveInfo | null>(null);
   const { updateDoc } = useEditorStore();
 
   const canvas = (window as any).__editorCanvas;

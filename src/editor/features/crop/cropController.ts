@@ -25,6 +25,8 @@ export type CropSession = {
   unbind: () => void;
 };
 
+export type CropLiveInfo = { cropW: number; cropH: number; frameW: number; frameH: number };
+
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
 const getSourceSize = (image: any) => {
@@ -49,7 +51,7 @@ const frameSizeFromPreset = (preset: CropPreset, imgW: number, imgH: number) => 
   return { w, h };
 };
 
-const updateLive = (session: CropSession, onChange?: (info: { cropW: number; cropH: number; frameW: number; frameH: number }) => void) => {
+const updateLive = (session: CropSession, onChange?: (info: CropLiveInfo) => void) => {
   if (!onChange) return;
   const b = getFrameBounds(session.overlay.frame);
   const sx = Math.abs(session.image.scaleX ?? 1);
@@ -57,7 +59,7 @@ const updateLive = (session: CropSession, onChange?: (info: { cropW: number; cro
   onChange({ cropW: b.width / sx, cropH: b.height / sy, frameW: b.width, frameH: b.height });
 };
 
-const updateFromFrame = (session: CropSession, onChange?: (info: { cropW: number; cropH: number; frameW: number; frameH: number }) => void) => {
+const updateFromFrame = (session: CropSession, onChange?: (info: CropLiveInfo) => void) => {
   clampImageToFrame(session.image, session.overlay.frame);
   session.overlay.refresh();
   updateLive(session, onChange);
@@ -66,7 +68,7 @@ const updateFromFrame = (session: CropSession, onChange?: (info: { cropW: number
 export const startCrop = (
   canvas: Canvas,
   image: any,
-  onChange?: (info: { cropW: number; cropH: number; frameW: number; frameH: number }) => void
+  onChange?: (info: CropLiveInfo) => void
 ): CropSession | null => {
   if (!canvas || !image) return null;
 
@@ -145,7 +147,7 @@ export const setCropPreset = (
   session: CropSession,
   canvas: Canvas,
   preset: CropPreset,
-  onChange?: (info: { cropW: number; cropH: number; frameW: number; frameH: number }) => void
+  onChange?: (info: CropLiveInfo) => void
 ) => {
   const imgW = session.image.getScaledWidth();
   const imgH = session.image.getScaledHeight();
@@ -163,7 +165,7 @@ export const setCustomCropSizePx = (
   canvas: Canvas,
   wPx: number,
   hPx: number,
-  onChange?: (info: { cropW: number; cropH: number; frameW: number; frameH: number }) => void
+  onChange?: (info: CropLiveInfo) => void
 ) => {
   const sx = Math.abs(session.image.scaleX ?? 1);
   const sy = Math.abs(session.image.scaleY ?? 1);
@@ -209,7 +211,7 @@ export const applyCrop = (session: CropSession, canvas: Canvas) => {
   canvas.requestRenderAll();
 };
 
-export const resetCrop = (session: CropSession, canvas: Canvas, onChange?: (info: { cropW: number; cropH: number; frameW: number; frameH: number }) => void) => {
+export const resetCrop = (session: CropSession, canvas: Canvas, onChange?: (info: CropLiveInfo) => void) => {
   const sx = Math.abs(session.image.scaleX ?? 1);
   const sy = Math.abs(session.image.scaleY ?? 1);
 
@@ -254,16 +256,14 @@ export const cancelCrop = (canvas: Canvas, session: CropSession) => {
 
 export const closeCropSession = (canvas: Canvas, session: CropSession) => {
   session.unbind();
-  canvas.remove(session.frame);
-  canvas.remove(session.previewImage);
+  session.overlay.destroy();
   session.image.set({
+    selectable: session.snapshot.selectable,
     lockMovementX: session.snapshot.lockMovementX,
     lockMovementY: session.snapshot.lockMovementY,
     lockScalingX: session.snapshot.lockScalingX,
     lockScalingY: session.snapshot.lockScalingY,
-    lockRotation: session.snapshot.lockRotation,
-    selectable: session.snapshot.selectable,
-    visible: true
+    lockRotation: session.snapshot.lockRotation
   });
   canvas.setActiveObject(session.image);
   canvas.requestRenderAll();
