@@ -394,9 +394,16 @@ export const startCrop = (canvas: Canvas, image: any, onChange?: (info: CropLive
       centerLocal = { x: 0, y: (a.y + constrained.y) / 2 };
     }
 
+    const prevCenter = { x: frame.left ?? 0, y: frame.top ?? 0 };
     const centerCanvas = frameCenterFromLocal(frame, centerLocal);
     frame.set({ left: centerCanvas.x, top: centerCanvas.y, width: w, height: h, scaleX: 1, scaleY: 1 });
     frame.setCoords();
+
+    const centerDeltaCanvas = { x: centerCanvas.x - prevCenter.x, y: centerCanvas.y - prevCenter.y };
+    const centerDeltaLocal = rotate(centerDeltaCanvas, -(frame.angle ?? 0));
+    session.imgCx -= centerDeltaLocal.x;
+    session.imgCy -= centerDeltaLocal.y;
+
     syncPreviewVisual(session);
     canvas.bringObjectToFront(frame);
     emitLive(session, canvas);
