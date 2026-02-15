@@ -1,42 +1,36 @@
-import type { Canvas } from "fabric";
-import { loadCanvasJson, saveCanvasJson } from "../serialize";
+import { Canvas, FabricImage } from "fabric";
+import { applyGlobalHandleStyle, applyObjectHandleStyle } from "./handleStyle";
+import { ensureRectRadiusMetadata, ensureShapeStrokeUniform, normalizeRectAfterTransform } from "../features/shapes/shapeGeometry";
 
-export class HistoryManager {
-  private undoStack: unknown[] = [];
-  private redoStack: unknown[] = [];
-  private timer?: number;
+FabricImage.customProperties = Array.from(new Set([...(FabricImage.customProperties ?? []), "cropN"]));
 
-  constructor(private canvas: Canvas) {}
+export const createCanvas = (el: HTMLCanvasElement, width: number, height: number, background: string) => {
+  applyGlobalHandleStyle();
 
-  bind() {
-    const track = () => this.captureDebounced();
-    this.canvas.on("object:added", track);
-    this.canvas.on("object:removed", track);
-    this.canvas.on("object:modified", track);
-    this.canvas.on("text:editing:exited", track);
-  }
+  const canvas = new Canvas(el, {
+    preserveObjectStacking: true,
+    controlsAboveOverlay: true,
+    selection: true,
+    backgroundColor: background,
+    width,
+    height
+  });
 
-  captureDebounced(wait = 300) {
-    clearTimeout(this.timer);
-    this.timer = window.setTimeout(() => this.capture(), wait);
-  }
+  canvas.on("object:added", ({ target }) => {
+    if (!target) return;
+    applyObjectHandleStyle(target as any);
+    ensureShapeStrokeUniform(target as any);
+    ensureRectRadiusMetadata(target as any);
+    target.setCoords();
+    canvas.requestRenderAll();
+  });
 
-  capture() {
-    this.undoStack.push(saveCanvasJson(this.canvas));
-    this.redoStack = [];
-  }
+  canvas.on("object:modified", ({ target }) => {
+    if (!target) return;
+    normalizeRectAfterTransform(target as any);
+    target.setCoords();
+    canvas.requestRenderAll();
+  });
 
-  async undo() {
-    if (this.undoStack.length < 2) return;
-    const current = this.undoStack.pop();
-    this.redoStack.push(current);
-    await loadCanvasJson(this.canvas, this.undoStack[this.undoStack.length - 1]);
-  }
-
-  async redo() {
-    const next = this.redoStack.pop();
-    if (!next) return;
-    this.undoStack.push(next);
-    await loadCanvasJson(this.canvas, next);
-  }
-}
+  return canvas;
+};
