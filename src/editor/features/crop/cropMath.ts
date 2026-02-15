@@ -6,12 +6,24 @@ export const presets = {
 
 export type FrameBounds = { left: number; top: number; width: number; height: number };
 
-export const getFrameBounds = (frame: any): FrameBounds => ({
-  left: frame.left ?? 0,
-  top: frame.top ?? 0,
-  width: Math.max(1, (frame.width ?? 1) * (frame.scaleX ?? 1)),
-  height: Math.max(1, (frame.height ?? 1) * (frame.scaleY ?? 1))
-});
+export const getFrameBounds = (frame: any): FrameBounds => {
+  if (typeof frame?.getBoundingRect === "function") {
+    const b = frame.getBoundingRect(true, true);
+    return {
+      left: b.left ?? 0,
+      top: b.top ?? 0,
+      width: Math.max(1, b.width ?? 1),
+      height: Math.max(1, b.height ?? 1)
+    };
+  }
+
+  return {
+    left: frame.left ?? 0,
+    top: frame.top ?? 0,
+    width: Math.max(1, (frame.width ?? 1) * (frame.scaleX ?? 1)),
+    height: Math.max(1, (frame.height ?? 1) * (frame.scaleY ?? 1))
+  };
+};
 
 export const clampImageToFrame = (image: any, frame: any) => {
   const { left, top, width, height } = getFrameBounds(frame);
