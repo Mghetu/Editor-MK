@@ -4,6 +4,14 @@ import { createCropOverlay, type CropOverlay } from "./cropOverlay";
 
 export type CropPreset = "1:1" | "9:16" | "16:9" | "300x300" | "600x250";
 
+export const CROP_RATIO_PRESETS: Array<{ key: CropPreset; label: string }> = [
+  { key: "1:1", label: "1:1" },
+  { key: "9:16", label: "9:16" },
+  { key: "16:9", label: "16:9" },
+  { key: "300x300", label: "300×300px" },
+  { key: "600x250", label: "600×250px" }
+];
+
 export type CropSession = {
   overlay: CropOverlay;
   image: any;

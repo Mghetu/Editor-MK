@@ -5,20 +5,13 @@ import {
   cancelCrop,
   CROP_RATIO_PRESETS,
   closeCropSession,
+  CROP_RATIO_PRESETS,
   type CropLiveInfo,
   resetCrop,
   setCropPreset,
   setCustomCropSizePx,
   startCrop
 } from "../../features/crop/cropController";
-
-const PRESETS: Array<{ key: "1:1" | "9:16" | "16:9" | "300x300" | "600x250"; label: string }> = [
-  { key: "1:1", label: "1:1" },
-  { key: "9:16", label: "9:16" },
-  { key: "16:9", label: "16:9" },
-  { key: "300x300", label: "300×300px" },
-  { key: "600x250", label: "600×250px" }
-];
 
 export function ImageInspector() {
   const [session, setSession] = useState<any>(null);
@@ -86,7 +79,7 @@ export function ImageInspector() {
       {session && (
         <div className="mt-3 space-y-2">
           <div className="flex flex-wrap gap-2">
-            {PRESETS.map((preset) => (
+            {CROP_RATIO_PRESETS.map((preset) => (
               <button key={preset.key} className="rounded border px-2 py-1" onClick={() => setCropPreset(session, canvas, preset.key, setLive)}>
                 {preset.label}
               </button>
