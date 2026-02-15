@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useEditorStore } from "../../state/useEditorStore";
 import {
   applyCrop,
