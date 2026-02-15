@@ -9,7 +9,7 @@ export const HANDLE_STYLE = {
   borderColor: "#3b82f6",
   borderScaleFactor: 1.5,
   borderOpacityWhenMoving: 1,
-  padding: 2
+  padding: 0
 } as const;
 
 export const applyGlobalHandleStyle = () => {
