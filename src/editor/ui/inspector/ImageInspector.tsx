@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useEditorStore } from "../../state/useEditorStore";
 import {
   applyCrop,
   cancelCrop,
+  CROP_RATIO_PRESETS,
   closeCropSession,
   CROP_RATIO_PRESETS,
   type CropLiveInfo,
@@ -20,7 +21,14 @@ export function ImageInspector() {
   const { updateDoc } = useEditorStore();
 
   const canvas = (window as any).__editorCanvas;
-  const image = canvas?.getActiveObject() as any;
+  const active = canvas?.getActiveObject() as any;
+  const selectedImage = active?.data?.type === "image" ? active : cropImage;
+
+  const clearCropUi = () => {
+    setSession(null);
+    setCropImage(null);
+    setLive(null);
+  };
 
   const onStartCrop = () => {
     const next = startCrop(canvas, image, setLive);
