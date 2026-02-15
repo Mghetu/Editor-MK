@@ -126,8 +126,10 @@ export const startCrop = (
     unbind: () => undefined
   };
 
-  canvas.on("object:moving", movingHandler);
-  canvas.on("object:scaling", scalingHandler);
+  canvas.on("mouse:down", onMouseDown);
+  canvas.on("mouse:move", onMouseMove);
+  canvas.on("mouse:up", onMouseUp);
+  window.addEventListener("keydown", onKeyDown);
 
   session.unbind = () => {
     canvas.off("object:moving", movingHandler);
@@ -252,7 +254,17 @@ export const cancelCrop = (canvas: Canvas, session: CropSession) => {
 
 export const closeCropSession = (canvas: Canvas, session: CropSession) => {
   session.unbind();
-  session.overlay.destroy();
+  canvas.remove(session.frame);
+  canvas.remove(session.previewImage);
+  session.image.set({
+    lockMovementX: session.snapshot.lockMovementX,
+    lockMovementY: session.snapshot.lockMovementY,
+    lockScalingX: session.snapshot.lockScalingX,
+    lockScalingY: session.snapshot.lockScalingY,
+    lockRotation: session.snapshot.lockRotation,
+    selectable: session.snapshot.selectable,
+    visible: true
+  });
   canvas.setActiveObject(session.image);
   canvas.requestRenderAll();
 };
