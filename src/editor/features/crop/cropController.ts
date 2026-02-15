@@ -1,7 +1,6 @@
 import { FabricImage, Rect, type Canvas, type Point } from "fabric";
 
 export type NormalizedCrop = { x: number; y: number; w: number; h: number };
-
 export type CropRatioPreset = { id: string; label: string; ratio: number | null };
 
 export const CROP_RATIO_PRESETS: CropRatioPreset[] = [
@@ -34,20 +33,16 @@ type Snapshot = {
   selectable?: boolean;
 };
 
+type ResizeCorner = "tl" | "tr" | "bl" | "br" | "ml" | "mr" | "mt" | "mb";
 type DragState =
   | { kind: "pan"; lastCanvasPoint: { x: number; y: number } }
-  | { kind: "resize"; corner: string; anchorLocal: { x: number; y: number } };
+  | { kind: "resize"; corner: ResizeCorner; anchorLocal: { x: number; y: number }; startW: number; startH: number };
 
-export type CropLiveInfo = {
-  cropW: number;
-  cropH: number;
-  frameW: number;
-  frameH: number;
-};
+export type CropLiveInfo = { cropW: number; cropH: number; frameW: number; frameH: number };
 
 export type CropSession = {
   image: any;
-  previewImage: any;
+  previewImage: FabricImage;
   frame: Rect;
   snapshot: Snapshot;
   source: { width: number; height: number };
@@ -86,32 +81,27 @@ const getSourceSize = (image: any) => {
 };
 
 const toFrameLocal = (frame: Rect, canvasPoint: { x: number; y: number }) => {
-  const cx = frame.left ?? 0;
-  const cy = frame.top ?? 0;
-  const relative = { x: canvasPoint.x - cx, y: canvasPoint.y - cy };
+  const relative = { x: canvasPoint.x - (frame.left ?? 0), y: canvasPoint.y - (frame.top ?? 0) };
   return rotate(relative, -(frame.angle ?? 0));
-};
-
-const cornerLocal = (frame: Rect, corner: string) => {
-  const { w, h } = frameSize(frame);
-  const halfW = w / 2;
-  const halfH = h / 2;
-  if (corner === "tl") return { x: -halfW, y: -halfH };
-  if (corner === "tr") return { x: halfW, y: -halfH };
-  if (corner === "bl") return { x: -halfW, y: halfH };
-  return { x: halfW, y: halfH };
-};
-
-const oppositeCorner = (corner: string) => {
-  if (corner === "tl") return "br";
-  if (corner === "tr") return "bl";
-  if (corner === "bl") return "tr";
-  return "tl";
 };
 
 const frameCenterFromLocal = (frame: Rect, local: { x: number; y: number }) => {
   const deltaCanvas = rotate(local, frame.angle ?? 0);
   return { x: (frame.left ?? 0) + deltaCanvas.x, y: (frame.top ?? 0) + deltaCanvas.y };
+};
+
+const handleAndAnchor = (frame: Rect, corner: ResizeCorner) => {
+  const { w, h } = frameSize(frame);
+  const halfW = w / 2;
+  const halfH = h / 2;
+  if (corner === "tl") return { handle: { x: -halfW, y: -halfH }, anchor: { x: halfW, y: halfH } };
+  if (corner === "tr") return { handle: { x: halfW, y: -halfH }, anchor: { x: -halfW, y: halfH } };
+  if (corner === "bl") return { handle: { x: -halfW, y: halfH }, anchor: { x: halfW, y: -halfH } };
+  if (corner === "br") return { handle: { x: halfW, y: halfH }, anchor: { x: -halfW, y: -halfH } };
+  if (corner === "ml") return { handle: { x: -halfW, y: 0 }, anchor: { x: halfW, y: 0 } };
+  if (corner === "mr") return { handle: { x: halfW, y: 0 }, anchor: { x: -halfW, y: 0 } };
+  if (corner === "mt") return { handle: { x: 0, y: -halfH }, anchor: { x: 0, y: halfH } };
+  return { handle: { x: 0, y: halfH }, anchor: { x: 0, y: -halfH } };
 };
 
 const clampOffsets = (session: CropSession) => {
@@ -124,7 +114,7 @@ const clampOffsets = (session: CropSession) => {
   session.imgCy = clamp(session.imgCy, -maxOffsetY, maxOffsetY);
 };
 
-const syncImageVisual = (session: CropSession) => {
+const syncPreviewVisual = (session: CropSession) => {
   clampOffsets(session);
   const delta = rotate({ x: session.imgCx, y: session.imgCy }, session.frame.angle ?? 0);
   session.previewImage.set({
@@ -135,7 +125,7 @@ const syncImageVisual = (session: CropSession) => {
   session.previewImage.setCoords();
 };
 
-const syncPreviewCrop = (session: CropSession) => {
+const syncPreviewCropFromImage = (session: CropSession) => {
   session.previewImage.set({
     cropX: session.image.cropX,
     cropY: session.image.cropY,
@@ -154,12 +144,7 @@ const computeLiveInfo = (session: CropSession): CropLiveInfo => {
   const sX = Math.abs(session.image.scaleX ?? 1);
   const sY = Math.abs(session.image.scaleY ?? 1);
   const { w: frameW, h: frameH } = frameSize(session.frame);
-  return {
-    cropW: frameW / sX,
-    cropH: frameH / sY,
-    frameW,
-    frameH
-  };
+  return { cropW: frameW / sX, cropH: frameH / sY, frameW, frameH };
 };
 
 const emitLive = (session: CropSession, canvas: Canvas) => {
@@ -177,22 +162,25 @@ const clampFrameToImage = (session: CropSession, nextW: number, nextH: number) =
     w *= fit;
     h *= fit;
   }
-  w = Math.min(w, A);
-  h = Math.min(h, B);
-  return { w, h };
+  return { w: Math.min(w, A), h: Math.min(h, B) };
 };
 
 const bindOverlay = (canvas: Canvas, frame: Rect) => {
   const drawOverlay = () => {
-    const ctx = canvas.getContext();
+    const ctx = (canvas as any).contextContainer as CanvasRenderingContext2D | undefined;
     if (!ctx) return;
-    const zoom = canvas.getZoom();
     const vt = canvas.viewportTransform;
-    ctx.save();
-    if (vt) ctx.transform(vt[0], vt[1], vt[2], vt[3], vt[4], vt[5]);
+    if (!vt) return;
+    const zoom = canvas.getZoom();
 
-    const width = canvas.getWidth() / zoom;
-    const height = canvas.getHeight() / zoom;
+    ctx.save();
+    ctx.transform(vt[0], vt[1], vt[2], vt[3], vt[4], vt[5]);
+
+    const sceneW = canvas.getWidth() / zoom;
+    const sceneH = canvas.getHeight() / zoom;
+    const left = -vt[4] / vt[0];
+    const top = -vt[5] / vt[3];
+
     const { w, h } = frameSize(frame);
     const cx = frame.left ?? 0;
     const cy = frame.top ?? 0;
@@ -207,20 +195,25 @@ const bindOverlay = (canvas: Canvas, frame: Rect) => {
     ].map((p) => ({ x: p.x + cx, y: p.y + cy }));
 
     ctx.beginPath();
-    ctx.rect(-vt![4] / vt![0], -vt![5] / vt![3], width, height);
+    ctx.rect(left, top, sceneW, sceneH);
     ctx.moveTo(corners[0].x, corners[0].y);
-    corners.slice(1).forEach((p) => ctx.lineTo(p.x, p.y));
+    corners.slice(1).forEach((c) => ctx.lineTo(c.x, c.y));
     ctx.closePath();
     ctx.fillStyle = "rgba(15,23,42,0.45)";
     ctx.fill("evenodd");
     ctx.restore();
   };
+
   canvas.on("after:render", drawOverlay);
   return () => canvas.off("after:render", drawOverlay);
 };
 
+const isResizeHandle = (corner?: string): corner is ResizeCorner =>
+  !!corner && ["tl", "tr", "bl", "br", "ml", "mr", "mt", "mb"].includes(corner);
+
 export const startCrop = (canvas: Canvas, image: any, onChange?: (info: CropLiveInfo) => void): CropSession | null => {
   if (!canvas || !image) return null;
+
   const snapshot: Snapshot = {
     left: image.left ?? 0,
     top: image.top ?? 0,
@@ -253,14 +246,12 @@ export const startCrop = (canvas: Canvas, image: any, onChange?: (info: CropLive
     fill: "rgba(0,0,0,0)",
     stroke: "#0ea5e9",
     strokeWidth: 2,
-    hasRotatingPoint: false,
     lockRotation: true,
     lockMovementX: true,
     lockMovementY: true,
-    lockScalingX: true,
-    lockScalingY: true,
     transparentCorners: false,
     cornerColor: "#0ea5e9",
+    hasRotatingPoint: false,
     excludeFromExport: true
   });
   frame.set("data", { id: image.data?.id ?? crypto.randomUUID(), type: "crop-frame", name: "Crop Frame" });
@@ -321,17 +312,21 @@ export const startCrop = (canvas: Canvas, image: any, onChange?: (info: CropLive
     unbind: () => undefined
   };
 
+  syncPreviewCropFromImage(session);
+  syncPreviewVisual(session);
   const unbindOverlay = bindOverlay(canvas, frame);
-  syncPreviewCrop(session);
-  syncImageVisual(session);
 
   const onMouseDown = (opt: any) => {
     const pointer = canvas.getScenePoint(opt.e) as Point;
     const corner = (frame as any).__corner as string | undefined;
-    if (opt.target === frame && corner && ["tl", "tr", "bl", "br"].includes(corner)) {
-      session.drag = { kind: "resize", corner, anchorLocal: cornerLocal(frame, oppositeCorner(corner)) };
+
+    if (opt.target === frame && isResizeHandle(corner)) {
+      const { anchor } = handleAndAnchor(frame, corner);
+      const size = frameSize(frame);
+      session.drag = { kind: "resize", corner, anchorLocal: anchor, startW: size.w, startH: size.h };
       return;
     }
+
     if (opt.target === previewImage || (opt.target === frame && !corner)) {
       session.drag = { kind: "pan", lastCanvasPoint: { x: pointer.x, y: pointer.y } };
     }
@@ -340,49 +335,69 @@ export const startCrop = (canvas: Canvas, image: any, onChange?: (info: CropLive
   const onMouseMove = (opt: any) => {
     if (!session.drag) return;
     const pointer = canvas.getScenePoint(opt.e) as Point;
+
     if (session.drag.kind === "pan") {
       const dx = pointer.x - session.drag.lastCanvasPoint.x;
       const dy = pointer.y - session.drag.lastCanvasPoint.y;
-      const local = rotate({ x: dx, y: dy }, -(frame.angle ?? 0));
-      session.imgCx += local.x;
-      session.imgCy += local.y;
+      const dLocal = rotate({ x: dx, y: dy }, -(frame.angle ?? 0));
+      session.imgCx += dLocal.x;
+      session.imgCy += dLocal.y;
       session.drag.lastCanvasPoint = { x: pointer.x, y: pointer.y };
-      syncImageVisual(session);
+      syncPreviewVisual(session);
       emitLive(session, canvas);
       return;
     }
 
-    const anchor = session.drag.anchorLocal;
     const p = toFrameLocal(frame, { x: pointer.x, y: pointer.y });
-    let dx = p.x - anchor.x;
-    let dy = p.y - anchor.y;
-    let w = Math.max(20, Math.abs(dx));
-    let h = Math.max(20, Math.abs(dy));
+    const { corner, anchorLocal: a, startW, startH } = session.drag;
 
-    if (session.ratio) {
+    let w = startW;
+    let h = startH;
+    let centerLocal = { x: 0, y: 0 };
+
+    if (["tl", "tr", "bl", "br"].includes(corner)) {
+      let dx = p.x - a.x;
+      let dy = p.y - a.y;
+      w = Math.max(20, Math.abs(dx));
+      h = Math.max(20, Math.abs(dy));
+
+      if (session.ratio) {
+        const sx = dx === 0 ? 1 : Math.sign(dx);
+        const sy = dy === 0 ? 1 : Math.sign(dy);
+        if (Math.abs(dx) >= Math.abs(dy)) {
+          h = w / session.ratio;
+          dy = sy * h;
+        } else {
+          w = h * session.ratio;
+          dx = sx * w;
+        }
+      }
+
+      ({ w, h } = clampFrameToImage(session, w, h));
       const sx = dx === 0 ? 1 : Math.sign(dx);
       const sy = dy === 0 ? 1 : Math.sign(dy);
-      if (Math.abs(dx) >= Math.abs(dy)) {
-        h = w / session.ratio;
-        dy = sy * h;
-      } else {
-        w = h * session.ratio;
-        dx = sx * w;
-      }
+      const constrained = { x: a.x + sx * w, y: a.y + sy * h };
+      centerLocal = { x: (a.x + constrained.x) / 2, y: (a.y + constrained.y) / 2 };
+    } else if (corner === "ml" || corner === "mr") {
+      w = Math.max(20, Math.abs(p.x - a.x));
+      if (session.ratio) h = w / session.ratio;
+      ({ w, h } = clampFrameToImage(session, w, h));
+      const sign = corner === "mr" ? 1 : -1;
+      const constrained = { x: a.x + sign * w, y: 0 };
+      centerLocal = { x: (a.x + constrained.x) / 2, y: 0 };
+    } else {
+      h = Math.max(20, Math.abs(p.y - a.y));
+      if (session.ratio) w = h * session.ratio;
+      ({ w, h } = clampFrameToImage(session, w, h));
+      const sign = corner === "mb" ? 1 : -1;
+      const constrained = { x: 0, y: a.y + sign * h };
+      centerLocal = { x: 0, y: (a.y + constrained.y) / 2 };
     }
 
-    const clamped = clampFrameToImage(session, w, h);
-    w = clamped.w;
-    h = clamped.h;
-    const sx = dx === 0 ? 1 : Math.sign(dx);
-    const sy = dy === 0 ? 1 : Math.sign(dy);
-    const constrainedP = { x: anchor.x + sx * w, y: anchor.y + sy * h };
-    const centerLocal = { x: (anchor.x + constrainedP.x) / 2, y: (anchor.y + constrainedP.y) / 2 };
     const centerCanvas = frameCenterFromLocal(frame, centerLocal);
-
     frame.set({ left: centerCanvas.x, top: centerCanvas.y, width: w, height: h, scaleX: 1, scaleY: 1 });
     frame.setCoords();
-    syncImageVisual(session);
+    syncPreviewVisual(session);
     canvas.bringObjectToFront(frame);
     emitLive(session, canvas);
   };
@@ -391,14 +406,23 @@ export const startCrop = (canvas: Canvas, image: any, onChange?: (info: CropLive
     session.drag = undefined;
   };
 
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Escape") {
+      cancelCrop(canvas, session);
+      closeCropSession(canvas, session);
+    }
+  };
+
   canvas.on("mouse:down", onMouseDown);
   canvas.on("mouse:move", onMouseMove);
   canvas.on("mouse:up", onMouseUp);
+  window.addEventListener("keydown", onKeyDown);
 
   session.unbind = () => {
     canvas.off("mouse:down", onMouseDown);
     canvas.off("mouse:move", onMouseMove);
     canvas.off("mouse:up", onMouseUp);
+    window.removeEventListener("keydown", onKeyDown);
     unbindOverlay();
   };
 
@@ -412,6 +436,7 @@ export const setCropRatio = (session: CropSession, ratio: number | null, canvas:
     emitLive(session, canvas);
     return;
   }
+
   const A = session.image.getScaledWidth();
   const B = session.image.getScaledHeight();
   let w = A;
@@ -420,9 +445,10 @@ export const setCropRatio = (session: CropSession, ratio: number | null, canvas:
     h = B;
     w = h * ratio;
   }
+
   session.frame.set({ width: w, height: h, scaleX: 1, scaleY: 1 });
   session.frame.setCoords();
-  syncImageVisual(session);
+  syncPreviewVisual(session);
   emitLive(session, canvas);
 };
 
@@ -436,14 +462,13 @@ export const setCropSizeFromSourcePixels = (session: CropSession, canvas: Canvas
   let h = srcH * sY;
 
   if (session.ratio) {
-    const targetH = w / session.ratio;
-    h = targetH;
+    h = w / session.ratio;
   }
 
-  const clamped = clampFrameToImage(session, w, h);
-  session.frame.set({ width: clamped.w, height: clamped.h, scaleX: 1, scaleY: 1 });
+  ({ w, h } = clampFrameToImage(session, w, h));
+  session.frame.set({ width: w, height: h, scaleX: 1, scaleY: 1 });
   session.frame.setCoords();
-  syncImageVisual(session);
+  syncPreviewVisual(session);
   emitLive(session, canvas);
 };
 
@@ -510,10 +535,18 @@ export const resetCrop = (session: CropSession, canvas: Canvas) => {
   session.baseCrop = { x: 0, y: 0, w: session.source.width, h: session.source.height };
   session.imgCx = 0;
   session.imgCy = 0;
-  session.frame.set({ left: s.left, top: s.top, angle: s.angle, width: session.image.getScaledWidth(), height: session.image.getScaledHeight(), scaleX: 1, scaleY: 1 });
+  session.frame.set({
+    left: s.left,
+    top: s.top,
+    angle: s.angle,
+    width: session.image.getScaledWidth(),
+    height: session.image.getScaledHeight(),
+    scaleX: 1,
+    scaleY: 1
+  });
   session.frame.setCoords();
-  syncPreviewCrop(session);
-  syncImageVisual(session);
+  syncPreviewCropFromImage(session);
+  syncPreviewVisual(session);
   emitLive(session, canvas);
 };
 
@@ -561,7 +594,6 @@ export const closeCropSession = (canvas: Canvas, session: CropSession) => {
   canvas.requestRenderAll();
 };
 
-
 export type CropPresetValue = number | "free";
 
 export const createCropModeController = (canvas: Canvas, onChange?: (info: CropLiveInfo) => void) => {
@@ -569,9 +601,7 @@ export const createCropModeController = (canvas: Canvas, onChange?: (info: CropL
 
   return {
     enterCropMode(image: any) {
-      if (session) {
-        closeCropSession(canvas, session);
-      }
+      if (session) closeCropSession(canvas, session);
       session = startCrop(canvas, image, onChange);
       return session;
     },

@@ -25,16 +25,14 @@ export function ImageInspector() {
   const active = canvas?.getActiveObject() as any;
   const selectedImage = active?.data?.type === "image" ? active : cropImage;
 
-  useEffect(() => {
-    return () => {
-      if (!canvas || !session) return;
-      cancelCrop(canvas, session);
-      closeCropSession(canvas, session);
-    };
-  }, [canvas, session]);
+  const clearCropUi = () => {
+    setSession(null);
+    setCropImage(null);
+    setLive(null);
+  };
 
   const onStartCrop = () => {
-    if (!canvas || !selectedImage || selectedImage.data?.type !== "image") return;
+    if (!canvas || !selectedImage || selectedImage.data?.type !== "image" || session) return;
     const next = startCrop(canvas, selectedImage, setLive);
     if (!next) return;
     setSession(next);
@@ -47,20 +45,16 @@ export function ImageInspector() {
   const onApply = () => {
     if (!session) return;
     applyCrop(session, canvas);
-    updateDoc((d) => ({ ...d }));
     closeCropSession(canvas, session);
-    setSession(null);
-    setCropImage(null);
-    setLive(null);
+    updateDoc((d) => ({ ...d }));
+    clearCropUi();
   };
 
   const onCancel = () => {
     if (!session) return;
     cancelCrop(canvas, session);
     closeCropSession(canvas, session);
-    setSession(null);
-    setCropImage(null);
-    setLive(null);
+    clearCropUi();
   };
 
   const onReset = () => {
@@ -81,15 +75,15 @@ export function ImageInspector() {
         className="mb-3 w-full"
         onChange={(e) => {
           selectedImage?.set("opacity", Number(e.target.value));
-          if (session?.previewImage) {
-            session.previewImage.set("opacity", Number(e.target.value));
-          }
+          if (session?.previewImage) session.previewImage.set("opacity", Number(e.target.value));
           canvas?.renderAll();
         }}
       />
+
       <button className="rounded border px-3 py-1" onClick={onStartCrop} disabled={!selectedImage || !!session}>
         Crop
       </button>
+
       {session && (
         <div className="mt-3 space-y-2">
           <div className="flex flex-wrap gap-2">
