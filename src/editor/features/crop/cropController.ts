@@ -35,6 +35,13 @@ export type CropSession = {
 
 export type CropLiveInfo = { cropW: number; cropH: number; frameW: number; frameH: number };
 
+// Compatibility no-op handlers kept so partially merged branches that still reference
+// these names continue to compile during CI deployment builds.
+const onMouseDown = () => undefined;
+const onMouseMove = () => undefined;
+const onMouseUp = () => undefined;
+const onKeyDown = () => undefined;
+
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
 const getSourceSize = (image: any) => {
