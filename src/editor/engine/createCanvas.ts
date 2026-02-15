@@ -5,6 +5,9 @@ import { ensureRectRadiusMetadata, ensureShapeStrokeUniform, normalizeRectAfterT
 const customImageProps = new Set([...(FabricImage.customProperties ?? []), "cropN"]);
 FabricImage.customProperties = Array.from(customImageProps);
 
+const customImageProps = new Set([...(FabricImage.customProperties ?? []), "cropN"]);
+FabricImage.customProperties = Array.from(customImageProps);
+
 export const createCanvas = (el: HTMLCanvasElement, width: number, height: number, background: string) => {
   applyGlobalHandleStyle();
 

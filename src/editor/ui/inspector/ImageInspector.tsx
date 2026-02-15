@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useEditorStore } from "../../state/useEditorStore";
 import { exportSelectedImage } from "../../engine/export/exportImage";
 import {
   applyCrop,
   cancelCrop,
+  CROP_RATIO_PRESETS,
   closeCropSession,
   type CropLiveInfo,
   resetCrop,
