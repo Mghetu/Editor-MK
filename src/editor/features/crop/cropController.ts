@@ -1,4 +1,4 @@
-import { Rect, type Canvas, type Point } from "fabric";
+import { FabricImage, Rect, type Canvas, type Point } from "fabric";
 
 export type NormalizedCrop = { x: number; y: number; w: number; h: number };
 
@@ -47,6 +47,7 @@ export type CropLiveInfo = {
 
 export type CropSession = {
   image: any;
+  previewImage: any;
   frame: Rect;
   snapshot: Snapshot;
   source: { width: number; height: number };
@@ -126,12 +127,27 @@ const clampOffsets = (session: CropSession) => {
 const syncImageVisual = (session: CropSession) => {
   clampOffsets(session);
   const delta = rotate({ x: session.imgCx, y: session.imgCy }, session.frame.angle ?? 0);
-  session.image.set({
+  session.previewImage.set({
     left: (session.frame.left ?? 0) + delta.x,
     top: (session.frame.top ?? 0) + delta.y,
     angle: session.frame.angle ?? 0
   });
-  session.image.setCoords();
+  session.previewImage.setCoords();
+};
+
+const syncPreviewCrop = (session: CropSession) => {
+  session.previewImage.set({
+    cropX: session.image.cropX,
+    cropY: session.image.cropY,
+    width: session.image.width,
+    height: session.image.height,
+    scaleX: session.image.scaleX,
+    scaleY: session.image.scaleY,
+    flipX: session.image.flipX,
+    flipY: session.image.flipY,
+    opacity: session.image.opacity
+  });
+  session.previewImage.setCoords();
 };
 
 const computeLiveInfo = (session: CropSession): CropLiveInfo => {
@@ -240,7 +256,28 @@ export const startCrop = (canvas: Canvas, image: any, onChange?: (info: CropLive
     hasRotatingPoint: false,
     lockRotation: true,
     transparentCorners: false,
-    cornerColor: "#0ea5e9"
+    cornerColor: "#0ea5e9",
+    excludeFromExport: true
+  });
+
+  const previewImage = new FabricImage(image.getElement(), {
+    originX: image.originX,
+    originY: image.originY,
+    left: image.left,
+    top: image.top,
+    scaleX: image.scaleX,
+    scaleY: image.scaleY,
+    angle: image.angle,
+    width: image.width,
+    height: image.height,
+    cropX: image.cropX,
+    cropY: image.cropY,
+    flipX: image.flipX,
+    flipY: image.flipY,
+    opacity: image.opacity,
+    selectable: false,
+    evented: false,
+    excludeFromExport: true
   });
 
   image.set({
@@ -250,9 +287,11 @@ export const startCrop = (canvas: Canvas, image: any, onChange?: (info: CropLive
     lockScalingY: true,
     lockRotation: true,
     selectable: false,
+    visible: false,
     evented: true
   });
 
+  canvas.add(previewImage);
   canvas.add(frame);
   canvas.bringObjectToFront(frame);
   canvas.setActiveObject(frame);
@@ -260,6 +299,7 @@ export const startCrop = (canvas: Canvas, image: any, onChange?: (info: CropLive
   const source = getSourceSize(image);
   const session: CropSession = {
     image,
+    previewImage,
     frame,
     snapshot,
     source,
@@ -277,6 +317,8 @@ export const startCrop = (canvas: Canvas, image: any, onChange?: (info: CropLive
   };
 
   const unbindOverlay = bindOverlay(canvas, frame);
+  syncPreviewCrop(session);
+  syncImageVisual(session);
 
   const onMouseDown = (opt: any) => {
     const pointer = canvas.getScenePoint(opt.e) as Point;
@@ -285,7 +327,7 @@ export const startCrop = (canvas: Canvas, image: any, onChange?: (info: CropLive
       session.drag = { kind: "resize", corner, anchorLocal: cornerLocal(frame, oppositeCorner(corner)) };
       return;
     }
-    if (opt.target === frame || opt.target === image) {
+    if (opt.target === frame || opt.target === previewImage) {
       session.drag = { kind: "pan", lastCanvasPoint: { x: pointer.x, y: pointer.y } };
     }
   };
@@ -439,7 +481,8 @@ export const applyCrop = (session: CropSession, canvas: Canvas) => {
     cropN,
     left: session.frame.left,
     top: session.frame.top,
-    angle: session.frame.angle
+    angle: session.frame.angle,
+    visible: true
   });
   session.image.setCoords();
   canvas.requestRenderAll();
@@ -464,6 +507,7 @@ export const resetCrop = (session: CropSession, canvas: Canvas) => {
   session.imgCy = 0;
   session.frame.set({ left: s.left, top: s.top, angle: s.angle, width: session.image.getScaledWidth(), height: session.image.getScaledHeight(), scaleX: 1, scaleY: 1 });
   session.frame.setCoords();
+  syncPreviewCrop(session);
   syncImageVisual(session);
   emitLive(session, canvas);
 };
@@ -488,7 +532,8 @@ export const cancelCrop = (canvas: Canvas, session: CropSession) => {
     lockScalingX: s.lockScalingX,
     lockScalingY: s.lockScalingY,
     lockRotation: s.lockRotation,
-    selectable: s.selectable
+    selectable: s.selectable,
+    visible: true
   });
   session.image.setCoords();
   canvas.requestRenderAll();
@@ -497,6 +542,7 @@ export const cancelCrop = (canvas: Canvas, session: CropSession) => {
 export const closeCropSession = (canvas: Canvas, session: CropSession) => {
   session.unbind();
   canvas.remove(session.frame);
+  canvas.remove(session.previewImage);
   session.image.set({
     lockMovementX: session.snapshot.lockMovementX,
     lockMovementY: session.snapshot.lockMovementY,
@@ -507,4 +553,48 @@ export const closeCropSession = (canvas: Canvas, session: CropSession) => {
   });
   canvas.setActiveObject(session.image);
   canvas.requestRenderAll();
+};
+
+
+export type CropPresetValue = number | "free";
+
+export const createCropModeController = (canvas: Canvas, onChange?: (info: CropLiveInfo) => void) => {
+  let session: CropSession | null = null;
+
+  return {
+    enterCropMode(image: any) {
+      if (session) {
+        closeCropSession(canvas, session);
+      }
+      session = startCrop(canvas, image, onChange);
+      return session;
+    },
+    applyCrop() {
+      if (!session) return;
+      applyCrop(session, canvas);
+      closeCropSession(canvas, session);
+      session = null;
+    },
+    cancelCrop() {
+      if (!session) return;
+      cancelCrop(canvas, session);
+      closeCropSession(canvas, session);
+      session = null;
+    },
+    resetCrop() {
+      if (!session) return;
+      resetCrop(session, canvas);
+    },
+    setPreset(ratio: CropPresetValue) {
+      if (!session) return;
+      setCropRatio(session, ratio === "free" ? null : ratio, canvas);
+    },
+    setCustomCropSizePx(wPx: number, hPx: number) {
+      if (!session) return;
+      setCropSizeFromSourcePixels(session, canvas, wPx, hPx);
+    },
+    getSession() {
+      return session;
+    }
+  };
 };
