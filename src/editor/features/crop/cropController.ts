@@ -125,25 +125,17 @@ export const startCrop = (
   });
 
   const movingHandler = ({ target }: any) => {
-    if (target === overlay.frame || target === image) updateFromFrame(session, onChange);
+    if (target === overlay.frame || target === image) updateFromFrame(cropSession, onChange);
   };
 
   const scalingHandler = ({ target }: any) => {
     if (target === overlay.frame) {
       overlay.frame.set({ scaleX: 1, scaleY: 1, width: Math.max(20, overlay.frame.width ?? 20), height: Math.max(20, overlay.frame.height ?? 20) });
-      updateFromFrame(session, onChange);
+      updateFromFrame(cropSession, onChange);
     }
   };
 
-  const session: CropSession = {
-    overlay,
-    image,
-    snapshot,
-    source: getSourceSize(image),
-    unbind: () => undefined
-  };
-
-  const session: CropSession = {
+  const cropSession: CropSession = {
     overlay,
     image,
     snapshot,
@@ -156,14 +148,14 @@ export const startCrop = (
   canvas.on("mouse:up", onMouseUp);
   window.addEventListener("keydown", onKeyDown);
 
-  session.unbind = () => {
+  cropSession.unbind = () => {
     canvas.off("object:moving", movingHandler);
     canvas.off("object:scaling", scalingHandler);
   };
 
-  updateFromFrame(session, onChange);
+  updateFromFrame(cropSession, onChange);
   canvas.setActiveObject(overlay.frame);
-  return session;
+  return cropSession;
 };
 
 export const setCropPreset = (
