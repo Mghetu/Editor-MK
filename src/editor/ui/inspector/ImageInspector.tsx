@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useEditorStore } from "../../state/useEditorStore";
 import {
   applyCrop,
   cancelCrop,
+  CROP_RATIO_PRESETS,
   closeCropSession,
   type CropLiveInfo,
   resetCrop,
