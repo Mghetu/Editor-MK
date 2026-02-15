@@ -22,25 +22,22 @@ const PRESETS: Array<{ key: "1:1" | "9:16" | "16:9" | "300x300" | "600x250"; lab
 
 export function ImageInspector() {
   const [session, setSession] = useState<any>(null);
+  // Compatibility state for skewed branches that still reference cropImage/setCropImage.
+  const [cropImage, setCropImage] = useState<any>(null);
   const [customW, setCustomW] = useState(300);
   const [customH, setCustomH] = useState(300);
   const [live, setLive] = useState<CropLiveInfo | null>(null);
   const { updateDoc } = useEditorStore();
 
   const canvas = (window as any).__editorCanvas;
-  const active = canvas?.getActiveObject() as any;
-  const selectedImage = active?.data?.type === "image" ? active : cropImage;
-
-  const clearCropUi = () => {
-    setSession(null);
-    setCropImage(null);
-    setLive(null);
-  };
+  const image = canvas?.getActiveObject() as any;
+  const selectedImage = image?.data?.type === "image" ? image : cropImage;
 
   const onStartCrop = () => {
-    const next = startCrop(canvas, image, setLive);
+    const next = startCrop(canvas, selectedImage, setLive);
     if (!next) return;
     setSession(next);
+    setCropImage(selectedImage);
     canvas.setActiveObject(next.overlay.frame);
     canvas.requestRenderAll();
   };
@@ -50,6 +47,7 @@ export function ImageInspector() {
     applyCrop(session, canvas);
     closeCropSession(canvas, session);
     setSession(null);
+    setCropImage(null);
     setLive(null);
     updateDoc((d) => ({ ...d }));
   };
@@ -59,6 +57,7 @@ export function ImageInspector() {
     cancelCrop(canvas, session);
     closeCropSession(canvas, session);
     setSession(null);
+    setCropImage(null);
     setLive(null);
   };
 
@@ -71,15 +70,15 @@ export function ImageInspector() {
         min={0}
         max={1}
         step={0.05}
-        value={image?.opacity ?? 1}
+        value={selectedImage?.opacity ?? 1}
         className="mb-3 w-full"
         onChange={(e) => {
-          image?.set("opacity", Number(e.target.value));
+          selectedImage?.set("opacity", Number(e.target.value));
           canvas?.renderAll();
         }}
       />
 
-      <button className="rounded border px-3 py-1" onClick={onStartCrop} disabled={!!session || !image}>
+      <button className="rounded border px-3 py-1" onClick={onStartCrop} disabled={!!session || !selectedImage}>
         Crop
       </button>
 
