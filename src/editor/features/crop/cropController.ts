@@ -135,15 +135,7 @@ export const startCrop = (
     }
   };
 
-  const cropSession: CropSession = {
-    overlay,
-    image,
-    snapshot,
-    source: getSourceSize(image),
-    unbind: () => undefined
-  };
-
-  const cropSession: CropSession = {
+  var cropSession: CropSession = {
     overlay,
     image,
     snapshot,
