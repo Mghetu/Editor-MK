@@ -143,8 +143,18 @@ export const startCrop = (
     unbind: () => undefined
   };
 
-  canvas.on("object:moving", movingHandler);
-  canvas.on("object:scaling", scalingHandler);
+  const cropSession: CropSession = {
+    overlay,
+    image,
+    snapshot,
+    source: getSourceSize(image),
+    unbind: () => undefined
+  };
+
+  canvas.on("mouse:down", onMouseDown);
+  canvas.on("mouse:move", onMouseMove);
+  canvas.on("mouse:up", onMouseUp);
+  window.addEventListener("keydown", onKeyDown);
 
   cropSession.unbind = () => {
     canvas.off("object:moving", movingHandler);
