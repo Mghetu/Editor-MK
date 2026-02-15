@@ -35,7 +35,7 @@ const sanitizeFabricObject = (node: unknown): unknown => {
   return clone;
 };
 
-export const saveCanvasJson = (canvas: Canvas) => (canvas as any).toJSON(["data", "crop", "table"]);
+export const saveCanvasJson = (canvas: Canvas) => (canvas as any).toJSON(["data", "crop", "cropN", "table"]);
 
 export const loadCanvasJson = async (canvas: Canvas, json: unknown) => {
   const input = typeof json === "string" ? JSON.parse(json) : json;
