@@ -6,6 +6,12 @@ const readRenderedSize = (obj: any) => ({
   height: Math.max(1, Math.round(Math.abs(obj?.getScaledHeight?.() ?? obj?.height ?? 1)))
 });
 
+const normalizeColor = (value: unknown, fallback: string) => {
+  if (typeof value !== "string") return fallback;
+  const hex = value.trim();
+  return /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : fallback;
+};
+
 export function ShapeInspector() {
   const canvas = (window as any).__editorCanvas;
   const obj = canvas?.getActiveObject?.() as any;
@@ -19,30 +25,51 @@ export function ShapeInspector() {
   const [height, setHeight] = useState(initial.height);
   const [lockAspect, setLockAspect] = useState(true);
   const [radius, setRadius] = useState(Math.max(0, Number(obj?.rx ?? 0)));
+  const [fillColor, setFillColor] = useState(normalizeColor(obj?.fill, "#E2E8F0"));
+  const [strokeColor, setStrokeColor] = useState(normalizeColor(obj?.stroke, "#334155"));
+  const [strokeWidth, setStrokeWidth] = useState(Math.max(0, Number(obj?.strokeWidth ?? 1)));
 
   useEffect(() => {
     const sync = () => {
       const active = canvas?.getActiveObject?.() as any;
       if (!active || active?.data?.type !== "shape") return;
+
+      // Keep visual stroke width constant while shape is resized.
+      if (active.strokeUniform !== true) {
+        active.set("strokeUniform", true);
+      }
+
       const size = readRenderedSize(active);
       setWidth(size.width);
       setHeight(size.height);
       setRadius(Math.max(0, Number(active?.rx ?? 0)));
+      setFillColor(normalizeColor(active?.fill, "#E2E8F0"));
+      setStrokeColor(normalizeColor(active?.stroke, "#334155"));
+      setStrokeWidth(Math.max(0, Number(active?.strokeWidth ?? 1)));
+      canvas?.requestRenderAll?.();
     };
 
     sync();
     canvas?.on("object:scaling", sync);
     canvas?.on("object:modified", sync);
+    canvas?.on("selection:created", sync);
     canvas?.on("selection:updated", sync);
 
     return () => {
       canvas?.off("object:scaling", sync);
       canvas?.off("object:modified", sync);
+      canvas?.off("selection:created", sync);
       canvas?.off("selection:updated", sync);
     };
   }, [canvas]);
 
   if (!obj || obj?.data?.type !== "shape") return null;
+
+  const mutate = (fn: () => void) => {
+    fn();
+    obj.setCoords();
+    canvas?.requestRenderAll?.();
+  };
 
   const mutateSize = (nextW: number, nextH: number) => {
     const baseW = Math.max(1, Number(obj.width ?? 1));
@@ -50,12 +77,14 @@ export function ShapeInspector() {
     const scaleSignX = (obj.scaleX ?? 1) < 0 ? -1 : 1;
     const scaleSignY = (obj.scaleY ?? 1) < 0 ? -1 : 1;
 
-    obj.set({
-      scaleX: scaleSignX * (Math.max(1, nextW) / baseW),
-      scaleY: scaleSignY * (Math.max(1, nextH) / baseH)
+    mutate(() => {
+      obj.set({
+        scaleX: scaleSignX * (Math.max(1, nextW) / baseW),
+        scaleY: scaleSignY * (Math.max(1, nextH) / baseH),
+        strokeUniform: true
+      });
     });
-    obj.setCoords();
-    canvas?.requestRenderAll?.();
+
     setWidth(Math.max(1, Math.round(nextW)));
     setHeight(Math.max(1, Math.round(nextH)));
   };
@@ -82,10 +111,24 @@ export function ShapeInspector() {
 
   const onCornerRadiusChange = (value: number) => {
     const next = Math.max(0, Number.isFinite(value) ? value : 0);
-    obj.set({ rx: next, ry: next });
-    obj.setCoords();
-    canvas?.requestRenderAll?.();
+    mutate(() => obj.set({ rx: next, ry: next }));
     setRadius(next);
+  };
+
+  const onFillColorChange = (value: string) => {
+    setFillColor(value);
+    mutate(() => obj.set({ fill: value }));
+  };
+
+  const onStrokeColorChange = (value: string) => {
+    setStrokeColor(value);
+    mutate(() => obj.set({ stroke: value }));
+  };
+
+  const onStrokeWidthChange = (value: number) => {
+    const next = Math.max(0, Number.isFinite(value) ? value : 0);
+    setStrokeWidth(next);
+    mutate(() => obj.set({ strokeWidth: next, strokeUniform: true }));
   };
 
   return (
@@ -122,6 +165,34 @@ export function ShapeInspector() {
             <Lock size={14} />
           </button>
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="mb-1 block text-xs text-slate-600">Fill color</label>
+          <input type="color" value={fillColor} className="h-10 w-full rounded border p-1" onChange={(e) => onFillColorChange(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-slate-600">Stroke color</label>
+          <input
+            type="color"
+            value={strokeColor}
+            className="h-10 w-full rounded border p-1"
+            onChange={(e) => onStrokeColorChange(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-slate-600">Stroke width</label>
+        <input
+          type="number"
+          min={0}
+          step={0.5}
+          value={strokeWidth}
+          className="w-full rounded border p-2"
+          onChange={(e) => onStrokeWidthChange(Number(e.target.value))}
+        />
       </div>
 
       {isRectangle && (

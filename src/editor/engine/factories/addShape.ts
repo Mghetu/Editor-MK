@@ -6,7 +6,8 @@ type ShapeKind = "rect" | "square" | "circle";
 const SHAPE_STYLE = {
   fill: "#E2E8F0",
   stroke: "#334155",
-  strokeWidth: 1
+  strokeWidth: 1,
+  strokeUniform: true
 } as const;
 
 const finalize = (canvas: Canvas, obj: any, name: string, shapeKind: ShapeKind) => {
