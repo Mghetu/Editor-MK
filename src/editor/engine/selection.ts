@@ -2,7 +2,7 @@ import type { Canvas } from "fabric";
 
 export const bindSelectionEvents = (
   canvas: Canvas,
-  onSelectionChange: (id?: string, type?: "text" | "image" | "table") => void
+  onSelectionChange: (id?: string, type?: "text" | "image" | "table" | "shape") => void
 ) => {
   const update = () => {
     const obj = canvas.getActiveObject() as any;
