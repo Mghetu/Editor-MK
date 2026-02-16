@@ -2,11 +2,7 @@ import { Canvas, FabricImage } from "fabric";
 import { applyGlobalHandleStyle, applyObjectHandleStyle } from "./handleStyle";
 import { ensureRectRadiusMetadata, ensureShapeStrokeUniform, normalizeRectAfterTransform } from "../features/shapes/shapeGeometry";
 
-const customImageProps = new Set([...(FabricImage.customProperties ?? []), "cropN"]);
-FabricImage.customProperties = Array.from(customImageProps);
-
-const customImageProps = new Set([...(FabricImage.customProperties ?? []), "cropN"]);
-FabricImage.customProperties = Array.from(customImageProps);
+FabricImage.customProperties = Array.from(new Set([...(FabricImage.customProperties ?? []), "cropN"]));
 
 export const createCanvas = (el: HTMLCanvasElement, width: number, height: number, background: string) => {
   applyGlobalHandleStyle();
@@ -39,3 +35,5 @@ export const createCanvas = (el: HTMLCanvasElement, width: number, height: numbe
 
   return canvas;
 };
+
+export default createCanvas;
