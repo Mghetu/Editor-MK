@@ -1,0 +1,231 @@
+import { Lock } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ensureRectRadiusMetadata,
+  ensureShapeStrokeUniform,
+  getRectRadiusPx,
+  isRectLikeShape,
+  normalizeRectAfterTransform,
+  setRectRadiusPx
+} from "../../features/shapes/shapeGeometry";
+
+const readRenderedSize = (obj: any) => ({
+  width: Math.max(1, Math.round(Math.abs(obj?.getScaledWidth?.() ?? obj?.width ?? 1))),
+  height: Math.max(1, Math.round(Math.abs(obj?.getScaledHeight?.() ?? obj?.height ?? 1)))
+});
+
+const normalizeColor = (value: unknown, fallback: string) => {
+  if (typeof value !== "string") return fallback;
+  const hex = value.trim();
+  return /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : fallback;
+};
+
+export function ShapeInspector() {
+  const canvas = (window as any).__editorCanvas;
+  const obj = canvas?.getActiveObject?.() as any;
+
+  const shapeKind = obj?.data?.shapeKind as "rect" | "square" | "circle" | undefined;
+  const isRectangle = shapeKind === "rect";
+
+  const initial = useMemo(() => readRenderedSize(obj), [obj]);
+  const [width, setWidth] = useState(initial.width);
+  const [height, setHeight] = useState(initial.height);
+  const [lockAspect, setLockAspect] = useState(true);
+  const [radius, setRadius] = useState(Math.max(0, Number(obj?.rx ?? 0)));
+  const [fillColor, setFillColor] = useState(normalizeColor(obj?.fill, "#E2E8F0"));
+  const [strokeColor, setStrokeColor] = useState(normalizeColor(obj?.stroke, "#334155"));
+  const [strokeWidth, setStrokeWidth] = useState(Math.max(0, Number(obj?.strokeWidth ?? 1)));
+
+  useEffect(() => {
+    const sync = () => {
+      const active = canvas?.getActiveObject?.() as any;
+      if (!active || active?.data?.type !== "shape") return;
+
+      ensureShapeStrokeUniform(active);
+      ensureRectRadiusMetadata(active);
+
+      const size = readRenderedSize(active);
+      setWidth(size.width);
+      setHeight(size.height);
+      setRadius(Math.max(0, getRectRadiusPx(active) || 0));
+      setFillColor(normalizeColor(active?.fill, "#E2E8F0"));
+      setStrokeColor(normalizeColor(active?.stroke, "#334155"));
+      setStrokeWidth(Math.max(0, Number(active?.strokeWidth ?? 1)));
+      canvas?.requestRenderAll?.();
+    };
+
+    sync();
+    canvas?.on("object:scaling", sync);
+    canvas?.on("object:modified", sync);
+    canvas?.on("selection:created", sync);
+    canvas?.on("selection:updated", sync);
+
+    return () => {
+      canvas?.off("object:scaling", sync);
+      canvas?.off("object:modified", sync);
+      canvas?.off("selection:created", sync);
+      canvas?.off("selection:updated", sync);
+    };
+  }, [canvas]);
+
+  if (!obj || obj?.data?.type !== "shape") return null;
+
+  const mutate = (fn: () => void) => {
+    fn();
+    obj.setCoords();
+    canvas?.requestRenderAll?.();
+  };
+
+  const mutateSize = (nextW: number, nextH: number) => {
+    const widthPx = Math.max(1, Number.isFinite(nextW) ? nextW : 1);
+    const heightPx = Math.max(1, Number.isFinite(nextH) ? nextH : 1);
+
+    mutate(() => {
+      if (isRectLikeShape(obj)) {
+        const signX = (obj.scaleX ?? 1) < 0 ? -1 : 1;
+        const signY = (obj.scaleY ?? 1) < 0 ? -1 : 1;
+        obj.set({ width: widthPx, height: heightPx, scaleX: signX, scaleY: signY });
+        normalizeRectAfterTransform(obj);
+      } else {
+        const baseW = Math.max(1, Number(obj.width ?? 1));
+        const baseH = Math.max(1, Number(obj.height ?? 1));
+        const scaleSignX = (obj.scaleX ?? 1) < 0 ? -1 : 1;
+        const scaleSignY = (obj.scaleY ?? 1) < 0 ? -1 : 1;
+        obj.set({
+          scaleX: scaleSignX * (widthPx / baseW),
+          scaleY: scaleSignY * (heightPx / baseH),
+          strokeUniform: true
+        });
+      }
+    });
+
+    setWidth(Math.round(widthPx));
+    setHeight(Math.round(heightPx));
+  };
+
+  const onWidthChange = (value: number) => {
+    const nextW = Math.max(1, Number.isFinite(value) ? value : 1);
+    if (lockAspect) {
+      const ratio = Math.max(0.0001, height / Math.max(1, width));
+      mutateSize(nextW, Math.round(nextW * ratio));
+      return;
+    }
+    mutateSize(nextW, height);
+  };
+
+  const onHeightChange = (value: number) => {
+    const nextH = Math.max(1, Number.isFinite(value) ? value : 1);
+    if (lockAspect) {
+      const ratio = Math.max(0.0001, width / Math.max(1, height));
+      mutateSize(Math.round(nextH * ratio), nextH);
+      return;
+    }
+    mutateSize(width, nextH);
+  };
+
+  const onCornerRadiusChange = (value: number) => {
+    const next = Math.max(0, Number.isFinite(value) ? value : 0);
+    mutate(() => {
+      setRectRadiusPx(obj, next);
+      normalizeRectAfterTransform(obj);
+    });
+    setRadius(next);
+  };
+
+  const onFillColorChange = (value: string) => {
+    setFillColor(value);
+    mutate(() => obj.set({ fill: value }));
+  };
+
+  const onStrokeColorChange = (value: string) => {
+    setStrokeColor(value);
+    mutate(() => obj.set({ stroke: value }));
+  };
+
+  const onStrokeWidthChange = (value: number) => {
+    const next = Math.max(0, Number.isFinite(value) ? value : 0);
+    setStrokeWidth(next);
+    mutate(() => obj.set({ strokeWidth: next, strokeUniform: true }));
+  };
+
+  return (
+    <div className="space-y-3">
+      <h3 className="font-semibold">Shape</h3>
+
+      <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+        <div>
+          <label className="mb-1 block text-xs text-slate-600">Width</label>
+          <input
+            type="number"
+            min={1}
+            value={width}
+            className="w-full rounded border p-2"
+            onChange={(e) => onWidthChange(Number(e.target.value))}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-slate-600">Height</label>
+          <input
+            type="number"
+            min={1}
+            value={height}
+            className="w-full rounded border p-2"
+            onChange={(e) => onHeightChange(Number(e.target.value))}
+          />
+        </div>
+        <div className="flex items-end">
+          <button
+            className={`rounded border p-2 ${lockAspect ? "bg-slate-100" : ""}`}
+            onClick={() => setLockAspect((v) => !v)}
+            title="Constrain proportions"
+          >
+            <Lock size={14} />
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="mb-1 block text-xs text-slate-600">Fill color</label>
+          <input type="color" value={fillColor} className="h-10 w-full rounded border p-1" onChange={(e) => onFillColorChange(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-slate-600">Stroke color</label>
+          <input
+            type="color"
+            value={strokeColor}
+            className="h-10 w-full rounded border p-1"
+            onChange={(e) => onStrokeColorChange(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-slate-600">Stroke width</label>
+        <input
+          type="number"
+          min={0}
+          step={0.5}
+          value={strokeWidth}
+          className="w-full rounded border p-2"
+          onChange={(e) => onStrokeWidthChange(Number(e.target.value))}
+        />
+      </div>
+
+      {isRectangle && (
+        <div>
+          <label className="mb-1 block text-xs text-slate-600">Corner radius</label>
+          <input
+            type="number"
+            min={0}
+            value={radius}
+            className="w-full rounded border p-2"
+            onChange={(e) => onCornerRadiusChange(Number(e.target.value))}
+          />
+        </div>
+      )}
+
+      {isRectLikeShape(obj) && <p className="text-xs text-slate-500">Aspect ratio lock defaults to on.</p>}
+    </div>
+  );
+}
