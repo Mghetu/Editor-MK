@@ -26,17 +26,20 @@ export class HistoryManager {
     this.redoStack = [];
   }
 
-  async undo() {
-    if (this.undoStack.length < 2) return;
+  undo() {
+    if (this.undoStack.length < 2) return Promise.resolve();
     const current = this.undoStack.pop();
     this.redoStack.push(current);
-    await loadCanvasJson(this.canvas, this.undoStack[this.undoStack.length - 1]);
+    return loadCanvasJson(this.canvas, this.undoStack[this.undoStack.length - 1]);
   }
 
-  async redo() {
+  redo() {
     const next = this.redoStack.pop();
-    if (!next) return;
+    if (!next) return Promise.resolve();
     this.undoStack.push(next);
-    await loadCanvasJson(this.canvas, next);
+    return loadCanvasJson(this.canvas, next);
   }
 }
+
+
+export default HistoryManager;
