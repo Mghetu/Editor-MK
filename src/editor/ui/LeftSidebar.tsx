@@ -1,4 +1,4 @@
-import { AppWindow, Layers, LayoutTemplate, MousePointerClick, Settings, Table2, Type, Upload, Files, X } from "lucide-react";
+import { AppWindow, Files, Layers, LayoutTemplate, MousePointerClick, Settings, Shapes, Table2, Type, Upload, X } from "lucide-react";
 import { useEditorStore, type PanelTab } from "../state/useEditorStore";
 import { LayersPanel } from "./panels/LayersPanel";
 import { PagesPanel } from "./panels/PagesPanel";
@@ -7,12 +7,14 @@ import { TemplatesPanel } from "./panels/TemplatesPanel";
 import { TextPanel } from "./panels/TextPanel";
 import { UploadsPanel } from "./panels/UploadsPanel";
 import { SettingsPanel } from "./panels/SettingsPanel";
+import { ShapesPanel } from "./panels/ShapesPanel";
 
 const tabs: { key: PanelTab; label: string; icon: any }[] = [
   { key: "select", label: "Select", icon: MousePointerClick },
   { key: "templates", label: "Templates", icon: LayoutTemplate },
   { key: "uploads", label: "Uploads", icon: Upload },
   { key: "text", label: "Text", icon: Type },
+  { key: "shapes", label: "Shapes", icon: Shapes },
   { key: "tables", label: "Tables", icon: Table2 },
   { key: "pages", label: "Pages", icon: Files },
   { key: "layers", label: "Layers", icon: Layers },
@@ -51,6 +53,7 @@ export function LeftSidebar() {
             {activeTab === "templates" && <TemplatesPanel />}
             {activeTab === "uploads" && <UploadsPanel />}
             {activeTab === "text" && <TextPanel />}
+            {activeTab === "shapes" && <ShapesPanel />}
             {activeTab === "tables" && <TablesPanel />}
             {activeTab === "pages" && <PagesPanel />}
             {activeTab === "layers" && <LayersPanel />}

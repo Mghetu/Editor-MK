@@ -8,7 +8,7 @@ export class HistoryManager {
 
   constructor(private canvas: Canvas) {}
 
-  bind() {
+  bind(): void {
     const track = () => this.captureDebounced();
     this.canvas.on("object:added", track);
     this.canvas.on("object:removed", track);
@@ -16,27 +16,35 @@ export class HistoryManager {
     this.canvas.on("text:editing:exited", track);
   }
 
-  captureDebounced(wait = 300) {
+  captureDebounced(wait = 300): void {
     clearTimeout(this.timer);
     this.timer = window.setTimeout(() => this.capture(), wait);
   }
 
-  capture() {
+  capture(): void {
     this.undoStack.push(saveCanvasJson(this.canvas));
     this.redoStack = [];
   }
 
-  async undo() {
-    if (this.undoStack.length < 2) return;
+  undo(): Promise<void> {
+    if (this.undoStack.length < 2) {
+      return Promise.resolve();
+    }
+
     const current = this.undoStack.pop();
     this.redoStack.push(current);
-    await loadCanvasJson(this.canvas, this.undoStack[this.undoStack.length - 1]);
+    return loadCanvasJson(this.canvas, this.undoStack[this.undoStack.length - 1]);
   }
 
-  async redo() {
+  redo(): Promise<void> {
     const next = this.redoStack.pop();
-    if (!next) return;
+    if (!next) {
+      return Promise.resolve();
+    }
+
     this.undoStack.push(next);
-    await loadCanvasJson(this.canvas, next);
+    return loadCanvasJson(this.canvas, next);
   }
 }
+
+export default HistoryManager;
