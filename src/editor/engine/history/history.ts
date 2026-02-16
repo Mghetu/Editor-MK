@@ -1,51 +1,50 @@
-import { Canvas, FabricImage } from "fabric";
-import { applyGlobalHandleStyle, applyObjectHandleStyle } from "./handleStyle";
-import { ensureRectRadiusMetadata, ensureShapeStrokeUniform, normalizeRectAfterTransform } from "../features/shapes/shapeGeometry";
+import type { Canvas } from "fabric";
+import { loadCanvasJson, saveCanvasJson } from "../serialize";
 
-FabricImage.customProperties = Array.from(new Set([...(FabricImage.customProperties ?? []), "cropN"]));
+export class HistoryManager {
+  private undoStack: unknown[] = [];
+  private redoStack: unknown[] = [];
+  private timer?: number;
 
-export const createCanvas = (el: HTMLCanvasElement, width: number, height: number, background: string) => {
-  applyGlobalHandleStyle();
+  constructor(private canvas: Canvas) {}
 
-  const canvas = new Canvas(el, {
-    preserveObjectStacking: true,
-    controlsAboveOverlay: true,
-    selection: true,
-    backgroundColor: background,
-    width,
-    height
-  });
+  bind(): void {
+    const track = () => this.captureDebounced();
+    this.canvas.on("object:added", track);
+    this.canvas.on("object:removed", track);
+    this.canvas.on("object:modified", track);
+    this.canvas.on("text:editing:exited", track);
+  }
 
-  canvas.on("object:added", ({ target }) => {
-    if (!target) return;
-    applyObjectHandleStyle(target as any);
-    ensureShapeStrokeUniform(target as any);
-    ensureRectRadiusMetadata(target as any);
-    target.setCoords();
-    canvas.requestRenderAll();
-  });
+  captureDebounced(wait = 300): void {
+    clearTimeout(this.timer);
+    this.timer = window.setTimeout(() => this.capture(), wait);
+  }
 
-  canvas.on("object:modified", ({ target }) => {
-    if (!target) return;
-    normalizeRectAfterTransform(target as any);
-    target.setCoords();
-    canvas.requestRenderAll();
-  });
+  capture(): void {
+    this.undoStack.push(saveCanvasJson(this.canvas));
+    this.redoStack = [];
+  }
 
-  undo() {
-    if (this.undoStack.length < 2) return Promise.resolve();
+  undo(): Promise<void> {
+    if (this.undoStack.length < 2) {
+      return Promise.resolve();
+    }
+
     const current = this.undoStack.pop();
     this.redoStack.push(current);
     return loadCanvasJson(this.canvas, this.undoStack[this.undoStack.length - 1]);
   }
 
-  redo() {
+  redo(): Promise<void> {
     const next = this.redoStack.pop();
-    if (!next) return Promise.resolve();
+    if (!next) {
+      return Promise.resolve();
+    }
+
     this.undoStack.push(next);
     return loadCanvasJson(this.canvas, next);
   }
 }
-
 
 export default HistoryManager;
