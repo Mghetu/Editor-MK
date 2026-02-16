@@ -6,7 +6,7 @@ import {
   getRectRadiusPx,
   isRectLikeShape,
   normalizeRectAfterTransform,
-  setRectRadiusPx
+  setRectRadiusPxPreserveSize
 } from "../../features/shapes/shapeGeometry";
 
 const readRenderedSize = (obj: any) => ({
@@ -126,8 +126,7 @@ export function ShapeInspector() {
   const onCornerRadiusChange = (value: number) => {
     const next = Math.max(0, Number.isFinite(value) ? value : 0);
     mutate(() => {
-      setRectRadiusPx(obj, next);
-      normalizeRectAfterTransform(obj);
+      setRectRadiusPxPreserveSize(obj, next);
     });
     setRadius(next);
   };
