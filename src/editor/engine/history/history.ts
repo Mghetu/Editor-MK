@@ -32,5 +32,20 @@ export const createCanvas = (el: HTMLCanvasElement, width: number, height: numbe
     canvas.requestRenderAll();
   });
 
-  return canvas;
-};
+  async undo() {
+    if (this.undoStack.length < 2) return;
+    const current = this.undoStack.pop();
+    this.redoStack.push(current);
+    await loadCanvasJson(this.canvas, this.undoStack[this.undoStack.length - 1]);
+  }
+
+  async redo() {
+    const next = this.redoStack.pop();
+    if (!next) return;
+    this.undoStack.push(next);
+    await loadCanvasJson(this.canvas, next);
+  }
+}
+
+
+export default HistoryManager;

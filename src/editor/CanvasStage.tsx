@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { createCanvas } from "./engine/createCanvas";
 import { bindSelectionEvents } from "./engine/selection";
-import { HistoryManager } from "./engine/history/history";
+import HistoryManager from "./engine/history/history";
 import { useEditorStore } from "./state/useEditorStore";
 import { loadCanvasJson, saveCanvasJson } from "./engine/serialize";
 
