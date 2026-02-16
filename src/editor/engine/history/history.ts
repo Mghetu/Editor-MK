@@ -40,3 +40,6 @@ export class HistoryManager {
     await loadCanvasJson(this.canvas, next);
   }
 }
+
+
+export default HistoryManager;
