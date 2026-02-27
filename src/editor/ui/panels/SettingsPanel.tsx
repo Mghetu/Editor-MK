@@ -22,24 +22,11 @@ export function SettingsPanel() {
       ...d,
       canvas: { ...d.canvas, width: w, height: h }
     }));
-
-    const canvas = (window as any).__editorCanvas;
-    if (canvas) {
-      canvas.setWidth(w);
-      canvas.setHeight(h);
-      canvas.renderAll();
-    }
   };
 
   const applyBackground = (value: string) => {
     setBackground(value);
     updateDoc((d) => ({ ...d, canvas: { ...d.canvas, background: value } }));
-
-    const canvas = (window as any).__editorCanvas;
-    if (canvas) {
-      canvas.backgroundColor = value;
-      canvas.renderAll();
-    }
   };
 
   return (
