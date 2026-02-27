@@ -133,12 +133,22 @@ const applyWorkspaceFrame = (canvas: any, docCanvas: { width: number; height: nu
 
 const centerWorkspaceInView = (wrapper: HTMLDivElement | null, canvas: any) => {
   if (!wrapper || !canvas) return;
-  const bounds = getPageBounds(canvas);
-  const centerX = bounds.left + bounds.width / 2;
-  const centerY = bounds.top + bounds.height / 2;
 
-  wrapper.scrollLeft = Math.max(0, centerX - wrapper.clientWidth / 2);
-  wrapper.scrollTop = Math.max(0, centerY - wrapper.clientHeight / 2);
+  const run = () => {
+    const bounds = getPageBounds(canvas);
+    const targetLeft = Math.max(0, bounds.left + bounds.width / 2 - wrapper.clientWidth / 2);
+    const targetTop = Math.max(0, bounds.top + bounds.height / 2 - wrapper.clientHeight / 2);
+    const maxLeft = Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
+    const maxTop = Math.max(0, wrapper.scrollHeight - wrapper.clientHeight);
+
+    wrapper.scrollTo({
+      left: Math.min(targetLeft, maxLeft),
+      top: Math.min(targetTop, maxTop),
+      behavior: "auto"
+    });
+  };
+
+  requestAnimationFrame(run);
 };
 
 export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
@@ -261,8 +271,10 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
   }, [doc.canvas.width, doc.canvas.height, doc.canvas.background]);
 
   return (
-    <div ref={wrapperEl} className="h-full w-full overflow-auto bg-slate-200 p-6">
-      <canvas ref={canvasEl} className="shadow-2xl" />
+    <div ref={wrapperEl} className="h-full w-full overflow-auto bg-slate-200">
+      <div className="flex min-h-full min-w-full items-center justify-center p-6">
+        <canvas ref={canvasEl} className="shadow-2xl" />
+      </div>
     </div>
   );
 }
