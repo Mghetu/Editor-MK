@@ -12,13 +12,13 @@ const AUTOSAVE_DEBOUNCE_MS = 350;
 const PAGE_THUMBNAIL_MULTIPLIER = 0.15;
 const WORKSPACE_PADDING = 180;
 const GUIDE_KEY = "workspace-guide";
+const WORKSPACE_BG = "#e2e8f0";
 
 const applyCanvasDimensions = (canvas: any, width: number, height: number) => {
   if (typeof canvas?.setDimensions === "function") {
     canvas.setDimensions({ width, height });
     return;
   }
-
   if (typeof canvas?.setWidth === "function") canvas.setWidth(width);
   if (typeof canvas?.setHeight === "function") canvas.setHeight(height);
 };
@@ -65,14 +65,21 @@ const createGuideRect = (name: string, fill: string, options: Partial<Rect> = {}
     ...options
   } as any);
 
-const ensureWorkspaceGuides = (canvas: any, pageW: number, pageH: number, workspaceW: number, workspaceH: number) => {
+const ensureWorkspaceGuides = (
+  canvas: any,
+  pageW: number,
+  pageH: number,
+  pageBg: string,
+  workspaceW: number,
+  workspaceH: number
+) => {
   const guides = canvas.getObjects().filter((obj: any) => obj?.data?.type === GUIDE_KEY);
-
   const byName: Record<string, any> = {};
   guides.forEach((g: any) => {
     byName[g?.data?.name] = g;
   });
 
+  const pageFill = byName["page-fill"] ?? createGuideRect("page-fill", pageBg, { excludeFromExport: false });
   const topGuide = byName.top ?? createGuideRect("top", "rgba(255,255,255,0.55)");
   const leftGuide = byName.left ?? createGuideRect("left", "rgba(255,255,255,0.55)");
   const rightGuide = byName.right ?? createGuideRect("right", "rgba(255,255,255,0.55)");
@@ -84,16 +91,21 @@ const ensureWorkspaceGuides = (canvas: any, pageW: number, pageH: number, worksp
       strokeWidth: 2
     });
 
+  pageFill.set({ left: WORKSPACE_PADDING, top: WORKSPACE_PADDING, width: pageW, height: pageH, fill: pageBg });
   topGuide.set({ left: 0, top: 0, width: workspaceW, height: WORKSPACE_PADDING });
   leftGuide.set({ left: 0, top: WORKSPACE_PADDING, width: WORKSPACE_PADDING, height: pageH });
   rightGuide.set({ left: WORKSPACE_PADDING + pageW, top: WORKSPACE_PADDING, width: WORKSPACE_PADDING, height: pageH });
   bottomGuide.set({ left: 0, top: WORKSPACE_PADDING + pageH, width: workspaceW, height: WORKSPACE_PADDING });
   borderGuide.set({ left: WORKSPACE_PADDING, top: WORKSPACE_PADDING, width: pageW, height: pageH });
 
+  [pageFill, topGuide, leftGuide, rightGuide, bottomGuide, borderGuide].forEach((g) => {
+    if (!canvas.getObjects().includes(g)) canvas.add(g);
+  });
+
+  if (typeof canvas.sendObjectToBack === "function") canvas.sendObjectToBack(pageFill);
+  else pageFill.sendToBack?.();
+
   [topGuide, leftGuide, rightGuide, bottomGuide, borderGuide].forEach((g) => {
-    if (!canvas.getObjects().includes(g)) {
-      canvas.add(g);
-    }
     if (typeof canvas.bringObjectToFront === "function") canvas.bringObjectToFront(g);
     else g.bringToFront?.();
   });
@@ -104,15 +116,16 @@ const applyWorkspaceFrame = (canvas: any, docCanvas: { width: number; height: nu
   const workspaceH = docCanvas.height + WORKSPACE_PADDING * 2;
 
   applyCanvasDimensions(canvas, workspaceW, workspaceH);
-  canvas.backgroundColor = docCanvas.background;
-  canvas.viewportTransform = [1, 0, 0, 1, WORKSPACE_PADDING, WORKSPACE_PADDING];
+  canvas.backgroundColor = WORKSPACE_BG;
+  canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
   (canvas as any).__pageBounds = {
     left: WORKSPACE_PADDING,
     top: WORKSPACE_PADDING,
     width: docCanvas.width,
     height: docCanvas.height
   };
-  ensureWorkspaceGuides(canvas, docCanvas.width, docCanvas.height, workspaceW, workspaceH);
+
+  ensureWorkspaceGuides(canvas, docCanvas.width, docCanvas.height, docCanvas.background, workspaceW, workspaceH);
   canvas.requestRenderAll?.();
 };
 
