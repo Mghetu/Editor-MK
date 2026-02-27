@@ -1,5 +1,6 @@
 import type { Canvas } from "fabric";
 import { applyObjectHandleStyle } from "./handleStyle";
+import { ensureRectRadiusMetadata, ensureShapeStrokeUniform } from "../features/shapes/shapeGeometry";
 
 type JsonLike = Record<string, unknown>;
 
@@ -35,12 +36,34 @@ const sanitizeFabricObject = (node: unknown): unknown => {
   return clone;
 };
 
+const waitForFontsReady = async () => {
+  if (typeof document === "undefined" || !("fonts" in document) || !document.fonts?.ready) return;
+  try {
+    await document.fonts.ready;
+  } catch {
+    // Ignore font readiness issues and continue rendering.
+  }
+};
+
+const reapplyCanvasObjectRuntime = (canvas: Canvas) => {
+  canvas.getObjects().forEach((obj: any) => {
+    applyObjectHandleStyle(obj);
+    ensureShapeStrokeUniform(obj);
+    ensureRectRadiusMetadata(obj);
+    obj.setCoords?.();
+  });
+};
+
 export const saveCanvasJson = (canvas: Canvas) => (canvas as any).toJSON(["data", "crop", "cropN", "table"]);
 
 export const loadCanvasJson = async (canvas: Canvas, json: unknown) => {
   const input = typeof json === "string" ? JSON.parse(json) : json;
   const safeJson = sanitizeFabricObject(input);
+
+  canvas.clear();
   await canvas.loadFromJSON(safeJson as object);
-  canvas.getObjects().forEach((obj: any) => applyObjectHandleStyle(obj));
+  await waitForFontsReady();
+
+  reapplyCanvasObjectRuntime(canvas);
   canvas.renderAll();
 };
