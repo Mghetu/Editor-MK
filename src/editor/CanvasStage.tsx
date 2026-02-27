@@ -134,21 +134,28 @@ const applyWorkspaceFrame = (canvas: any, docCanvas: { width: number; height: nu
 const centerWorkspaceInView = (wrapper: HTMLDivElement | null, canvas: any) => {
   if (!wrapper || !canvas) return;
 
-  const run = () => {
-    const bounds = getPageBounds(canvas);
-    const targetLeft = Math.max(0, bounds.left + bounds.width / 2 - wrapper.clientWidth / 2);
-    const targetTop = Math.max(0, bounds.top + bounds.height / 2 - wrapper.clientHeight / 2);
-    const maxLeft = Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
-    const maxTop = Math.max(0, wrapper.scrollHeight - wrapper.clientHeight);
+  const bounds = getPageBounds(canvas);
+  const targetLeft = Math.max(0, bounds.left + bounds.width / 2 - wrapper.clientWidth / 2);
+  const targetTop = Math.max(0, bounds.top + bounds.height / 2 - wrapper.clientHeight / 2);
+  const maxLeft = Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
+  const maxTop = Math.max(0, wrapper.scrollHeight - wrapper.clientHeight);
 
-    wrapper.scrollTo({
-      left: Math.min(targetLeft, maxLeft),
-      top: Math.min(targetTop, maxTop),
-      behavior: "auto"
-    });
-  };
+  wrapper.scrollTo({
+    left: Math.min(targetLeft, maxLeft),
+    top: Math.min(targetTop, maxTop),
+    behavior: "auto"
+  });
+};
 
-  requestAnimationFrame(run);
+const scheduleCenterWorkspaceInView = (wrapper: HTMLDivElement | null, canvas: any) => {
+  if (!wrapper || !canvas) return;
+
+  const run = () => centerWorkspaceInView(wrapper, canvas);
+  requestAnimationFrame(() => {
+    run();
+    requestAnimationFrame(run);
+  });
+  window.setTimeout(run, 120);
 };
 
 export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
@@ -171,7 +178,7 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
     historyRef.current = history;
 
     applyWorkspaceFrame(canvas, doc.canvas);
-    centerWorkspaceInView(wrapperEl.current, canvas);
+    scheduleCenterWorkspaceInView(wrapperEl.current, canvas);
     hasCenteredRef.current = true;
 
     history.bind();
@@ -250,6 +257,7 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
       try {
         await history.loadSnapshot(active.fabricJson, { capture: true });
         applyWorkspaceFrame(canvas, useEditorStore.getState().doc.canvas);
+        scheduleCenterWorkspaceInView(wrapperEl.current, canvas);
       } finally {
         isHydratingRef.current = false;
       }
@@ -261,14 +269,25 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
     if (!canvas) return;
     applyWorkspaceFrame(canvas, doc.canvas);
     if (!hasCenteredRef.current) {
-      centerWorkspaceInView(wrapperEl.current, canvas);
+      scheduleCenterWorkspaceInView(wrapperEl.current, canvas);
       hasCenteredRef.current = true;
       return;
     }
 
     // Re-center when page dimensions change significantly from settings updates.
-    centerWorkspaceInView(wrapperEl.current, canvas);
+    scheduleCenterWorkspaceInView(wrapperEl.current, canvas);
   }, [doc.canvas.width, doc.canvas.height, doc.canvas.background]);
+
+
+  useEffect(() => {
+    const wrapper = wrapperEl.current;
+    const canvas = canvasRef.current;
+    if (!wrapper || !canvas) return;
+
+    const observer = new ResizeObserver(() => scheduleCenterWorkspaceInView(wrapperEl.current, canvasRef.current));
+    observer.observe(wrapper);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div ref={wrapperEl} className="h-full w-full overflow-auto bg-slate-200">
