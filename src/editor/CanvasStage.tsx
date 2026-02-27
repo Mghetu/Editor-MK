@@ -99,6 +99,23 @@ const ensureWorkspaceGuides = (canvas: any, pageW: number, pageH: number, worksp
   });
 };
 
+const applyWorkspaceFrame = (canvas: any, docCanvas: { width: number; height: number; background: string }) => {
+  const workspaceW = docCanvas.width + WORKSPACE_PADDING * 2;
+  const workspaceH = docCanvas.height + WORKSPACE_PADDING * 2;
+
+  applyCanvasDimensions(canvas, workspaceW, workspaceH);
+  canvas.backgroundColor = docCanvas.background;
+  canvas.viewportTransform = [1, 0, 0, 1, WORKSPACE_PADDING, WORKSPACE_PADDING];
+  (canvas as any).__pageBounds = {
+    left: WORKSPACE_PADDING,
+    top: WORKSPACE_PADDING,
+    width: docCanvas.width,
+    height: docCanvas.height
+  };
+  ensureWorkspaceGuides(canvas, docCanvas.width, docCanvas.height, workspaceW, workspaceH);
+  canvas.requestRenderAll?.();
+};
+
 export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
   const canvasEl = useRef<HTMLCanvasElement>(null);
   const wrapperEl = useRef<HTMLDivElement>(null);
@@ -106,6 +123,7 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
   const historyRef = useRef<HistoryManager | null>(null);
   const autosaveTimer = useRef<number>();
   const previousActivePageIdRef = useRef<string>();
+  const isHydratingRef = useRef(false);
   const { doc, setSelection, updateDoc } = useEditorStore();
 
   useEffect(() => {
@@ -116,25 +134,30 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
     canvasRef.current = canvas;
     historyRef.current = history;
 
+    applyWorkspaceFrame(canvas, doc.canvas);
+
     history.bind();
     history.capture();
 
     const unbindSelection = bindSelectionEvents(canvas, setSelection);
 
+    const persistPage = (pageId: string) => {
+      const currentCanvas = canvasRef.current;
+      if (!currentCanvas) return;
+      const snapshot = snapshotPage(currentCanvas);
+      updateDoc((state) => ({
+        ...state,
+        pages: state.pages.map((page) => (page.id === pageId ? { ...page, ...snapshot } : page))
+      }));
+    };
+
     const queueSave = (pageId: string) => {
       window.clearTimeout(autosaveTimer.current);
-      autosaveTimer.current = window.setTimeout(() => {
-        const currentCanvas = canvasRef.current;
-        if (!currentCanvas) return;
-        const snapshot = snapshotPage(currentCanvas);
-        updateDoc((state) => ({
-          ...state,
-          pages: state.pages.map((page) => (page.id === pageId ? { ...page, ...snapshot } : page))
-        }));
-      }, AUTOSAVE_DEBOUNCE_MS);
+      autosaveTimer.current = window.setTimeout(() => persistPage(pageId), AUTOSAVE_DEBOUNCE_MS);
     };
 
     const trackSave = (event: any) => {
+      if (isHydratingRef.current) return;
       if (event?.target?.data?.type === GUIDE_KEY) return;
       const pageId = useEditorStore.getState().doc.activePageId;
       queueSave(pageId);
@@ -173,37 +196,32 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
       return;
     }
 
-    if (previousPageId !== doc.activePageId) {
-      window.clearTimeout(autosaveTimer.current);
-      const snapshot = snapshotPage(canvas);
-      updateDoc((state) => ({
-        ...state,
-        pages: state.pages.map((page) => (page.id === previousPageId ? { ...page, ...snapshot } : page))
-      }));
-      previousActivePageIdRef.current = doc.activePageId;
-      void history.loadSnapshot(active.fabricJson, { capture: true });
-    }
+    if (previousPageId === doc.activePageId) return;
+
+    window.clearTimeout(autosaveTimer.current);
+    const snapshot = snapshotPage(canvas);
+    updateDoc((state) => ({
+      ...state,
+      pages: state.pages.map((page) => (page.id === previousPageId ? { ...page, ...snapshot } : page))
+    }));
+
+    previousActivePageIdRef.current = doc.activePageId;
+
+    void (async () => {
+      isHydratingRef.current = true;
+      try {
+        await history.loadSnapshot(active.fabricJson, { capture: true });
+        applyWorkspaceFrame(canvas, useEditorStore.getState().doc.canvas);
+      } finally {
+        isHydratingRef.current = false;
+      }
+    })();
   }, [doc.activePageId]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
-    const workspaceW = doc.canvas.width + WORKSPACE_PADDING * 2;
-    const workspaceH = doc.canvas.height + WORKSPACE_PADDING * 2;
-
-    applyCanvasDimensions(canvas, workspaceW, workspaceH);
-    canvas.backgroundColor = doc.canvas.background;
-    canvas.viewportTransform = [1, 0, 0, 1, WORKSPACE_PADDING, WORKSPACE_PADDING];
-    (canvas as any).__pageBounds = {
-      left: WORKSPACE_PADDING,
-      top: WORKSPACE_PADDING,
-      width: doc.canvas.width,
-      height: doc.canvas.height
-    };
-    ensureWorkspaceGuides(canvas, doc.canvas.width, doc.canvas.height, workspaceW, workspaceH);
-    canvas.requestRenderAll?.();
-    canvas.renderAll?.();
+    applyWorkspaceFrame(canvas, doc.canvas);
   }, [doc.canvas.width, doc.canvas.height, doc.canvas.background]);
 
   return (

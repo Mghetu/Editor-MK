@@ -54,7 +54,13 @@ const reapplyCanvasObjectRuntime = (canvas: Canvas) => {
   });
 };
 
-export const saveCanvasJson = (canvas: Canvas) => (canvas as any).toJSON(["data", "crop", "cropN", "table"]);
+export const saveCanvasJson = (canvas: Canvas) => {
+  const json = (canvas as any).toJSON(["data", "crop", "cropN", "table"]);
+  if (Array.isArray((json as any)?.objects)) {
+    (json as any).objects = (json as any).objects.filter((obj: any) => obj?.data?.type !== "workspace-guide");
+  }
+  return json;
+};
 
 export const loadCanvasJson = async (canvas: Canvas, json: unknown) => {
   const input = typeof json === "string" ? JSON.parse(json) : json;
