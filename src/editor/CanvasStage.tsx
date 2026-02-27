@@ -118,6 +118,7 @@ const applyWorkspaceFrame = (canvas: any, docCanvas: { width: number; height: nu
   applyCanvasDimensions(canvas, workspaceW, workspaceH);
   canvas.backgroundColor = WORKSPACE_BG;
   canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+  (canvas as any).__workspaceViewportTransform = [1, 0, 0, 1, 0, 0];
   (canvas as any).__pageBounds = {
     left: WORKSPACE_PADDING,
     top: WORKSPACE_PADDING,
@@ -129,6 +130,17 @@ const applyWorkspaceFrame = (canvas: any, docCanvas: { width: number; height: nu
   canvas.requestRenderAll?.();
 };
 
+
+const centerWorkspaceInView = (wrapper: HTMLDivElement | null, canvas: any) => {
+  if (!wrapper || !canvas) return;
+  const bounds = getPageBounds(canvas);
+  const centerX = bounds.left + bounds.width / 2;
+  const centerY = bounds.top + bounds.height / 2;
+
+  wrapper.scrollLeft = Math.max(0, centerX - wrapper.clientWidth / 2);
+  wrapper.scrollTop = Math.max(0, centerY - wrapper.clientHeight / 2);
+};
+
 export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
   const canvasEl = useRef<HTMLCanvasElement>(null);
   const wrapperEl = useRef<HTMLDivElement>(null);
@@ -137,6 +149,7 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
   const autosaveTimer = useRef<number>();
   const previousActivePageIdRef = useRef<string>();
   const isHydratingRef = useRef(false);
+  const hasCenteredRef = useRef(false);
   const { doc, setSelection, updateDoc } = useEditorStore();
 
   useEffect(() => {
@@ -148,6 +161,8 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
     historyRef.current = history;
 
     applyWorkspaceFrame(canvas, doc.canvas);
+    centerWorkspaceInView(wrapperEl.current, canvas);
+    hasCenteredRef.current = true;
 
     history.bind();
     history.capture();
@@ -235,6 +250,14 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     applyWorkspaceFrame(canvas, doc.canvas);
+    if (!hasCenteredRef.current) {
+      centerWorkspaceInView(wrapperEl.current, canvas);
+      hasCenteredRef.current = true;
+      return;
+    }
+
+    // Re-center when page dimensions change significantly from settings updates.
+    centerWorkspaceInView(wrapperEl.current, canvas);
   }, [doc.canvas.width, doc.canvas.height, doc.canvas.background]);
 
   return (
