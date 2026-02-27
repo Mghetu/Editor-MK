@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Rect } from "fabric";
 import { createCanvas } from "./engine/createCanvas";
 import { bindSelectionEvents } from "./engine/selection";
 import HistoryManager from "./engine/history/history";
@@ -9,6 +10,8 @@ export type StageApi = { canvas: any; history: HistoryManager };
 
 const AUTOSAVE_DEBOUNCE_MS = 350;
 const PAGE_THUMBNAIL_MULTIPLIER = 0.15;
+const WORKSPACE_PADDING = 180;
+const GUIDE_KEY = "workspace-guide";
 
 const applyCanvasDimensions = (canvas: any, width: number, height: number) => {
   if (typeof canvas?.setDimensions === "function") {
@@ -20,14 +23,80 @@ const applyCanvasDimensions = (canvas: any, width: number, height: number) => {
   if (typeof canvas?.setHeight === "function") canvas.setHeight(height);
 };
 
+const getPageBounds = (canvas: any) => {
+  const page = (canvas as any).__pageBounds;
+  if (page) return page;
+  return { left: 0, top: 0, width: canvas.getWidth?.() ?? 0, height: canvas.getHeight?.() ?? 0 };
+};
+
 const snapshotPage = (canvas: any) => {
   const fabricJson = saveCanvasJson(canvas);
+  const bounds = getPageBounds(canvas);
   const thumbnail =
     typeof canvas?.toDataURL === "function"
-      ? canvas.toDataURL({ format: "png", multiplier: PAGE_THUMBNAIL_MULTIPLIER })
+      ? canvas.toDataURL({
+          format: "png",
+          multiplier: PAGE_THUMBNAIL_MULTIPLIER,
+          left: bounds.left,
+          top: bounds.top,
+          width: bounds.width,
+          height: bounds.height
+        })
       : undefined;
 
   return { fabricJson, thumbnail };
+};
+
+const createGuideRect = (name: string, fill: string, options: Partial<Rect> = {}) =>
+  new Rect({
+    left: 0,
+    top: 0,
+    width: 0,
+    height: 0,
+    absolutePositioned: true,
+    selectable: false,
+    evented: false,
+    hasControls: false,
+    hasBorders: false,
+    hoverCursor: "default",
+    fill,
+    excludeFromExport: true,
+    data: { type: GUIDE_KEY, name },
+    ...options
+  } as any);
+
+const ensureWorkspaceGuides = (canvas: any, pageW: number, pageH: number, workspaceW: number, workspaceH: number) => {
+  const guides = canvas.getObjects().filter((obj: any) => obj?.data?.type === GUIDE_KEY);
+
+  const byName: Record<string, any> = {};
+  guides.forEach((g: any) => {
+    byName[g?.data?.name] = g;
+  });
+
+  const topGuide = byName.top ?? createGuideRect("top", "rgba(255,255,255,0.55)");
+  const leftGuide = byName.left ?? createGuideRect("left", "rgba(255,255,255,0.55)");
+  const rightGuide = byName.right ?? createGuideRect("right", "rgba(255,255,255,0.55)");
+  const bottomGuide = byName.bottom ?? createGuideRect("bottom", "rgba(255,255,255,0.55)");
+  const borderGuide =
+    byName.border ??
+    createGuideRect("border", "rgba(0,0,0,0)", {
+      stroke: "#3b82f6",
+      strokeWidth: 2
+    });
+
+  topGuide.set({ left: 0, top: 0, width: workspaceW, height: WORKSPACE_PADDING });
+  leftGuide.set({ left: 0, top: WORKSPACE_PADDING, width: WORKSPACE_PADDING, height: pageH });
+  rightGuide.set({ left: WORKSPACE_PADDING + pageW, top: WORKSPACE_PADDING, width: WORKSPACE_PADDING, height: pageH });
+  bottomGuide.set({ left: 0, top: WORKSPACE_PADDING + pageH, width: workspaceW, height: WORKSPACE_PADDING });
+  borderGuide.set({ left: WORKSPACE_PADDING, top: WORKSPACE_PADDING, width: pageW, height: pageH });
+
+  [topGuide, leftGuide, rightGuide, bottomGuide, borderGuide].forEach((g) => {
+    if (!canvas.getObjects().includes(g)) {
+      canvas.add(g);
+    }
+    if (typeof canvas.bringObjectToFront === "function") canvas.bringObjectToFront(g);
+    else g.bringToFront?.();
+  });
 };
 
 export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
@@ -65,7 +134,8 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
       }, AUTOSAVE_DEBOUNCE_MS);
     };
 
-    const trackSave = () => {
+    const trackSave = (event: any) => {
+      if (event?.target?.data?.type === GUIDE_KEY) return;
       const pageId = useEditorStore.getState().doc.activePageId;
       queueSave(pageId);
     };
@@ -118,8 +188,20 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    applyCanvasDimensions(canvas, doc.canvas.width, doc.canvas.height);
+
+    const workspaceW = doc.canvas.width + WORKSPACE_PADDING * 2;
+    const workspaceH = doc.canvas.height + WORKSPACE_PADDING * 2;
+
+    applyCanvasDimensions(canvas, workspaceW, workspaceH);
     canvas.backgroundColor = doc.canvas.background;
+    canvas.viewportTransform = [1, 0, 0, 1, WORKSPACE_PADDING, WORKSPACE_PADDING];
+    (canvas as any).__pageBounds = {
+      left: WORKSPACE_PADDING,
+      top: WORKSPACE_PADDING,
+      width: doc.canvas.width,
+      height: doc.canvas.height
+    };
+    ensureWorkspaceGuides(canvas, doc.canvas.width, doc.canvas.height, workspaceW, workspaceH);
     canvas.requestRenderAll?.();
     canvas.renderAll?.();
   }, [doc.canvas.width, doc.canvas.height, doc.canvas.background]);

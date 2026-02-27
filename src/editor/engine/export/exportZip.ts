@@ -6,12 +6,27 @@ import { loadCanvasJson } from "../serialize";
 
 const dataUrlToBlob = async (dataUrl: string) => (await fetch(dataUrl)).blob();
 
+const getPageBounds = (canvas: Canvas) => {
+  const page = (canvas as any).__pageBounds;
+  if (page) return page;
+  return { left: 0, top: 0, width: canvas.getWidth(), height: canvas.getHeight() };
+};
+
 export const exportAllPagesZip = async (canvas: Canvas, doc: DocModel) => {
   const zip = new JSZip();
+  const bounds = getPageBounds(canvas);
+
   for (let i = 0; i < doc.pages.length; i++) {
     const page = doc.pages[i];
     await loadCanvasJson(canvas, page.fabricJson);
-    const dataUrl = canvas.toDataURL({ format: doc.export.format === "jpg" ? "jpeg" : "png", multiplier: doc.export.multiplier });
+    const dataUrl = canvas.toDataURL({
+      format: doc.export.format === "jpg" ? "jpeg" : "png",
+      multiplier: doc.export.multiplier,
+      left: bounds.left,
+      top: bounds.top,
+      width: bounds.width,
+      height: bounds.height
+    });
     const blob = await dataUrlToBlob(dataUrl);
     const ext = doc.export.format;
     zip.file(`page-${String(i + 1).padStart(2, "0")}.${ext}`, blob);

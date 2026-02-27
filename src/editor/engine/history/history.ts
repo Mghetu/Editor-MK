@@ -21,6 +21,8 @@ const DEFAULT_DEBOUNCE_MS = 280;
 const TEXT_DEBOUNCE_MS = 600;
 const COALESCE_WINDOW_MS = 450;
 
+const isGuideEvent = (event?: any) => event?.target?.data?.type === "workspace-guide";
+
 const getObjectId = (event?: any): string | undefined => {
   const target = event?.target as any;
   return target?.data?.id ?? target?.id;
@@ -46,11 +48,11 @@ export class HistoryManager {
     if (this.listeners) return;
 
     this.listeners = {
-      onAdded: (event) => this.track({ action: "add", objectId: getObjectId(event), coalesce: false }),
-      onRemoved: (event) => this.track({ action: "remove", objectId: getObjectId(event), coalesce: false }),
-      onModified: (event) => this.track({ action: "modify", objectId: getObjectId(event), coalesce: true }),
+      onAdded: (event) => this.track({ action: "add", objectId: getObjectId(event), coalesce: false }, event),
+      onRemoved: (event) => this.track({ action: "remove", objectId: getObjectId(event), coalesce: false }, event),
+      onModified: (event) => this.track({ action: "modify", objectId: getObjectId(event), coalesce: true }, event),
       onTextChanged: (event) => this.captureDebounced(TEXT_DEBOUNCE_MS, { action: "text-edit", objectId: getObjectId(event), coalesce: true }),
-      onTextEditExit: (event) => this.track({ action: "text-edit", objectId: getObjectId(event), coalesce: true })
+      onTextEditExit: (event) => this.track({ action: "text-edit", objectId: getObjectId(event), coalesce: true }, event)
     };
 
     this.canvas.on("object:added", this.listeners.onAdded);
@@ -76,8 +78,8 @@ export class HistoryManager {
     this.textTimer = undefined;
   }
 
-  private track(meta: CommitMeta): void {
-    if (this.isApplyingSnapshot) return;
+  private track(meta: CommitMeta, event?: any): void {
+    if (this.isApplyingSnapshot || isGuideEvent(event)) return;
     this.captureDebounced(DEFAULT_DEBOUNCE_MS, meta);
   }
 
