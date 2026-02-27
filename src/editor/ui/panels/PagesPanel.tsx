@@ -1,20 +1,12 @@
 import { addPage, deletePage, duplicateActivePage } from "../../features/pages/pagesController";
-import { loadCanvasJson, saveCanvasJson } from "../../engine/serialize";
 import { useEditorStore } from "../../state/useEditorStore";
 
 export function PagesPanel() {
   const { doc, updateDoc } = useEditorStore();
-  const saveCurrent = () => {
-    const canvas = (window as any).__editorCanvas;
-    const json = saveCanvasJson(canvas);
-    updateDoc((d) => ({ ...d, pages: d.pages.map((p) => (p.id === d.activePageId ? { ...p, fabricJson: json } : p)) }));
-  };
 
-  const switchTo = async (id: string) => {
-    saveCurrent();
-    updateDoc((d) => ({ ...d, activePageId: id }));
-    const next = useEditorStore.getState().doc.pages.find((p) => p.id === id);
-    if (next) await loadCanvasJson((window as any).__editorCanvas, next.fabricJson);
+  const switchTo = (id: string) => {
+    if (id === doc.activePageId) return;
+    updateDoc((state) => ({ ...state, activePageId: id }));
   };
 
   return (
