@@ -9,6 +9,16 @@ export type StageApi = { canvas: any; history: HistoryManager };
 
 const AUTOSAVE_DEBOUNCE_MS = 350;
 
+const applyCanvasDimensions = (canvas: any, width: number, height: number) => {
+  if (typeof canvas?.setDimensions === "function") {
+    canvas.setDimensions({ width, height });
+    return;
+  }
+
+  if (typeof canvas?.setWidth === "function") canvas.setWidth(width);
+  if (typeof canvas?.setHeight === "function") canvas.setHeight(height);
+};
+
 export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
   const canvasEl = useRef<HTMLCanvasElement>(null);
   const wrapperEl = useRef<HTMLDivElement>(null);
@@ -77,26 +87,30 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
     if (!canvas || !history || !active) return;
 
     const previousPageId = previousActivePageIdRef.current;
-    if (previousPageId && previousPageId !== doc.activePageId) {
+    if (!previousPageId) {
+      previousActivePageIdRef.current = doc.activePageId;
+      return;
+    }
+
+    if (previousPageId !== doc.activePageId) {
       window.clearTimeout(autosaveTimer.current);
       const previousJson = saveCanvasJson(canvas);
       updateDoc((state) => ({
         ...state,
         pages: state.pages.map((page) => (page.id === previousPageId ? { ...page, fabricJson: previousJson } : page))
       }));
+      previousActivePageIdRef.current = doc.activePageId;
+      void history.loadSnapshot(active.fabricJson, { capture: true });
     }
-
-    previousActivePageIdRef.current = doc.activePageId;
-    void history.loadSnapshot(active.fabricJson, { capture: true });
   }, [doc.activePageId]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    canvas.setWidth(doc.canvas.width);
-    canvas.setHeight(doc.canvas.height);
+    applyCanvasDimensions(canvas, doc.canvas.width, doc.canvas.height);
     canvas.backgroundColor = doc.canvas.background;
-    canvas.renderAll();
+    canvas.requestRenderAll?.();
+    canvas.renderAll?.();
   }, [doc.canvas.width, doc.canvas.height, doc.canvas.background]);
 
   return (
