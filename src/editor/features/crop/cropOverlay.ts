@@ -31,6 +31,8 @@ export const createCropOverlay = (canvas: Canvas, left: number, top: number, wid
     top,
     width,
     height,
+    originX: "left",
+    originY: "top",
     fill: "rgba(0,0,0,0)",
     stroke: "#0ea5e9",
     strokeWidth: 2,

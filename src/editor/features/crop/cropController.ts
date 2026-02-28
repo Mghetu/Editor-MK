@@ -48,6 +48,14 @@ export type CropLiveInfo = {
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
+const getViewportCenter = (canvas: Canvas) => {
+  if (typeof (canvas as any).getCenterPoint === "function") {
+    const pt = (canvas as any).getCenterPoint();
+    return { x: Number(pt?.x ?? canvas.getWidth() / 2), y: Number(pt?.y ?? canvas.getHeight() / 2) };
+  }
+  return { x: canvas.getWidth() / 2, y: canvas.getHeight() / 2 };
+};
+
 const getSourceSize = (image: any) => {
   const el = image.getElement?.();
   return {
@@ -139,8 +147,18 @@ export const startCrop = (
 
   const imgW = image.getScaledWidth?.() ?? 200;
   const imgH = image.getScaledHeight?.() ?? 200;
-  const centerX = canvas.getWidth() / 2;
-  const centerY = canvas.getHeight() / 2;
+  const canvasW = Math.max(1, canvas.getWidth());
+  const canvasH = Math.max(1, canvas.getHeight());
+  const viewportCenter = getViewportCenter(canvas);
+  const centerX = viewportCenter.x;
+  const centerY = viewportCenter.y;
+
+  const maxFrameW = Math.max(20, canvasW - 24);
+  const maxFrameH = Math.max(20, canvasH - 24);
+  const frameW = Math.max(20, Math.min(imgW, maxFrameW));
+  const frameH = Math.max(20, Math.min(imgH, maxFrameH));
+  const frameLeft = clamp(centerX - frameW / 2, 0, Math.max(0, canvasW - frameW));
+  const frameTop = clamp(centerY - frameH / 2, 0, Math.max(0, canvasH - frameH));
 
   image.set({
     left: centerX - imgW / 2,
@@ -153,7 +171,7 @@ export const startCrop = (
     lockRotation: true
   });
 
-  const overlay = createCropOverlay(canvas, centerX - imgW / 2, centerY - imgH / 2, imgW, imgH);
+  const overlay = createCropOverlay(canvas, frameLeft, frameTop, frameW, frameH);
 
   overlay.frame.set({
     hasControls: true,
