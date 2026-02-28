@@ -13,6 +13,7 @@ export function ImageInspector() {
   const { doc, selectedObjectType } = useEditorStore();
   const canvas = (window as any).__editorCanvas;
   const [selectedImage, setSelectedImage] = useState<any>(() => getActiveImage(canvas));
+  const [cropImage, setCropImage] = useState<any>(null);
   const [cropActive, setCropActive] = useState(false);
 
   const cropController = useMemo(() => {
@@ -24,7 +25,11 @@ export function ImageInspector() {
     if (!canvas) return;
 
     const sync = () => {
-      setSelectedImage(getActiveImage(canvas));
+      const activeImage = getActiveImage(canvas);
+      setSelectedImage((prev: any) => {
+        if (cropActive && !activeImage) return prev;
+        return activeImage;
+      });
     };
 
     sync();
@@ -37,17 +42,18 @@ export function ImageInspector() {
       canvas.off("selection:updated", sync);
       canvas.off("selection:cleared", sync);
     };
-  }, [canvas, selectedObjectType]);
+  }, [canvas, selectedObjectType, cropActive]);
 
   useEffect(() => {
-    if (!selectedImage && cropActive) {
+    if (!selectedImage && !cropImage && cropActive) {
       cropController?.cancel();
       setCropActive(false);
     }
-  }, [selectedImage, cropActive, cropController]);
+  }, [selectedImage, cropImage, cropActive, cropController]);
 
   const onStartCrop = () => {
     if (!selectedImage || !cropController) return;
+    setCropImage(selectedImage);
     cropController.enter(selectedImage);
     setCropActive(true);
   };
@@ -56,6 +62,7 @@ export function ImageInspector() {
     if (!cropController) return;
     cropController.cancel();
     setCropActive(false);
+    setCropImage(null);
     setSelectedImage(getActiveImage(canvas));
   };
 
@@ -63,6 +70,7 @@ export function ImageInspector() {
     if (!cropController) return;
     cropController.apply();
     setCropActive(false);
+    setCropImage(null);
     setSelectedImage(getActiveImage(canvas));
   };
 
@@ -88,7 +96,9 @@ export function ImageInspector() {
         disabled={cropActive}
       />
 
-      {selectedImage && <CropPanel active={cropActive} onStart={onStartCrop} onPreset={onPreset} onApply={onApplyCrop} onCancel={onCancelCrop} />}
+      {(selectedImage || cropImage) && (
+        <CropPanel active={cropActive} onStart={onStartCrop} onPreset={onPreset} onApply={onApplyCrop} onCancel={onCancelCrop} />
+      )}
 
       <button
         className="mt-2 rounded border px-3 py-1"
