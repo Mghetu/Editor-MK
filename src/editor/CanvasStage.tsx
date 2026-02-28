@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { Rect } from "fabric";
 import { createCanvas } from "./engine/createCanvas";
 import { bindSelectionEvents } from "./engine/selection";
 import HistoryManager from "./engine/history/history";
@@ -10,9 +9,6 @@ export type StageApi = { canvas: any; history: HistoryManager };
 
 const AUTOSAVE_DEBOUNCE_MS = 350;
 const PAGE_THUMBNAIL_MULTIPLIER = 0.15;
-const WORKSPACE_PADDING = 180;
-const GUIDE_KEY = "workspace-guide";
-const WORKSPACE_BG = "#e2e8f0";
 
 const applyCanvasDimensions = (canvas: any, width: number, height: number) => {
   if (typeof canvas?.setDimensions === "function") {
@@ -23,150 +19,33 @@ const applyCanvasDimensions = (canvas: any, width: number, height: number) => {
   if (typeof canvas?.setHeight === "function") canvas.setHeight(height);
 };
 
-const getPageBounds = (canvas: any) => {
-  const page = (canvas as any).__pageBounds;
-  if (page) return page;
-  return { left: 0, top: 0, width: canvas.getWidth?.() ?? 0, height: canvas.getHeight?.() ?? 0 };
-};
-
 const snapshotPage = (canvas: any) => {
   const fabricJson = saveCanvasJson(canvas);
-  const bounds = getPageBounds(canvas);
   const thumbnail =
     typeof canvas?.toDataURL === "function"
       ? canvas.toDataURL({
           format: "png",
-          multiplier: PAGE_THUMBNAIL_MULTIPLIER,
-          left: bounds.left,
-          top: bounds.top,
-          width: bounds.width,
-          height: bounds.height
+          multiplier: PAGE_THUMBNAIL_MULTIPLIER
         })
       : undefined;
 
   return { fabricJson, thumbnail };
 };
 
-const createGuideRect = (name: string, fill: string, options: Partial<Rect> = {}) =>
-  new Rect({
-    left: 0,
-    top: 0,
-    width: 0,
-    height: 0,
-    absolutePositioned: true,
-    selectable: false,
-    evented: false,
-    hasControls: false,
-    hasBorders: false,
-    hoverCursor: "default",
-    fill,
-    excludeFromExport: true,
-    data: { type: GUIDE_KEY, name },
-    ...options
-  } as any);
-
-const ensureWorkspaceGuides = (
-  canvas: any,
-  pageW: number,
-  pageH: number,
-  pageBg: string,
-  workspaceW: number,
-  workspaceH: number
-) => {
-  const guides = canvas.getObjects().filter((obj: any) => obj?.data?.type === GUIDE_KEY);
-  const byName: Record<string, any> = {};
-  guides.forEach((g: any) => {
-    byName[g?.data?.name] = g;
-  });
-
-  const pageFill = byName["page-fill"] ?? createGuideRect("page-fill", pageBg, { excludeFromExport: false });
-  const topGuide = byName.top ?? createGuideRect("top", "rgba(255,255,255,0.55)");
-  const leftGuide = byName.left ?? createGuideRect("left", "rgba(255,255,255,0.55)");
-  const rightGuide = byName.right ?? createGuideRect("right", "rgba(255,255,255,0.55)");
-  const bottomGuide = byName.bottom ?? createGuideRect("bottom", "rgba(255,255,255,0.55)");
-  const borderGuide =
-    byName.border ??
-    createGuideRect("border", "rgba(0,0,0,0)", {
-      stroke: "#3b82f6",
-      strokeWidth: 2
-    });
-
-  pageFill.set({ left: WORKSPACE_PADDING, top: WORKSPACE_PADDING, width: pageW, height: pageH, fill: pageBg });
-  topGuide.set({ left: 0, top: 0, width: workspaceW, height: WORKSPACE_PADDING });
-  leftGuide.set({ left: 0, top: WORKSPACE_PADDING, width: WORKSPACE_PADDING, height: pageH });
-  rightGuide.set({ left: WORKSPACE_PADDING + pageW, top: WORKSPACE_PADDING, width: WORKSPACE_PADDING, height: pageH });
-  bottomGuide.set({ left: 0, top: WORKSPACE_PADDING + pageH, width: workspaceW, height: WORKSPACE_PADDING });
-  borderGuide.set({ left: WORKSPACE_PADDING, top: WORKSPACE_PADDING, width: pageW, height: pageH });
-
-  [pageFill, topGuide, leftGuide, rightGuide, bottomGuide, borderGuide].forEach((g) => {
-    if (!canvas.getObjects().includes(g)) canvas.add(g);
-  });
-
-  if (typeof canvas.sendObjectToBack === "function") canvas.sendObjectToBack(pageFill);
-  else pageFill.sendToBack?.();
-
-  [topGuide, leftGuide, rightGuide, bottomGuide, borderGuide].forEach((g) => {
-    if (typeof canvas.bringObjectToFront === "function") canvas.bringObjectToFront(g);
-    else g.bringToFront?.();
-  });
-};
-
-const applyWorkspaceFrame = (canvas: any, docCanvas: { width: number; height: number; background: string }) => {
-  const workspaceW = docCanvas.width + WORKSPACE_PADDING * 2;
-  const workspaceH = docCanvas.height + WORKSPACE_PADDING * 2;
-
-  applyCanvasDimensions(canvas, workspaceW, workspaceH);
-  canvas.backgroundColor = WORKSPACE_BG;
+const applyCanvasFrame = (canvas: any, docCanvas: { width: number; height: number; background: string }) => {
+  applyCanvasDimensions(canvas, docCanvas.width, docCanvas.height);
+  canvas.backgroundColor = docCanvas.background;
   canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
-  (canvas as any).__workspaceViewportTransform = [1, 0, 0, 1, 0, 0];
-  (canvas as any).__pageBounds = {
-    left: WORKSPACE_PADDING,
-    top: WORKSPACE_PADDING,
-    width: docCanvas.width,
-    height: docCanvas.height
-  };
-
-  ensureWorkspaceGuides(canvas, docCanvas.width, docCanvas.height, docCanvas.background, workspaceW, workspaceH);
   canvas.requestRenderAll?.();
-};
-
-
-const centerWorkspaceInView = (wrapper: HTMLDivElement | null, canvas: any) => {
-  if (!wrapper || !canvas) return;
-
-  const bounds = getPageBounds(canvas);
-  const targetLeft = Math.max(0, bounds.left + bounds.width / 2 - wrapper.clientWidth / 2);
-  const targetTop = Math.max(0, bounds.top + bounds.height / 2 - wrapper.clientHeight / 2);
-  const maxLeft = Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
-  const maxTop = Math.max(0, wrapper.scrollHeight - wrapper.clientHeight);
-
-  wrapper.scrollTo({
-    left: Math.min(targetLeft, maxLeft),
-    top: Math.min(targetTop, maxTop),
-    behavior: "auto"
-  });
-};
-
-const scheduleCenterWorkspaceInView = (wrapper: HTMLDivElement | null, canvas: any) => {
-  if (!wrapper || !canvas) return;
-
-  const run = () => centerWorkspaceInView(wrapper, canvas);
-  requestAnimationFrame(() => {
-    run();
-    requestAnimationFrame(run);
-  });
-  window.setTimeout(run, 120);
 };
 
 export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
   const canvasEl = useRef<HTMLCanvasElement>(null);
-  const wrapperEl = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<any>(null);
   const historyRef = useRef<HistoryManager | null>(null);
   const autosaveTimer = useRef<number>();
   const previousActivePageIdRef = useRef<string>();
   const isHydratingRef = useRef(false);
-  const hasCenteredRef = useRef(false);
   const { doc, setSelection, updateDoc } = useEditorStore();
 
   useEffect(() => {
@@ -177,9 +56,7 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
     canvasRef.current = canvas;
     historyRef.current = history;
 
-    applyWorkspaceFrame(canvas, doc.canvas);
-    scheduleCenterWorkspaceInView(wrapperEl.current, canvas);
-    hasCenteredRef.current = true;
+    applyCanvasFrame(canvas, doc.canvas);
 
     history.bind();
     history.capture();
@@ -201,9 +78,8 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
       autosaveTimer.current = window.setTimeout(() => persistPage(pageId), AUTOSAVE_DEBOUNCE_MS);
     };
 
-    const trackSave = (event: any) => {
+    const trackSave = () => {
       if (isHydratingRef.current) return;
-      if (event?.target?.data?.type === GUIDE_KEY) return;
       const pageId = useEditorStore.getState().doc.activePageId;
       queueSave(pageId);
     };
@@ -256,8 +132,7 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
       isHydratingRef.current = true;
       try {
         await history.loadSnapshot(active.fabricJson, { capture: true });
-        applyWorkspaceFrame(canvas, useEditorStore.getState().doc.canvas);
-        scheduleCenterWorkspaceInView(wrapperEl.current, canvas);
+        applyCanvasFrame(canvas, useEditorStore.getState().doc.canvas);
       } finally {
         isHydratingRef.current = false;
       }
@@ -267,33 +142,12 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    applyWorkspaceFrame(canvas, doc.canvas);
-    if (!hasCenteredRef.current) {
-      scheduleCenterWorkspaceInView(wrapperEl.current, canvas);
-      hasCenteredRef.current = true;
-      return;
-    }
-
-    // Re-center when page dimensions change significantly from settings updates.
-    scheduleCenterWorkspaceInView(wrapperEl.current, canvas);
+    applyCanvasFrame(canvas, doc.canvas);
   }, [doc.canvas.width, doc.canvas.height, doc.canvas.background]);
 
-
-  useEffect(() => {
-    const wrapper = wrapperEl.current;
-    const canvas = canvasRef.current;
-    if (!wrapper || !canvas) return;
-
-    const observer = new ResizeObserver(() => scheduleCenterWorkspaceInView(wrapperEl.current, canvasRef.current));
-    observer.observe(wrapper);
-    return () => observer.disconnect();
-  }, []);
-
   return (
-    <div ref={wrapperEl} className="h-full w-full overflow-auto bg-slate-200">
-      <div className="flex min-h-full min-w-full items-center justify-center p-6">
-        <canvas ref={canvasEl} className="shadow-2xl" />
-      </div>
+    <div className="flex h-full w-full items-center justify-center bg-slate-200 p-6">
+      <canvas ref={canvasEl} />
     </div>
   );
 }
