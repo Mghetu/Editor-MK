@@ -2,7 +2,7 @@ import { Canvas, FabricImage } from "fabric";
 import { applyGlobalHandleStyle, applyObjectHandleStyle } from "./handleStyle";
 import { ensureRectRadiusMetadata, ensureShapeStrokeUniform, normalizeRectAfterTransform } from "../features/shapes/shapeGeometry";
 
-FabricImage.customProperties = Array.from(new Set([...(FabricImage.customProperties ?? []), "cropN"]));
+FabricImage.customProperties = Array.from(new Set([...(FabricImage.customProperties ?? []), "cropN", "cropState", "__cropState"]));
 
 export const createCanvas = (el: HTMLCanvasElement, width: number, height: number, background: string) => {
   applyGlobalHandleStyle();
