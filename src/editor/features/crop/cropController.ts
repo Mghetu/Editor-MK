@@ -28,6 +28,8 @@ export type CropSession = {
     lockScalingX?: boolean;
     lockScalingY?: boolean;
     lockRotation?: boolean;
+    originX?: string;
+    originY?: string;
   };
   source: { width: number; height: number };
   unbind: () => void;
@@ -142,7 +144,9 @@ export const startCrop = (
     lockMovementY: image.lockMovementY,
     lockScalingX: image.lockScalingX,
     lockScalingY: image.lockScalingY,
-    lockRotation: image.lockRotation
+    lockRotation: image.lockRotation,
+    originX: image.originX,
+    originY: image.originY
   };
 
   const imgW = image.getScaledWidth?.() ?? 200;
@@ -159,10 +163,12 @@ export const startCrop = (
   const frameH = Math.max(20, Math.min(imgH, maxFrameH));
   const frameLeft = clamp(centerX - frameW / 2, 0, Math.max(0, canvasW - frameW));
   const frameTop = clamp(centerY - frameH / 2, 0, Math.max(0, canvasH - frameH));
+  const frameCenterX = frameLeft + frameW / 2;
+  const frameCenterY = frameTop + frameH / 2;
 
   image.set({
-    left: centerX - imgW / 2,
-    top: centerY - imgH / 2,
+    originX: "left",
+    originY: "top",
     selectable: true,
     evented: true,
     hasControls: true,
@@ -172,6 +178,12 @@ export const startCrop = (
     lockScalingY: false,
     lockRotation: true
   });
+
+  if (typeof image.setPositionByOrigin === "function") {
+    image.setPositionByOrigin({ x: frameCenterX, y: frameCenterY }, "center", "center");
+  } else {
+    image.set({ left: frameCenterX - imgW / 2, top: frameCenterY - imgH / 2 });
+  }
 
   const overlay = createCropOverlay(canvas, frameLeft, frameTop, frameW, frameH);
 
@@ -343,7 +355,9 @@ export const cancelCrop = (canvas: Canvas, session: CropSession) => {
     lockMovementY: session.snapshot.lockMovementY,
     lockScalingX: session.snapshot.lockScalingX,
     lockScalingY: session.snapshot.lockScalingY,
-    lockRotation: session.snapshot.lockRotation
+    lockRotation: session.snapshot.lockRotation,
+    originX: session.snapshot.originX,
+    originY: session.snapshot.originY
   });
   session.image.setCoords();
   canvas.requestRenderAll();
@@ -358,7 +372,9 @@ export const closeCropSession = (canvas: Canvas, session: CropSession) => {
     lockMovementY: session.snapshot.lockMovementY,
     lockScalingX: session.snapshot.lockScalingX,
     lockScalingY: session.snapshot.lockScalingY,
-    lockRotation: session.snapshot.lockRotation
+    lockRotation: session.snapshot.lockRotation,
+    originX: session.snapshot.originX,
+    originY: session.snapshot.originY
   });
   canvas.setActiveObject(session.image);
   canvas.requestRenderAll();
