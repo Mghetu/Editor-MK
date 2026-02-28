@@ -164,17 +164,21 @@ export const startCrop = (
     left: centerX - imgW / 2,
     top: centerY - imgH / 2,
     selectable: true,
+    evented: true,
+    hasControls: true,
     lockMovementX: false,
     lockMovementY: false,
-    lockScalingX: true,
-    lockScalingY: true,
+    lockScalingX: false,
+    lockScalingY: false,
     lockRotation: true
   });
 
   const overlay = createCropOverlay(canvas, frameLeft, frameTop, frameW, frameH);
 
   overlay.frame.set({
-    hasControls: true,
+    hasControls: false,
+    selectable: false,
+    evented: false,
     lockRotation: true,
     lockMovementX: true,
     lockMovementY: true
@@ -185,8 +189,7 @@ export const startCrop = (
   };
 
   const scalingHandler = ({ target }: any) => {
-    if (target === overlay.frame) {
-      overlay.frame.set({ scaleX: 1, scaleY: 1, width: Math.max(20, overlay.frame.width ?? 20), height: Math.max(20, overlay.frame.height ?? 20) });
+    if (target === image) {
       updateFromFrame(cropSession, onChange);
     }
   };
@@ -208,7 +211,7 @@ export const startCrop = (
   };
 
   updateFromFrame(cropSession, onChange);
-  canvas.setActiveObject(overlay.frame);
+  canvas.setActiveObject(image);
   return cropSession;
 };
 

@@ -75,7 +75,6 @@ export const createCropOverlay = (canvas: Canvas, left: number, top: number, wid
 
   canvas.on("after:render", drawOverlay);
   canvas.add(frame);
-  canvas.setActiveObject(frame);
 
   const refresh = () => {
     frame.setCoords();

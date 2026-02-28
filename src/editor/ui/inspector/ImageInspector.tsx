@@ -48,7 +48,7 @@ export function ImageInspector() {
     if (!next) return;
     setSession(next);
     setCropImage(selectedImage);
-    canvas.setActiveObject(next.overlay.frame);
+    canvas.setActiveObject(next.image);
     canvas.requestRenderAll();
   };
 
