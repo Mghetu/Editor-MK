@@ -19,7 +19,7 @@ export const bindSelectionEvents = (
     const type = obj?.data?.type;
 
     // Keep current inspector context when crop helpers are selected.
-    if (type === "crop-frame" || type === "workspace-guide") return;
+    if (type === "crop-frame") return;
 
     emitIfChanged(obj?.data?.id, type);
   };

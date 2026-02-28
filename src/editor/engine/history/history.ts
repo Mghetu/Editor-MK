@@ -21,7 +21,6 @@ const DEFAULT_DEBOUNCE_MS = 280;
 const TEXT_DEBOUNCE_MS = 600;
 const COALESCE_WINDOW_MS = 450;
 
-const isGuideEvent = (event?: any) => event?.target?.data?.type === "workspace-guide";
 
 const getObjectId = (event?: any): string | undefined => {
   const target = event?.target as any;
@@ -79,7 +78,7 @@ export class HistoryManager {
   }
 
   private track(meta: CommitMeta, event?: any): void {
-    if (this.isApplyingSnapshot || isGuideEvent(event)) return;
+    if (this.isApplyingSnapshot) return;
     this.captureDebounced(DEFAULT_DEBOUNCE_MS, meta);
   }
 
