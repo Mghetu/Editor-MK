@@ -17,6 +17,6 @@ export const applyGlobalHandleStyle = () => {
 };
 
 export const applyObjectHandleStyle = (obj: any) => {
-  if (!obj || obj?.data?.type === "crop-frame") return;
+  if (!obj || obj?.data?.isCropOverlay) return;
   obj.set(HANDLE_STYLE as any);
 };

@@ -55,7 +55,7 @@ const reapplyCanvasObjectRuntime = (canvas: Canvas) => {
 };
 
 export const saveCanvasJson = (canvas: Canvas) => {
-  return (canvas as any).toJSON(["data", "crop", "cropN", "table"]);
+  return (canvas as any).toJSON(["data", "crop", "cropN", "cropState", "__cropState", "table"]);
 };
 
 export const loadCanvasJson = async (canvas: Canvas, json: unknown) => {
