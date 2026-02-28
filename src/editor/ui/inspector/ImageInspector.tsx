@@ -4,24 +4,30 @@ import { exportSelectedImage } from "../../engine/export/exportImage";
 import { CropModeController } from "../../features/crop/CropModeController";
 import { CropPanel } from "../CropPanel";
 
+const getActiveImage = (canvas: any) => {
+  const active = canvas?.getActiveObject?.() as any;
+  return active?.data?.type === "image" ? active : null;
+};
+
 export function ImageInspector() {
-  const { doc } = useEditorStore();
+  const { doc, selectedObjectType } = useEditorStore();
   const canvas = (window as any).__editorCanvas;
-  const image = canvas?.getActiveObject?.() as any;
-  const selectedImage = image?.data?.type === "image" ? image : null;
+  const [selectedImage, setSelectedImage] = useState<any>(() => getActiveImage(canvas));
   const [cropActive, setCropActive] = useState(false);
 
   const cropController = useMemo(() => {
     if (!canvas) return null;
-    return new CropModeController(canvas, () => setCropActive(Boolean((canvas as any).__cropModeActive)));
+    return new CropModeController(canvas, () => setCropActive(false));
   }, [canvas]);
 
   useEffect(() => {
-    if (!canvas || !cropController) return;
+    if (!canvas) return;
 
-    const sync = () => setCropActive(Boolean((canvas as any).__cropModeActive));
+    const sync = () => {
+      setSelectedImage(getActiveImage(canvas));
+    };
+
     sync();
-
     canvas.on("selection:created", sync);
     canvas.on("selection:updated", sync);
     canvas.on("selection:cleared", sync);
@@ -30,15 +36,18 @@ export function ImageInspector() {
       canvas.off("selection:created", sync);
       canvas.off("selection:updated", sync);
       canvas.off("selection:cleared", sync);
-      if ((canvas as any).__cropModeActive) {
-        cropController.cancel();
-      }
     };
-  }, [canvas, cropController]);
+  }, [canvas, selectedObjectType]);
+
+  useEffect(() => {
+    if (!selectedImage && cropActive) {
+      cropController?.cancel();
+      setCropActive(false);
+    }
+  }, [selectedImage, cropActive, cropController]);
 
   const onStartCrop = () => {
     if (!selectedImage || !cropController) return;
-    (canvas as any).__cropModeActive = true;
     cropController.enter(selectedImage);
     setCropActive(true);
   };
@@ -46,15 +55,15 @@ export function ImageInspector() {
   const onCancelCrop = () => {
     if (!cropController) return;
     cropController.cancel();
-    (canvas as any).__cropModeActive = false;
     setCropActive(false);
+    setSelectedImage(getActiveImage(canvas));
   };
 
   const onApplyCrop = () => {
     if (!cropController) return;
     cropController.apply();
-    (canvas as any).__cropModeActive = false;
     setCropActive(false);
+    setSelectedImage(getActiveImage(canvas));
   };
 
   const onPreset = (aspect: number | null) => {
@@ -79,9 +88,7 @@ export function ImageInspector() {
         disabled={cropActive}
       />
 
-      {selectedImage && (
-        <CropPanel active={cropActive} onStart={onStartCrop} onPreset={onPreset} onApply={onApplyCrop} onCancel={onCancelCrop} />
-      )}
+      {selectedImage && <CropPanel active={cropActive} onStart={onStartCrop} onPreset={onPreset} onApply={onApplyCrop} onCancel={onCancelCrop} />}
 
       <button
         className="mt-2 rounded border px-3 py-1"
