@@ -35,13 +35,6 @@ export type CropSession = {
 
 export type CropLiveInfo = { cropW: number; cropH: number; frameW: number; frameH: number };
 
-// Compatibility no-op handlers kept so partially merged branches that still reference
-// these names continue to compile during CI deployment builds.
-const onMouseDown = () => undefined;
-const onMouseMove = () => undefined;
-const onMouseUp = () => undefined;
-const onKeyDown = () => undefined;
-
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
 const getSourceSize = (image: any) => {
@@ -135,7 +128,7 @@ export const startCrop = (
     }
   };
 
-  var cropSession: CropSession = {
+  const cropSession: CropSession = {
     overlay,
     image,
     snapshot,
@@ -143,18 +136,8 @@ export const startCrop = (
     unbind: () => undefined
   };
 
-  var cropSession: CropSession = {
-    overlay,
-    image,
-    snapshot,
-    source: getSourceSize(image),
-    unbind: () => undefined
-  };
-
-  canvas.on("mouse:down", onMouseDown);
-  canvas.on("mouse:move", onMouseMove);
-  canvas.on("mouse:up", onMouseUp);
-  window.addEventListener("keydown", onKeyDown);
+  canvas.on("object:moving", movingHandler);
+  canvas.on("object:scaling", scalingHandler);
 
   cropSession.unbind = () => {
     canvas.off("object:moving", movingHandler);
