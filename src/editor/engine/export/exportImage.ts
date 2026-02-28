@@ -6,7 +6,7 @@ export const exportSelectedImage = async (
   image: any,
   format: "png" | "jpg" = "png",
   multiplier = 1,
-  name = "image-crop"
+  name = "image"
 ) => {
   if (!image || image?.data?.type !== "image") {
     throw new Error("Please select an image object to export.");

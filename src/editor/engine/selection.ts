@@ -16,23 +16,15 @@ export const bindSelectionEvents = (
 
   const update = () => {
     const obj = canvas.getActiveObject() as any;
-    const type = obj?.data?.type;
-
-    // Keep current inspector context when crop helpers are selected.
-    if (type === "crop-frame") return;
-
-    emitIfChanged(obj?.data?.id, type);
+    emitIfChanged(obj?.data?.id, obj?.data?.type);
   };
 
   const clear = () => {
-    const hasActiveCropFrame = canvas.getObjects().some((obj: any) => obj?.data?.type === "crop-frame");
-    if (hasActiveCropFrame) return;
     emitIfChanged(undefined, undefined);
   };
 
   canvas.on("selection:created", update);
   canvas.on("selection:updated", update);
-
   canvas.on("selection:cleared", clear);
 
   return () => {
