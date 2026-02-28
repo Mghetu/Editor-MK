@@ -16,10 +16,13 @@ export const bindSelectionEvents = (
 
   const update = () => {
     const obj = canvas.getActiveObject() as any;
+    if (obj?.data?.isCropOverlay) return;
     emitIfChanged(obj?.data?.id, obj?.data?.type);
   };
 
   const clear = () => {
+    const hasCropOverlay = canvas.getObjects().some((obj: any) => obj?.data?.isCropOverlay);
+    if (hasCropOverlay) return;
     emitIfChanged(undefined, undefined);
   };
 
