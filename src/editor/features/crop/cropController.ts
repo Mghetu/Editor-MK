@@ -33,14 +33,18 @@ export type CropSession = {
   unbind: () => void;
 };
 
-export type CropLiveInfo = { cropW: number; cropH: number; frameW: number; frameH: number };
-
-// Compatibility no-op handlers kept so partially merged branches that still reference
-// these names continue to compile during CI deployment builds.
-const onMouseDown = () => undefined;
-const onMouseMove = () => undefined;
-const onMouseUp = () => undefined;
-const onKeyDown = () => undefined;
+export type CropLiveInfo = {
+  cropW: number;
+  cropH: number;
+  cropX: number;
+  cropY: number;
+  frameW: number;
+  frameH: number;
+  imageLeft: number;
+  imageTop: number;
+  sourceW: number;
+  sourceH: number;
+};
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
@@ -66,12 +70,43 @@ const frameSizeFromPreset = (preset: CropPreset, imgW: number, imgH: number) => 
   return { w, h };
 };
 
+const resizeFrameAroundCenter = (frame: any, width: number, height: number) => {
+  const center = frame.getCenterPoint?.() ?? {
+    x: (frame.left ?? 0) + ((frame.width ?? 1) * (frame.scaleX ?? 1)) / 2,
+    y: (frame.top ?? 0) + ((frame.height ?? 1) * (frame.scaleY ?? 1)) / 2
+  };
+
+  frame.set({
+    width,
+    height,
+    scaleX: 1,
+    scaleY: 1,
+    left: Number(center.x) - width / 2,
+    top: Number(center.y) - height / 2
+  });
+};
+
 const updateLive = (session: CropSession, onChange?: (info: CropLiveInfo) => void) => {
   if (!onChange) return;
   const b = getFrameBounds(session.overlay.frame);
   const sx = Math.abs(session.image.scaleX ?? 1);
   const sy = Math.abs(session.image.scaleY ?? 1);
-  onChange({ cropW: b.width / sx, cropH: b.height / sy, frameW: b.width, frameH: b.height });
+
+  const cropX = clamp((b.left - (session.image.left ?? 0)) / sx, 0, session.source.width);
+  const cropY = clamp((b.top - (session.image.top ?? 0)) / sy, 0, session.source.height);
+
+  onChange({
+    cropW: b.width / sx,
+    cropH: b.height / sy,
+    cropX,
+    cropY,
+    frameW: b.width,
+    frameH: b.height,
+    imageLeft: Number(session.image.left ?? 0),
+    imageTop: Number(session.image.top ?? 0),
+    sourceW: session.source.width,
+    sourceH: session.source.height
+  });
 };
 
 const updateFromFrame = (session: CropSession, onChange?: (info: CropLiveInfo) => void) => {
@@ -102,15 +137,14 @@ export const startCrop = (
     lockRotation: image.lockRotation
   };
 
-  const overlay = createCropOverlay(
-    canvas,
-    image.left ?? 0,
-    image.top ?? 0,
-    image.getScaledWidth?.() ?? 200,
-    image.getScaledHeight?.() ?? 200
-  );
+  const imgW = image.getScaledWidth?.() ?? 200;
+  const imgH = image.getScaledHeight?.() ?? 200;
+  const centerX = canvas.getWidth() / 2;
+  const centerY = canvas.getHeight() / 2;
 
   image.set({
+    left: centerX - imgW / 2,
+    top: centerY - imgH / 2,
     selectable: true,
     lockMovementX: false,
     lockMovementY: false,
@@ -119,13 +153,17 @@ export const startCrop = (
     lockRotation: true
   });
 
+  const overlay = createCropOverlay(canvas, centerX - imgW / 2, centerY - imgH / 2, imgW, imgH);
+
   overlay.frame.set({
     hasControls: true,
-    lockRotation: true
+    lockRotation: true,
+    lockMovementX: true,
+    lockMovementY: true
   });
 
   const movingHandler = ({ target }: any) => {
-    if (target === overlay.frame || target === image) updateFromFrame(cropSession, onChange);
+    if (target === image) updateFromFrame(cropSession, onChange);
   };
 
   const scalingHandler = ({ target }: any) => {
@@ -135,7 +173,7 @@ export const startCrop = (
     }
   };
 
-  var cropSession: CropSession = {
+  const cropSession: CropSession = {
     overlay,
     image,
     snapshot,
@@ -143,18 +181,8 @@ export const startCrop = (
     unbind: () => undefined
   };
 
-  var cropSession: CropSession = {
-    overlay,
-    image,
-    snapshot,
-    source: getSourceSize(image),
-    unbind: () => undefined
-  };
-
-  canvas.on("mouse:down", onMouseDown);
-  canvas.on("mouse:move", onMouseMove);
-  canvas.on("mouse:up", onMouseUp);
-  window.addEventListener("keydown", onKeyDown);
+  canvas.on("object:moving", movingHandler);
+  canvas.on("object:scaling", scalingHandler);
 
   cropSession.unbind = () => {
     canvas.off("object:moving", movingHandler);
@@ -177,7 +205,7 @@ export const setCropPreset = (
   const frame = session.overlay.frame;
   const size = frameSizeFromPreset(preset, imgW, imgH);
 
-  frame.set({ width: size.w, height: size.h, scaleX: 1, scaleY: 1 });
+  resizeFrameAroundCenter(frame, size.w, size.h);
   frame.setCoords();
   updateFromFrame(session, onChange);
   canvas.requestRenderAll();
@@ -198,8 +226,31 @@ export const setCustomCropSizePx = (
   const w = clamp(wPx, 1, session.source.width) * sx;
   const h = clamp(hPx, 1, session.source.height) * sy;
 
-  session.overlay.frame.set({ width: Math.min(w, imgW), height: Math.min(h, imgH), scaleX: 1, scaleY: 1 });
+  resizeFrameAroundCenter(session.overlay.frame, Math.min(w, imgW), Math.min(h, imgH));
   session.overlay.frame.setCoords();
+  updateFromFrame(session, onChange);
+  canvas.requestRenderAll();
+};
+
+export const setCropOriginPx = (
+  session: CropSession,
+  canvas: Canvas,
+  xPx: number,
+  yPx: number,
+  onChange?: (info: CropLiveInfo) => void
+) => {
+  const frame = getFrameBounds(session.overlay.frame);
+  const sx = Math.abs(session.image.scaleX ?? 1);
+  const sy = Math.abs(session.image.scaleY ?? 1);
+  const maxX = Math.max(0, session.source.width - frame.width / sx);
+  const maxY = Math.max(0, session.source.height - frame.height / sy);
+  const x = clamp(xPx, 0, maxX);
+  const y = clamp(yPx, 0, maxY);
+
+  session.image.set({
+    left: frame.left - x * sx,
+    top: frame.top - y * sy
+  });
   updateFromFrame(session, onChange);
   canvas.requestRenderAll();
 };

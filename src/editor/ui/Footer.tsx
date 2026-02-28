@@ -1,4 +1,5 @@
 import { Minimize2, ZoomIn, ZoomOut } from "lucide-react";
+import { useEditorStore } from "../state/useEditorStore";
 
 const getZoomCenterPoint = (canvas: any) => {
   if (typeof canvas?.getCenterPoint === "function") {
@@ -11,6 +12,8 @@ const getZoomCenterPoint = (canvas: any) => {
 };
 
 export function Footer() {
+  const { doc } = useEditorStore();
+  const activeIndex = Math.max(0, doc.pages.findIndex((p) => p.id === doc.activePageId));
   const getCanvas = () => (window as any).__editorCanvas;
 
   const zoomBy = (delta: number) => {
@@ -26,29 +29,25 @@ export function Footer() {
   const fit = () => {
     const canvas = getCanvas();
     if (!canvas) return;
-
-    const base = (canvas as any).__workspaceViewportTransform;
-    if (Array.isArray(base) && base.length === 6) {
-      canvas.setViewportTransform([...base]);
-    } else {
-      canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-    }
-
+    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
     canvas.requestRenderAll?.();
     canvas.renderAll?.();
   };
 
   return (
-    <footer className="flex h-12 items-center justify-end gap-1 border-t bg-white px-3">
-      <button className="rounded p-2 hover:bg-slate-100" onClick={() => zoomBy(-0.05)} title="Zoom out">
-        <ZoomOut size={16} />
-      </button>
-      <button className="rounded p-2 hover:bg-slate-100" onClick={() => zoomBy(0.05)} title="Zoom in">
-        <ZoomIn size={16} />
-      </button>
-      <button className="rounded p-2 hover:bg-slate-100" onClick={fit} title="Reset zoom">
-        <Minimize2 size={16} />
-      </button>
+    <footer className="flex h-12 items-center justify-between gap-1 border-t bg-white px-3">
+      <div className="text-xs text-slate-600">Page {activeIndex + 1} of {doc.pages.length}</div>
+      <div className="flex items-center gap-1">
+        <button className="rounded p-2 hover:bg-slate-100" onClick={() => zoomBy(-0.05)} title="Zoom out">
+          <ZoomOut size={16} />
+        </button>
+        <button className="rounded p-2 hover:bg-slate-100" onClick={() => zoomBy(0.05)} title="Zoom in">
+          <ZoomIn size={16} />
+        </button>
+        <button className="rounded p-2 hover:bg-slate-100" onClick={fit} title="Reset zoom">
+          <Minimize2 size={16} />
+        </button>
+      </div>
     </footer>
   );
 }
