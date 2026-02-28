@@ -4,10 +4,10 @@ import { exportSelectedImage } from "../../engine/export/exportImage";
 import {
   applyCrop,
   cancelCrop,
-  CROP_RATIO_PRESETS,
   closeCropSession,
   type CropLiveInfo,
   resetCrop,
+  setCropOriginPx,
   setCropPreset,
   setCustomCropSizePx,
   startCrop
@@ -23,16 +23,25 @@ const PRESETS: Array<{ key: "1:1" | "9:16" | "16:9" | "300x300" | "600x250"; lab
 
 export function ImageInspector() {
   const [session, setSession] = useState<any>(null);
-  // Compatibility state for skewed branches that still reference cropImage/setCropImage.
   const [cropImage, setCropImage] = useState<any>(null);
   const [customW, setCustomW] = useState(300);
   const [customH, setCustomH] = useState(300);
+  const [cropX, setCropX] = useState(0);
+  const [cropY, setCropY] = useState(0);
   const [live, setLive] = useState<CropLiveInfo | null>(null);
   const { updateDoc, doc } = useEditorStore();
 
   const canvas = (window as any).__editorCanvas;
   const image = canvas?.getActiveObject() as any;
   const selectedImage = image?.data?.type === "image" ? image : cropImage;
+
+  useEffect(() => {
+    if (!live) return;
+    setCustomW(Math.max(1, Math.round(live.cropW)));
+    setCustomH(Math.max(1, Math.round(live.cropH)));
+    setCropX(Math.max(0, Math.round(live.cropX)));
+    setCropY(Math.max(0, Math.round(live.cropY)));
+  }, [live?.cropW, live?.cropH, live?.cropX, live?.cropY]);
 
   const onStartCrop = () => {
     const next = startCrop(canvas, selectedImage, setLive);
@@ -98,7 +107,9 @@ export function ImageInspector() {
       </button>
 
       {session && (
-        <div className="mt-3 space-y-2">
+        <div className="mt-3 space-y-3 rounded border border-slate-200 p-3">
+          <p className="text-xs text-slate-600">Crop box is fixed in place. Drag only the image to change crop position.</p>
+
           <div className="flex flex-wrap gap-2">
             {PRESETS.map((preset) => (
               <button key={preset.key} className="rounded border px-2 py-1" onClick={() => setCropPreset(session, canvas, preset.key, setLive)}>
@@ -107,23 +118,28 @@ export function ImageInspector() {
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
-            <input className="w-24 rounded border p-1" type="number" value={customW} onChange={(e) => setCustomW(Number(e.target.value))} />
-            <span>×</span>
-            <input className="w-24 rounded border p-1" type="number" value={customH} onChange={(e) => setCustomH(Number(e.target.value))} />
+          <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
+            <input className="w-full rounded border p-1" type="number" min={1} value={customW} onChange={(e) => setCustomW(Number(e.target.value))} />
+            <input className="w-full rounded border p-1" type="number" min={1} value={customH} onChange={(e) => setCustomH(Number(e.target.value))} />
             <button className="rounded border px-2 py-1" onClick={() => setCustomCropSizePx(session, canvas, customW, customH, setLive)}>
-              Set px
+              Set size
+            </button>
+          </div>
+
+          <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
+            <input className="w-full rounded border p-1" type="number" min={0} value={cropX} onChange={(e) => setCropX(Number(e.target.value))} />
+            <input className="w-full rounded border p-1" type="number" min={0} value={cropY} onChange={(e) => setCropY(Number(e.target.value))} />
+            <button className="rounded border px-2 py-1" onClick={() => setCropOriginPx(session, canvas, cropX, cropY, setLive)}>
+              Set position
             </button>
           </div>
 
           {live && (
             <div className="rounded bg-slate-50 p-2 text-xs text-slate-700">
-              <div>
-                Crop: {Math.round(live.cropW)} × {Math.round(live.cropH)} px
-              </div>
-              <div>
-                Frame: {Math.round(live.frameW)} × {Math.round(live.frameH)}
-              </div>
+              <div>Source: {Math.round(live.sourceW)} × {Math.round(live.sourceH)} px</div>
+              <div>Crop size: {Math.round(live.cropW)} × {Math.round(live.cropH)} px</div>
+              <div>Crop origin: X {Math.round(live.cropX)} · Y {Math.round(live.cropY)}</div>
+              <div>Frame on canvas: {Math.round(live.frameW)} × {Math.round(live.frameH)}</div>
             </div>
           )}
 
