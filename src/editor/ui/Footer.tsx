@@ -26,14 +26,7 @@ export function Footer() {
   const fit = () => {
     const canvas = getCanvas();
     if (!canvas) return;
-
-    const base = (canvas as any).__workspaceViewportTransform;
-    if (Array.isArray(base) && base.length === 6) {
-      canvas.setViewportTransform([...base]);
-    } else {
-      canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-    }
-
+    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
     canvas.requestRenderAll?.();
     canvas.renderAll?.();
   };
