@@ -28,7 +28,6 @@ export const listLayers = (canvas: Canvas): LayerItem[] => {
   return canvas
     .getObjects()
     .map((obj: any, index) => ({ obj, index }))
-    .filter(({ obj }) => obj?.data?.type !== "crop-frame")
     .map(({ obj, index }) => {
       const data = ensureData(obj, `Layer ${index + 1}`);
       return {
