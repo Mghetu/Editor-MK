@@ -1,11 +1,13 @@
-import { ChevronDown, Download, MousePointerClick, Redo2, Undo2, Upload } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Download, MousePointerClick, Redo2, Undo2, Upload } from "lucide-react";
 import { exportCurrentPage } from "../engine/export/exportPage";
 import { exportAllPagesZip } from "../engine/export/exportZip";
 import { loadCanvasJson, saveCanvasJson } from "../engine/serialize";
+import { setActivePageByNumber, setActivePageByOffset } from "../features/pages/pagesController";
 import { useEditorStore } from "../state/useEditorStore";
 
 export function TopBar({ undo, redo }: { undo: () => void; redo: () => void }) {
   const { doc, setExportFormat, updateDoc, setTab, activeTab } = useEditorStore();
+  const activeIndex = Math.max(0, doc.pages.findIndex((p) => p.id === doc.activePageId));
 
   const openJson = (file?: File) => {
     if (!file) return;
@@ -56,6 +58,36 @@ export function TopBar({ undo, redo }: { undo: () => void; redo: () => void }) {
 
       <button className="rounded p-2 hover:bg-slate-100" onClick={undo} title="Undo"><Undo2 size={16} /></button>
       <button className="rounded p-2 hover:bg-slate-100" onClick={redo} title="Redo"><Redo2 size={16} /></button>
+
+      <div className="ml-2 flex items-center gap-1 rounded border border-slate-200 bg-slate-50 px-1 py-0.5 text-xs">
+        <button
+          className="rounded p-1 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+          onClick={() => updateDoc((d) => setActivePageByOffset(d, -1))}
+          disabled={activeIndex === 0}
+          title="Previous page"
+        >
+          <ChevronLeft size={14} />
+        </button>
+        <span className="px-1 text-slate-700">Page</span>
+        <input
+          className="w-10 rounded border border-slate-300 bg-white px-1 py-0.5 text-center"
+          value={activeIndex + 1}
+          onChange={(e) => {
+            const parsed = Number(e.target.value);
+            if (!Number.isFinite(parsed) || parsed < 1) return;
+            updateDoc((d) => setActivePageByNumber(d, parsed));
+          }}
+        />
+        <span className="text-slate-500">/ {doc.pages.length}</span>
+        <button
+          className="rounded p-1 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+          onClick={() => updateDoc((d) => setActivePageByOffset(d, 1))}
+          disabled={activeIndex >= doc.pages.length - 1}
+          title="Next page"
+        >
+          <ChevronRight size={14} />
+        </button>
+      </div>
 
       <div className="ml-auto flex items-center gap-2 text-sm">
         <button className={`rounded border px-2 py-1 ${doc.export.format === "png" ? "bg-slate-900 text-white" : ""}`} onClick={() => setExportFormat("png")}>PNG</button>
