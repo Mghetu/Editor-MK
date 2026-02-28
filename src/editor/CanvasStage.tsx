@@ -147,7 +147,7 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
 
   return (
     <div className="flex h-full w-full items-center justify-center bg-slate-200 p-6">
-      <canvas ref={canvasEl} className="shadow-2xl" />
+      <canvas ref={canvasEl} />
     </div>
   );
 }
