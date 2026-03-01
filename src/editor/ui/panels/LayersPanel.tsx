@@ -43,26 +43,26 @@ export function LayersPanel() {
   const canvas = (window as any).__editorCanvas;
 
   return (
-    <div>
-      <h3 className="mb-2 font-semibold">Layers</h3>
+    <div className="space-y-2 rounded-xl border border-[#3f3f3f] bg-[#1f1f1f] p-3">
+      <h3 className="mb-2 font-semibold text-slate-100">Layers</h3>
       <div className="space-y-2">
-        {layers.length === 0 && <p className="text-xs text-slate-500">No objects yet.</p>}
+        {layers.length === 0 && <p className="text-xs text-slate-400">No objects yet.</p>}
         {layers.map((layer) => (
           <div
             key={layer.id}
-            className={`rounded border p-2 ${layer.active ? "border-sky-400 bg-sky-50" : ""}`}
+            className={`rounded border p-2 ${layer.active ? "border-violet-400 bg-[#2a2f3d]" : ""}`}
           >
             <div className="flex items-center gap-2">
               <button className="flex-1 text-left text-xs" onClick={() => selectLayer(canvas, layer.id)}>
                 <span className="font-medium">{layer.name}</span>
-                <span className="ml-1 text-[10px] uppercase text-slate-500">({layer.type})</span>
+                <span className="ml-1 text-[10px] uppercase text-slate-400">({layer.type})</span>
               </button>
-              <button className="rounded p-1 hover:bg-slate-100" title="Bring forward" onClick={() => { bringForward(canvas, layer.id); setLayers(listLayers(canvas)); }}><ArrowUp size={13} /></button>
-              <button className="rounded p-1 hover:bg-slate-100" title="Send backward" onClick={() => { sendBackward(canvas, layer.id); setLayers(listLayers(canvas)); }}><ArrowDown size={13} /></button>
-              <button className="rounded p-1 hover:bg-slate-100" title={layer.locked ? "Unlock" : "Lock"} onClick={() => { toggleLockLayer(canvas, layer.id); setLayers(listLayers(canvas)); }}>
+              <button className="rounded p-1 hover:bg-[#2f2f2f]" title="Bring forward" onClick={() => { bringForward(canvas, layer.id); setLayers(listLayers(canvas)); }}><ArrowUp size={13} /></button>
+              <button className="rounded p-1 hover:bg-[#2f2f2f]" title="Send backward" onClick={() => { sendBackward(canvas, layer.id); setLayers(listLayers(canvas)); }}><ArrowDown size={13} /></button>
+              <button className="rounded p-1 hover:bg-[#2f2f2f]" title={layer.locked ? "Unlock" : "Lock"} onClick={() => { toggleLockLayer(canvas, layer.id); setLayers(listLayers(canvas)); }}>
                 {layer.locked ? <Lock size={13} /> : <Unlock size={13} />}
               </button>
-              <button className="rounded p-1 hover:bg-slate-100" title={layer.hidden ? "Show" : "Hide"} onClick={() => { toggleHideLayer(canvas, layer.id); setLayers(listLayers(canvas)); }}>
+              <button className="rounded p-1 hover:bg-[#2f2f2f]" title={layer.hidden ? "Show" : "Hide"} onClick={() => { toggleHideLayer(canvas, layer.id); setLayers(listLayers(canvas)); }}>
                 {layer.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
               </button>
             </div>

@@ -19,11 +19,11 @@ export function TemplatesPanel() {
   };
 
   return (
-    <div>
-      <h3 className="mb-2 font-semibold">Templates</h3>
+    <div className="space-y-2 rounded-xl border border-[#3f3f3f] bg-[#1f1f1f] p-3">
+      <h3 className="mb-2 font-semibold text-slate-100">Templates</h3>
       <div className="space-y-2">
         {manifest?.templates.map((t) => (
-          <button key={t.id} className="w-full rounded border p-2 text-left" onClick={() => apply(t.json, t.size.w, t.size.h)}>
+          <button key={t.id} className="w-full rounded border border-[#555] bg-[#252525] p-2 text-left text-slate-100 hover:bg-[#333]" onClick={() => apply(t.json, t.size.w, t.size.h)}>
             {t.name}
           </button>
         ))}

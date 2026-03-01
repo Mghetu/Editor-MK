@@ -28,7 +28,7 @@ export function EditorShell() {
   const leftWidth = activeTab === "select" ? "74px" : "360px";
 
   return (
-    <div className="grid h-full grid-rows-[56px_44px_1fr] bg-slate-50">
+    <div className="grid h-full grid-rows-[56px_44px_1fr] bg-[#121212] text-slate-100">
       <TopBar undo={() => stage?.history.undo()} redo={() => stage?.history.redo()} />
       <Toolbar />
       <div className="grid h-full" style={{ gridTemplateColumns: `${leftWidth} 1fr 300px` }}>
