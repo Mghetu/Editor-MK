@@ -67,6 +67,11 @@ const getObjectBounds = (obj: any) => {
   };
 };
 
+const isTextboxLike = (obj: any) => {
+  const type = String(obj?.type ?? "").toLowerCase();
+  return type === "textbox";
+};
+
 export function ObjectContextMenu() {
   const [snapshot, setSnapshot] = useState<ObjectSnapshot | null>(() => readSnapshot());
   const [lockAspect, setLockAspect] = useState(true);
@@ -134,6 +139,15 @@ export function ObjectContextMenu() {
     const sanitized = Math.max(1, Number.isFinite(nextValue) ? nextValue : 1);
 
     mutate((obj) => {
+      if (isTextboxLike(obj) && key === "width") {
+        obj.set({
+          width: sanitized,
+          scaleX: Number(obj.scaleX ?? 1) < 0 ? -1 : 1,
+          strokeUniform: true
+        });
+        return;
+      }
+
       const currentW = Math.max(1, Number(obj.getScaledWidth?.() ?? obj.width ?? 1));
       const currentH = Math.max(1, Number(obj.getScaledHeight?.() ?? obj.height ?? 1));
 
