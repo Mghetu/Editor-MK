@@ -42,13 +42,28 @@ const getActiveObject = () => {
   };
 };
 
+const isCropFrameLike = (obj: any) => Boolean(obj?.data?.isCropOverlay && obj?.data?.type === "crop-frame");
+
+const getRenderedDimension = (obj: any, axis: "width" | "height") => {
+  const scaleKey = axis === "width" ? "scaleX" : "scaleY";
+  const sizeKey = axis;
+  return Math.max(1, Number(obj?.[sizeKey] ?? 1) * Math.abs(Number(obj?.[scaleKey] ?? 1)));
+};
+
 const readSnapshot = (): ObjectSnapshot | null => {
   const { obj } = getActiveObject();
   if (!obj) return null;
 
+  const width = isCropFrameLike(obj)
+    ? getRenderedDimension(obj, "width")
+    : Number(obj.getScaledWidth?.() ?? obj.width ?? 1);
+  const height = isCropFrameLike(obj)
+    ? getRenderedDimension(obj, "height")
+    : Number(obj.getScaledHeight?.() ?? obj.height ?? 1);
+
   return {
-    width: Math.max(1, Math.round(obj.getScaledWidth?.() ?? obj.width ?? 1)),
-    height: Math.max(1, Math.round(obj.getScaledHeight?.() ?? obj.height ?? 1)),
+    width: Math.max(1, Math.round(width)),
+    height: Math.max(1, Math.round(height)),
     opacity: Math.max(0, Math.min(1, Number(obj.opacity ?? 1))),
     fill: normalizeColor(obj.fill, "#e2e8f0"),
     stroke: normalizeColor(obj.stroke, "#334155"),
@@ -65,6 +80,11 @@ const getObjectBounds = (obj: any) => {
     width: Math.max(0, Number(bounds.width ?? 0)),
     height: Math.max(0, Number(bounds.height ?? 0))
   };
+};
+
+const isTextboxLike = (obj: any) => {
+  const type = String(obj?.type ?? "").toLowerCase();
+  return type === "textbox";
 };
 
 export function ObjectContextMenu() {
@@ -134,6 +154,28 @@ export function ObjectContextMenu() {
     const sanitized = Math.max(1, Number.isFinite(nextValue) ? nextValue : 1);
 
     mutate((obj) => {
+      if (isCropFrameLike(obj)) {
+        const nextWidth = key === "width" ? sanitized : lockAspect ? Math.max(1, Math.round((sanitized * snapshot.width) / Math.max(1, snapshot.height))) : snapshot.width;
+        const nextHeight = key === "height" ? sanitized : lockAspect ? Math.max(1, Math.round((sanitized * snapshot.height) / Math.max(1, snapshot.width))) : snapshot.height;
+
+        obj.set({
+          width: Math.max(1, nextWidth),
+          height: Math.max(1, nextHeight),
+          scaleX: Number(obj.scaleX ?? 1) < 0 ? -1 : 1,
+          scaleY: Number(obj.scaleY ?? 1) < 0 ? -1 : 1
+        });
+        return;
+      }
+
+      if (isTextboxLike(obj) && key === "width") {
+        obj.set({
+          width: sanitized,
+          scaleX: Number(obj.scaleX ?? 1) < 0 ? -1 : 1,
+          strokeUniform: true
+        });
+        return;
+      }
+
       const currentW = Math.max(1, Number(obj.getScaledWidth?.() ?? obj.width ?? 1));
       const currentH = Math.max(1, Number(obj.getScaledHeight?.() ?? obj.height ?? 1));
 
