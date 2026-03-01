@@ -75,6 +75,14 @@ export function Toolbar() {
           onClick={async () => {
             if (!canvas || !active) return;
             const cloned = await active.clone();
+            const originalData = active?.data ?? {};
+            const clonedData = cloned?.data ?? {};
+
+            cloned.set("data", {
+              ...originalData,
+              ...clonedData,
+              id: crypto.randomUUID()
+            });
             cloned.set({ left: (active.left ?? 0) + 20, top: (active.top ?? 0) + 20 });
             canvas.add(cloned);
             canvas.setActiveObject(cloned);
