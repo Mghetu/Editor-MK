@@ -1,10 +1,10 @@
 import {
-  AlignEndHorizontal,
+  AlignCenterHorizontal,
+  AlignCenterVertical,
   AlignEndVertical,
-  AlignHorizontalJustifyCenter,
-  AlignStartHorizontal,
+  AlignLeft,
   AlignStartVertical,
-  AlignVerticalJustifyCenter,
+  AlignRight,
   Lock,
   Unlock
 } from "lucide-react";
@@ -56,6 +56,17 @@ const readSnapshot = (): ObjectSnapshot | null => {
   };
 };
 
+const getObjectBounds = (obj: any) => {
+  const bounds = obj?.getBoundingRect?.(true, true) ?? obj?.getBoundingRect?.();
+  if (!bounds) return null;
+  return {
+    left: Number(bounds.left ?? 0),
+    top: Number(bounds.top ?? 0),
+    width: Math.max(0, Number(bounds.width ?? 0)),
+    height: Math.max(0, Number(bounds.height ?? 0))
+  };
+};
+
 export function ObjectContextMenu() {
   const [snapshot, setSnapshot] = useState<ObjectSnapshot | null>(() => readSnapshot());
   const [lockAspect, setLockAspect] = useState(true);
@@ -95,17 +106,26 @@ export function ObjectContextMenu() {
 
   const align = (position: AxisAlignment) => {
     mutate((obj, canvas) => {
+      const bounds = getObjectBounds(obj);
+      if (!bounds) return;
+
       const canvasWidth = Number(canvas.getWidth?.() ?? canvas.width ?? 0);
       const canvasHeight = Number(canvas.getHeight?.() ?? canvas.height ?? 0);
-      const objectWidth = Number(obj.getScaledWidth?.() ?? obj.width ?? 0);
-      const objectHeight = Number(obj.getScaledHeight?.() ?? obj.height ?? 0);
 
-      if (position === "left") obj.set("left", 0);
-      if (position === "center") obj.set("left", Math.max(0, (canvasWidth - objectWidth) / 2));
-      if (position === "right") obj.set("left", Math.max(0, canvasWidth - objectWidth));
-      if (position === "top") obj.set("top", 0);
-      if (position === "middle") obj.set("top", Math.max(0, (canvasHeight - objectHeight) / 2));
-      if (position === "bottom") obj.set("top", Math.max(0, canvasHeight - objectHeight));
+      let deltaX = 0;
+      let deltaY = 0;
+
+      if (position === "left") deltaX = -bounds.left;
+      if (position === "center") deltaX = canvasWidth / 2 - (bounds.left + bounds.width / 2);
+      if (position === "right") deltaX = canvasWidth - (bounds.left + bounds.width);
+      if (position === "top") deltaY = -bounds.top;
+      if (position === "middle") deltaY = canvasHeight / 2 - (bounds.top + bounds.height / 2);
+      if (position === "bottom") deltaY = canvasHeight - (bounds.top + bounds.height);
+
+      obj.set({
+        left: Number(obj.left ?? 0) + deltaX,
+        top: Number(obj.top ?? 0) + deltaY
+      });
     });
   };
 
@@ -142,11 +162,11 @@ export function ObjectContextMenu() {
       <div>
         <p className="mb-2 text-xs font-medium text-slate-600">Align</p>
         <div className="grid grid-cols-3 gap-1">
-          <button className="rounded border bg-white p-2 hover:bg-slate-100" title="Align left" onClick={() => align("left")}><AlignStartHorizontal size={14} /></button>
-          <button className="rounded border bg-white p-2 hover:bg-slate-100" title="Align horizontal center" onClick={() => align("center")}><AlignHorizontalJustifyCenter size={14} /></button>
-          <button className="rounded border bg-white p-2 hover:bg-slate-100" title="Align right" onClick={() => align("right")}><AlignEndHorizontal size={14} /></button>
+          <button className="rounded border bg-white p-2 hover:bg-slate-100" title="Align left" onClick={() => align("left")}><AlignLeft size={14} /></button>
+          <button className="rounded border bg-white p-2 hover:bg-slate-100" title="Align horizontal center" onClick={() => align("center")}><AlignCenterHorizontal size={14} /></button>
+          <button className="rounded border bg-white p-2 hover:bg-slate-100" title="Align right" onClick={() => align("right")}><AlignRight size={14} /></button>
           <button className="rounded border bg-white p-2 hover:bg-slate-100" title="Align top" onClick={() => align("top")}><AlignStartVertical size={14} /></button>
-          <button className="rounded border bg-white p-2 hover:bg-slate-100" title="Align vertical center" onClick={() => align("middle")}><AlignVerticalJustifyCenter size={14} /></button>
+          <button className="rounded border bg-white p-2 hover:bg-slate-100" title="Align vertical center" onClick={() => align("middle")}><AlignCenterVertical size={14} /></button>
           <button className="rounded border bg-white p-2 hover:bg-slate-100" title="Align bottom" onClick={() => align("bottom")}><AlignEndVertical size={14} /></button>
         </div>
       </div>
@@ -224,10 +244,6 @@ export function ObjectContextMenu() {
           className="w-full rounded border bg-white p-2"
           onChange={(e) => mutate((obj) => obj.set({ strokeWidth: Math.max(0, Number(e.target.value)), strokeUniform: true }))}
         />
-      </div>
-
-      <div className="rounded border border-dashed bg-white px-2 py-1 text-[11px] text-slate-500">
-        Canvas alignment shortcuts inspired by CE.SDK advanced inspector UX.
       </div>
     </div>
   );
