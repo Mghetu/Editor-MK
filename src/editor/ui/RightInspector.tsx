@@ -9,8 +9,8 @@ export function RightInspector() {
   const { selectedObjectType } = useEditorStore();
 
   return (
-    <div className="h-full border-l bg-white p-3 text-sm">
-      {!selectedObjectType && <p className="text-slate-500">Select an object to edit</p>}
+    <div className="h-full border-l border-[#232c45] bg-[#121a2f] p-3 text-sm text-slate-200">
+      {!selectedObjectType && <p className="text-slate-400">Select an object to edit</p>}
       {selectedObjectType && <ObjectContextMenu />}
 
       <div className="mt-4">
