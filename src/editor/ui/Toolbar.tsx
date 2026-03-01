@@ -10,7 +10,7 @@ export function Toolbar() {
 
   if (!active) {
     return (
-      <div className="flex h-11 items-center gap-2 border-b border-[#232c45] bg-[#121a2f] px-3 text-xs text-slate-400">
+      <div className="flex h-11 items-center gap-2 border-b border-[#313131] bg-[#1f1f1f] px-3 text-xs text-slate-400">
         Select an object to edit quick properties.
       </div>
     );
@@ -22,7 +22,7 @@ export function Toolbar() {
   };
 
   return (
-    <div className="flex h-11 items-center gap-2 border-b border-[#232c45] bg-[#121a2f] px-3 text-xs text-slate-200">
+    <div className="flex h-11 items-center gap-2 border-b border-[#313131] bg-[#1f1f1f] px-3 text-xs text-slate-200">
       {(selectedObjectType === "text" || selectedObjectType === "table") && (
         <>
           <label className="text-slate-300">Fill</label>
@@ -37,7 +37,7 @@ export function Toolbar() {
       {selectedObjectType === "text" && (
         <>
           <select
-            className="rounded border border-[#3a486d] bg-[#11182d] px-2 py-1"
+            className="rounded border border-[#5a5a5a] bg-[#202020] px-2 py-1"
             defaultValue={active.fontFamily || "Arial"}
             onChange={(e) => mutate(() => active.set("fontFamily", e.target.value))}
           >
@@ -47,7 +47,7 @@ export function Toolbar() {
           </select>
           <input
             type="number"
-            className="w-16 rounded border border-[#3a486d] bg-[#11182d] px-2 py-1"
+            className="w-16 rounded border border-[#5a5a5a] bg-[#202020] px-2 py-1"
             defaultValue={active.fontSize || 48}
             onChange={(e) => mutate(() => active.set("fontSize", Number(e.target.value)))}
           />
@@ -70,7 +70,7 @@ export function Toolbar() {
 
       <div className="ml-auto flex items-center gap-1">
         <button
-          className="rounded p-1.5 hover:bg-[#1b2540]"
+          className="rounded p-1.5 hover:bg-[#2a2a2a]"
           title="Duplicate"
           onClick={async () => {
             if (!canvas || !active) return;
@@ -83,10 +83,10 @@ export function Toolbar() {
         >
           <Copy size={14} />
         </button>
-        <button className="rounded p-1.5 hover:bg-[#1b2540]" title="Bring forward" onClick={() => mutate(() => canvas?.bringObjectForward(active))}>
+        <button className="rounded p-1.5 hover:bg-[#2a2a2a]" title="Bring forward" onClick={() => mutate(() => canvas?.bringObjectForward(active))}>
           <Layers size={14} />
         </button>
-        <button className="rounded p-1.5 text-rose-400 hover:bg-[#1b2540]" title="Delete" onClick={() => mutate(() => canvas?.remove(active))}>
+        <button className="rounded p-1.5 text-rose-400 hover:bg-[#2a2a2a]" title="Delete" onClick={() => mutate(() => canvas?.remove(active))}>
           <Trash2 size={14} />
         </button>
       </div>

@@ -9,7 +9,7 @@ export function RightInspector() {
   const { selectedObjectType } = useEditorStore();
 
   return (
-    <div className="h-full border-l border-[#232c45] bg-[#121a2f] p-3 text-sm text-slate-200">
+    <div className="h-full border-l border-[#313131] bg-[#1f1f1f] p-3 text-sm text-slate-200">
       {!selectedObjectType && <p className="text-slate-400">Select an object to edit</p>}
       {selectedObjectType && <ObjectContextMenu />}
 

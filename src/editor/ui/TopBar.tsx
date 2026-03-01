@@ -40,28 +40,28 @@ export function TopBar({ undo, redo }: { undo: () => void; redo: () => void }) {
   };
 
   return (
-    <div className="flex h-14 items-center gap-2 border-b border-[#232c45] bg-[#121a2f] px-4 text-slate-200">
+    <div className="flex h-14 items-center gap-2 border-b border-[#313131] bg-[#1f1f1f] px-4 text-slate-200">
       <div className="text-sm font-semibold text-slate-100">Editor MK</div>
-      <label className="cursor-pointer rounded px-3 py-1.5 text-sm hover:bg-[#1b2540]">
+      <label className="cursor-pointer rounded px-3 py-1.5 text-sm hover:bg-[#2a2a2a]">
         File <ChevronDown size={14} className="ml-1 inline" />
         <input type="file" accept="application/json" className="hidden" onChange={(e) => openJson(e.target.files?.[0])} />
       </label>
-      <button className="rounded p-2 hover:bg-[#1b2540]" title="Import JSON" onClick={() => document.querySelector<HTMLInputElement>('input[type=file][accept="application/json"]')?.click()}>
+      <button className="rounded p-2 hover:bg-[#2a2a2a]" title="Import JSON" onClick={() => document.querySelector<HTMLInputElement>('input[type=file][accept="application/json"]')?.click()}>
         <Upload size={16} />
       </button>
-      <button className="rounded border border-[#2f3a59] bg-[#1a233a] px-2 py-1 text-xs text-slate-200" onClick={saveJson}>Save JSON</button>
-      <button className={`rounded p-2 hover:bg-[#1b2540] ${activeTab === "select" ? "bg-[#253151] text-violet-300" : ""}`} onClick={() => setTab("select")} title="Select tool">
+      <button className="rounded border border-[#454545] bg-[#2b2b2b] px-2 py-1 text-xs text-slate-200" onClick={saveJson}>Save JSON</button>
+      <button className={`rounded p-2 hover:bg-[#2a2a2a] ${activeTab === "select" ? "bg-[#353535] text-violet-300" : ""}`} onClick={() => setTab("select")} title="Select tool">
         <MousePointerClick size={16} />
       </button>
 
-      <div className="mx-1 h-6 w-px bg-[#2a3553]" />
+      <div className="mx-1 h-6 w-px bg-[#3a3a3a]" />
 
-      <button className="rounded p-2 hover:bg-[#1b2540]" onClick={undo} title="Undo"><Undo2 size={16} /></button>
-      <button className="rounded p-2 hover:bg-[#1b2540]" onClick={redo} title="Redo"><Redo2 size={16} /></button>
+      <button className="rounded p-2 hover:bg-[#2a2a2a]" onClick={undo} title="Undo"><Undo2 size={16} /></button>
+      <button className="rounded p-2 hover:bg-[#2a2a2a]" onClick={redo} title="Redo"><Redo2 size={16} /></button>
 
-      <div className="ml-2 flex items-center gap-1 rounded border border-[#2f3a59] bg-[#1a233a] px-1 py-0.5 text-xs">
+      <div className="ml-2 flex items-center gap-1 rounded border border-[#454545] bg-[#2b2b2b] px-1 py-0.5 text-xs">
         <button
-          className="rounded p-1 hover:bg-[#2a3658] disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded p-1 hover:bg-[#3d3d3d] disabled:cursor-not-allowed disabled:opacity-40"
           onClick={() => updateDoc((d) => setActivePageByOffset(d, -1))}
           disabled={activeIndex === 0}
           title="Previous page"
@@ -70,7 +70,7 @@ export function TopBar({ undo, redo }: { undo: () => void; redo: () => void }) {
         </button>
         <span className="px-1 text-slate-200">Page</span>
         <input
-          className="w-10 rounded border border-[#3a486d] bg-[#11182d] px-1 py-0.5 text-center text-slate-200"
+          className="w-10 rounded border border-[#5a5a5a] bg-[#202020] px-1 py-0.5 text-center text-slate-200"
           value={activeIndex + 1}
           onChange={(e) => {
             const parsed = Number(e.target.value);
@@ -80,7 +80,7 @@ export function TopBar({ undo, redo }: { undo: () => void; redo: () => void }) {
         />
         <span className="text-slate-400">/ {doc.pages.length}</span>
         <button
-          className="rounded p-1 hover:bg-[#2a3658] disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded p-1 hover:bg-[#3d3d3d] disabled:cursor-not-allowed disabled:opacity-40"
           onClick={() => updateDoc((d) => setActivePageByOffset(d, 1))}
           disabled={activeIndex >= doc.pages.length - 1}
           title="Next page"
@@ -90,8 +90,8 @@ export function TopBar({ undo, redo }: { undo: () => void; redo: () => void }) {
       </div>
 
       <div className="ml-auto flex items-center gap-2 text-sm">
-        <button className={`rounded border border-[#3a486d] px-2 py-1 ${doc.export.format === "png" ? "bg-violet-600 text-white" : "bg-[#1a233a] text-slate-200"}`} onClick={() => setExportFormat("png")}>PNG</button>
-        <button className={`rounded border border-[#3a486d] px-2 py-1 ${doc.export.format === "jpg" ? "bg-violet-600 text-white" : "bg-[#1a233a] text-slate-200"}`} onClick={() => setExportFormat("jpg")}>JPG</button>
+        <button className={`rounded border border-[#5a5a5a] px-2 py-1 ${doc.export.format === "png" ? "bg-violet-600 text-white" : "bg-[#2b2b2b] text-slate-200"}`} onClick={() => setExportFormat("png")}>PNG</button>
+        <button className={`rounded border border-[#5a5a5a] px-2 py-1 ${doc.export.format === "jpg" ? "bg-violet-600 text-white" : "bg-[#2b2b2b] text-slate-200"}`} onClick={() => setExportFormat("jpg")}>JPG</button>
         <button
           className="rounded bg-violet-600 px-3 py-1 text-white hover:bg-violet-500"
           onClick={() => exportCurrentPage((window as any).__editorCanvas, doc.export.format, doc.export.multiplier, doc.pages.find((p) => p.id === doc.activePageId)?.name || "page")}
