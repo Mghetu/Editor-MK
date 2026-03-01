@@ -231,26 +231,26 @@ export function ObjectContextMenu() {
   if (!snapshot) return null;
 
   return (
-    <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Quick actions</h3>
+    <div className="space-y-3 rounded-xl border border-[#3f3f3f] bg-[#1f1f1f] p-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Quick actions</h3>
 
       <div>
-        <p className="mb-2 text-xs font-medium text-slate-600">Align</p>
+        <p className="mb-2 text-xs font-medium text-slate-400">Align</p>
         <div className="grid grid-cols-3 gap-1">
-          <button className="rounded border bg-white p-2 hover:bg-slate-100" title="Align left" onClick={() => align("left")}><AlignLeft size={14} /></button>
-          <button className="rounded border bg-white p-2 hover:bg-slate-100" title="Align horizontal center" onClick={() => align("center")}><AlignCenterHorizontal size={14} /></button>
-          <button className="rounded border bg-white p-2 hover:bg-slate-100" title="Align right" onClick={() => align("right")}><AlignRight size={14} /></button>
-          <button className="rounded border bg-white p-2 hover:bg-slate-100" title="Align top" onClick={() => align("top")}><AlignStartVertical size={14} /></button>
-          <button className="rounded border bg-white p-2 hover:bg-slate-100" title="Align vertical center" onClick={() => align("middle")}><AlignCenterVertical size={14} /></button>
-          <button className="rounded border bg-white p-2 hover:bg-slate-100" title="Align bottom" onClick={() => align("bottom")}><AlignEndVertical size={14} /></button>
+          <button className="rounded border border-[#555] bg-[#252525] p-2 hover:bg-[#333]" title="Align left" onClick={() => align("left")}><AlignLeft size={14} /></button>
+          <button className="rounded border border-[#555] bg-[#252525] p-2 hover:bg-[#333]" title="Align horizontal center" onClick={() => align("center")}><AlignCenterHorizontal size={14} /></button>
+          <button className="rounded border border-[#555] bg-[#252525] p-2 hover:bg-[#333]" title="Align right" onClick={() => align("right")}><AlignRight size={14} /></button>
+          <button className="rounded border border-[#555] bg-[#252525] p-2 hover:bg-[#333]" title="Align top" onClick={() => align("top")}><AlignStartVertical size={14} /></button>
+          <button className="rounded border border-[#555] bg-[#252525] p-2 hover:bg-[#333]" title="Align vertical center" onClick={() => align("middle")}><AlignCenterVertical size={14} /></button>
+          <button className="rounded border border-[#555] bg-[#252525] p-2 hover:bg-[#333]" title="Align bottom" onClick={() => align("bottom")}><AlignEndVertical size={14} /></button>
         </div>
       </div>
 
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <p className="text-xs font-medium text-slate-600">Dimensions</p>
+          <p className="text-xs font-medium text-slate-400">Dimensions</p>
           <button
-            className={`rounded border p-1.5 ${lockAspect ? "bg-slate-200" : "bg-white"}`}
+            className={`rounded border border-[#555] p-1.5 ${lockAspect ? "bg-[#3a3a3a]" : "bg-[#252525]"}`}
             title="Constrain proportions"
             onClick={() => setLockAspect((prev) => !prev)}
           >
@@ -262,21 +262,21 @@ export function ObjectContextMenu() {
             type="number"
             min={1}
             value={snapshot.width}
-            className="w-full rounded border bg-white p-2"
+            className="w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
             onChange={(e) => updateSize("width", Number(e.target.value))}
           />
           <input
             type="number"
             min={1}
             value={snapshot.height}
-            className="w-full rounded border bg-white p-2"
+            className="w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
             onChange={(e) => updateSize("height", Number(e.target.value))}
           />
         </div>
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">Opacity ({Math.round(snapshot.opacity * 100)}%)</label>
+        <label className="mb-1 block text-xs font-medium text-slate-400">Opacity ({Math.round(snapshot.opacity * 100)}%)</label>
         <input
           type="range"
           min={0}
@@ -290,7 +290,7 @@ export function ObjectContextMenu() {
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Fill</label>
+          <label className="mb-1 block text-xs font-medium text-slate-400">Fill</label>
           <button
             className="h-10 w-full rounded border"
             style={{ backgroundColor: snapshot.fill }}
@@ -298,7 +298,7 @@ export function ObjectContextMenu() {
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Stroke</label>
+          <label className="mb-1 block text-xs font-medium text-slate-400">Stroke</label>
           <button
             className="h-10 w-full rounded border"
             style={{ backgroundColor: snapshot.stroke }}
@@ -323,13 +323,13 @@ export function ObjectContextMenu() {
       )}
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">Stroke width</label>
+        <label className="mb-1 block text-xs font-medium text-slate-400">Stroke width</label>
         <input
           type="number"
           min={0}
           step={0.5}
           value={snapshot.strokeWidth}
-          className="w-full rounded border bg-white p-2"
+          className="w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
           onChange={(e) => mutate((obj) => obj.set({ strokeWidth: Math.max(0, Number(e.target.value)), strokeUniform: true }))}
         />
       </div>
