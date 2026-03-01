@@ -27,6 +27,7 @@ const setRectFromBounds = (rect: any, bounds: RectBox) => {
 
 type PreviousInteractionState = {
   canvasSelection: boolean;
+  activeImageState: { selectable: boolean; evented: boolean; hasControls: boolean };
   objectStates: Array<{ obj: any; selectable: boolean; evented: boolean }>;
 };
 
@@ -210,6 +211,25 @@ export class CropModeController {
     this.onUpdated?.();
   }
 
+  private syncImageBoundsAndCropRect() {
+    if (!this.image || !this.cropRect) return;
+
+    this.image.setCoords();
+    this.imageBounds = getImageDisplayRect(this.image);
+
+    if (!this.imageBounds) return;
+
+    let next = clampRectWithinBounds(toCanvasRect(this.cropRect), this.imageBounds);
+
+    if (this.currentAspect) {
+      const fitted = fitRectToAspectWithinBounds(next, this.currentAspect);
+      next = clampRectWithinBounds(fitted, this.imageBounds);
+    }
+
+    setRectFromBounds(this.cropRect, next);
+    this.refreshOverlay();
+  }
+
   private bindCropEvents() {
     const moving = (evt: any) => {
       if (evt?.target !== this.cropRect || !this.cropRect || !this.imageBounds) return;
@@ -260,9 +280,16 @@ export class CropModeController {
       this.refreshOverlay();
     };
 
+    const imageTransforming = (evt: any) => {
+      if (evt?.target !== this.image) return;
+      this.syncImageBoundsAndCropRect();
+    };
+
     this.listeners = [
       { event: "object:moving", fn: moving },
-      { event: "object:scaling", fn: scaling }
+      { event: "object:scaling", fn: scaling },
+      { event: "object:moving", fn: imageTransforming },
+      { event: "object:scaling", fn: imageTransforming }
     ];
 
     this.listeners.forEach(({ event, fn }) => this.canvas.on(event as any, fn as any));
@@ -283,6 +310,11 @@ export class CropModeController {
   private disableOtherInteractions(activeImage: any) {
     this.previousInteractionState = {
       canvasSelection: this.canvas.selection,
+      activeImageState: {
+        selectable: Boolean(activeImage.selectable),
+        evented: Boolean(activeImage.evented),
+        hasControls: Boolean(activeImage.hasControls)
+      },
       objectStates: this.canvas
         .getObjects()
         .filter((obj: any) => obj !== activeImage)
@@ -298,7 +330,7 @@ export class CropModeController {
       obj.set({ selectable: false, evented: false });
     });
 
-    activeImage.set({ selectable: false, evented: false });
+    activeImage.set({ selectable: true, evented: true, hasControls: true });
   }
 
   private restoreInteractions() {
@@ -310,7 +342,12 @@ export class CropModeController {
     });
 
     if (this.image) {
-      this.image.set({ selectable: true, evented: true });
+      const activeImageState = this.previousInteractionState.activeImageState;
+      this.image.set({
+        selectable: activeImageState.selectable,
+        evented: activeImageState.evented,
+        hasControls: activeImageState.hasControls
+      });
     }
 
     this.previousInteractionState = null;
