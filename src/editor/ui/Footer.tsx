@@ -35,16 +35,16 @@ export function Footer() {
   };
 
   return (
-    <footer className="flex h-12 items-center justify-between gap-1 border-t bg-white px-3">
-      <div className="text-xs text-slate-600">Page {activeIndex + 1} of {doc.pages.length}</div>
+    <footer className="flex h-12 items-center justify-between gap-1 border-t border-[#313131] bg-[#1f1f1f] px-3">
+      <div className="text-xs text-slate-300">Page {activeIndex + 1} of {doc.pages.length}</div>
       <div className="flex items-center gap-1">
-        <button className="rounded p-2 hover:bg-slate-100" onClick={() => zoomBy(-0.05)} title="Zoom out">
+        <button className="rounded p-2 hover:bg-[#2a2a2a]" onClick={() => zoomBy(-0.05)} title="Zoom out">
           <ZoomOut size={16} />
         </button>
-        <button className="rounded p-2 hover:bg-slate-100" onClick={() => zoomBy(0.05)} title="Zoom in">
+        <button className="rounded p-2 hover:bg-[#2a2a2a]" onClick={() => zoomBy(0.05)} title="Zoom in">
           <ZoomIn size={16} />
         </button>
-        <button className="rounded p-2 hover:bg-slate-100" onClick={fit} title="Reset zoom">
+        <button className="rounded p-2 hover:bg-[#2a2a2a]" onClick={fit} title="Reset zoom">
           <Minimize2 size={16} />
         </button>
       </div>
