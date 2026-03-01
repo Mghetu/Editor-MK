@@ -26,17 +26,20 @@ export function LayersPanel() {
     canvas.on("selection:created", refresh);
     canvas.on("selection:updated", refresh);
     canvas.on("selection:cleared", refresh);
-
-    const timer = window.setInterval(refresh, 600);
+    canvas.on("object:moving", refresh);
+    canvas.on("object:scaling", refresh);
+    canvas.on("object:rotating", refresh);
 
     return () => {
-      window.clearInterval(timer);
       canvas.off("object:added", refresh);
       canvas.off("object:removed", refresh);
       canvas.off("object:modified", refresh);
       canvas.off("selection:created", refresh);
       canvas.off("selection:updated", refresh);
       canvas.off("selection:cleared", refresh);
+      canvas.off("object:moving", refresh);
+      canvas.off("object:scaling", refresh);
+      canvas.off("object:rotating", refresh);
     };
   }, []);
 
