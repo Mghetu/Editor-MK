@@ -24,26 +24,26 @@ export function CropPanel({
 }) {
   if (!active) {
     return (
-      <button className="rounded border px-3 py-1" onClick={onStart}>
+      <button className="rounded border border-[#555] bg-[#252525] px-3 py-1 text-slate-100 hover:bg-[#333]" onClick={onStart}>
         Crop
       </button>
     );
   }
 
   return (
-    <div className="mt-3 space-y-3 rounded border border-slate-200 p-3">
+    <div className="mt-3 space-y-3 rounded border border-[#555] bg-[#1a1a1a] p-3 text-slate-200">
       <div className="flex flex-wrap gap-2">
         {PRESETS.map((preset) => (
-          <button key={preset.label} className="rounded border px-2 py-1" onClick={() => onPreset(preset.aspect)}>
+          <button key={preset.label} className="rounded border border-[#555] bg-[#252525] px-2 py-1 hover:bg-[#333]" onClick={() => onPreset(preset.aspect)}>
             {preset.label}
           </button>
         ))}
       </div>
       <div className="space-x-2">
-        <button className="rounded bg-sky-600 px-2 py-1 text-white" onClick={onApply}>
+        <button className="rounded bg-violet-600 px-2 py-1 text-white hover:bg-violet-500" onClick={onApply}>
           Apply
         </button>
-        <button className="rounded border px-2 py-1" onClick={onCancel}>
+        <button className="rounded border border-[#555] bg-[#252525] px-2 py-1 hover:bg-[#333]" onClick={onCancel}>
           Cancel
         </button>
       </div>
