@@ -3,7 +3,7 @@ import type { RectBox } from "./cropTypes";
 
 const OVERLAY_DIM = "rgba(2, 6, 23, 0.45)";
 
-type CropMask = {
+export type CropMask = {
   top: any;
   right: any;
   bottom: any;

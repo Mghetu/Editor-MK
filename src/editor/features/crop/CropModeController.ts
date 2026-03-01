@@ -1,6 +1,7 @@
 import type { Canvas } from "fabric";
 import { clampRectWithinBounds, canvasCropRectToSourceParams, fitRectToAspectWithinBounds, getImageDisplayRect, sourceParamsToCanvasCropRect } from "./cropMath";
 import { createCropRect, createGrid, createMask, updateGrid, updateMask } from "./cropOverlay";
+import type { CropMask } from "./cropOverlay";
 import type { CropState, RectBox } from "./cropTypes";
 
 const MIN_CROP_SIZE = 40;
@@ -43,7 +44,7 @@ export class CropModeController {
   private image: any | null = null;
   private cropRect: any | null = null;
   private grid: any | null = null;
-  private mask: { objects: any[] } | null = null;
+  private mask: CropMask | null = null;
   private imageBounds: RectBox | null = null;
   private currentAspect: number | null = null;
   private previousInteractionState: PreviousInteractionState | null = null;
