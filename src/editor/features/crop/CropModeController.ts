@@ -43,7 +43,7 @@ export class CropModeController {
   private image: any | null = null;
   private cropRect: any | null = null;
   private grid: any | null = null;
-  private mask: any | null = null;
+  private mask: { objects: any[] } | null = null;
   private imageBounds: RectBox | null = null;
   private currentAspect: number | null = null;
   private previousInteractionState: PreviousInteractionState | null = null;
@@ -109,7 +109,7 @@ export class CropModeController {
     this.grid = createGrid(this.cropRect);
     this.mask = createMask(this.cropRect, this.imageBounds);
 
-    this.canvas.add(this.mask);
+    this.mask.objects.forEach((segment) => this.canvas.add(segment));
     this.canvas.add(this.grid);
     this.canvas.add(this.cropRect);
     this.canvas.setActiveObject(this.cropRect);
@@ -187,7 +187,7 @@ export class CropModeController {
 
     if (this.cropRect) this.canvas.remove(this.cropRect);
     if (this.grid) this.canvas.remove(this.grid);
-    if (this.mask) this.canvas.remove(this.mask);
+    if (this.mask) this.mask.objects.forEach((segment) => this.canvas.remove(segment));
 
     this.cropRect = null;
     this.grid = null;

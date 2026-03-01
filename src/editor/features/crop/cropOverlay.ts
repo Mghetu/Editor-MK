@@ -3,6 +3,14 @@ import type { RectBox } from "./cropTypes";
 
 const OVERLAY_DIM = "rgba(2, 6, 23, 0.45)";
 
+type CropMask = {
+  top: any;
+  right: any;
+  bottom: any;
+  left: any;
+  objects: any[];
+};
+
 const toRectBounds = (rect: any): RectBox => ({
   left: Number(rect.left ?? 0),
   top: Number(rect.top ?? 0),
@@ -18,6 +26,27 @@ const makeLine = () =>
     selectable: false,
     excludeFromExport: true
   });
+
+const makeMaskRect = (type: string) => {
+  const rect = new Rect({
+    left: 0,
+    top: 0,
+    width: 1,
+    height: 1,
+    originX: "left",
+    originY: "top",
+    fill: OVERLAY_DIM,
+    strokeWidth: 0,
+    evented: false,
+    selectable: false,
+    hasBorders: false,
+    hasControls: false,
+    excludeFromExport: true
+  }) as any;
+
+  rect.set("data", { id: crypto.randomUUID(), type, isCropOverlay: true });
+  return rect;
+};
 
 export const createCropRect = (initialRect: RectBox) => {
   const cropRect = new Rect({
@@ -59,33 +88,16 @@ export const createGrid = (rect: any) => {
   return grid;
 };
 
-export const createMask = (rect: any, imageBounds: RectBox) => {
-  const mask = new Group(
-    [0, 1, 2, 3].map(
-      () =>
-        new Rect({
-          left: 0,
-          top: 0,
-          width: 1,
-          height: 1,
-          fill: OVERLAY_DIM,
-          strokeWidth: 0,
-          evented: false,
-          selectable: false,
-          excludeFromExport: true
-        })
-    ),
-    {
-      evented: false,
-      selectable: false,
-      hasBorders: false,
-      hasControls: false,
-      excludeFromExport: true
-    }
-  ) as any;
+export const createMask = (rect: any, imageBounds: RectBox): CropMask => {
+  const mask: CropMask = {
+    top: makeMaskRect("crop-mask-top"),
+    right: makeMaskRect("crop-mask-right"),
+    bottom: makeMaskRect("crop-mask-bottom"),
+    left: makeMaskRect("crop-mask-left"),
+    objects: []
+  };
 
-  mask.set("data", { id: crypto.randomUUID(), type: "crop-mask", isCropOverlay: true });
-
+  mask.objects = [mask.top, mask.right, mask.bottom, mask.left];
   updateMask(mask, rect, imageBounds);
   return mask;
 };
@@ -102,37 +114,36 @@ export const updateGrid = (grid: any, cropRect: any) => {
   grid.setCoords();
 };
 
-export const updateMask = (mask: any, cropRect: any, imageBounds: RectBox) => {
+export const updateMask = (mask: CropMask, cropRect: any, imageBounds: RectBox) => {
   const b = toRectBounds(cropRect);
-  const [top, right, bottom, left] = mask.getObjects();
 
-  top.set({
+  mask.top.set({
     left: imageBounds.left,
     top: imageBounds.top,
     width: imageBounds.width,
     height: Math.max(0, b.top - imageBounds.top)
   });
 
-  bottom.set({
+  mask.bottom.set({
     left: imageBounds.left,
     top: b.top + b.height,
     width: imageBounds.width,
     height: Math.max(0, imageBounds.top + imageBounds.height - (b.top + b.height))
   });
 
-  left.set({
+  mask.left.set({
     left: imageBounds.left,
     top: b.top,
     width: Math.max(0, b.left - imageBounds.left),
     height: b.height
   });
 
-  right.set({
+  mask.right.set({
     left: b.left + b.width,
     top: b.top,
     width: Math.max(0, imageBounds.left + imageBounds.width - (b.left + b.width)),
     height: b.height
   });
 
-  mask.setCoords();
+  mask.objects.forEach((segment) => segment.setCoords());
 };
