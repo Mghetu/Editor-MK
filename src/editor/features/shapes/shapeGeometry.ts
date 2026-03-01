@@ -5,6 +5,67 @@ export const isRectLikeShape = (obj: any) => {
   return isShapeObject(obj) && (kind === "rect" || kind === "square");
 };
 
+const drawCornerAwareRectPath = (ctx: CanvasRenderingContext2D, width: number, height: number, radii: RectCornerRadii) => {
+  const halfW = width / 2;
+  const halfH = height / 2;
+  const maxRadius = Math.max(0, Math.min(halfW, halfH));
+
+  const tl = clampCornerRadius(radii.tl, maxRadius);
+  const tr = clampCornerRadius(radii.tr, maxRadius);
+  const br = clampCornerRadius(radii.br, maxRadius);
+  const bl = clampCornerRadius(radii.bl, maxRadius);
+
+  const left = -halfW;
+  const top = -halfH;
+  const right = halfW;
+  const bottom = halfH;
+
+  ctx.beginPath();
+  ctx.moveTo(left + tl, top);
+  ctx.lineTo(right - tr, top);
+  if (tr > 0) ctx.quadraticCurveTo(right, top, right, top + tr);
+  else ctx.lineTo(right, top);
+
+  ctx.lineTo(right, bottom - br);
+  if (br > 0) ctx.quadraticCurveTo(right, bottom, right - br, bottom);
+  else ctx.lineTo(right, bottom);
+
+  ctx.lineTo(left + bl, bottom);
+  if (bl > 0) ctx.quadraticCurveTo(left, bottom, left, bottom - bl);
+  else ctx.lineTo(left, bottom);
+
+  ctx.lineTo(left, top + tl);
+  if (tl > 0) ctx.quadraticCurveTo(left, top, left + tl, top);
+  else ctx.lineTo(left, top);
+  ctx.closePath();
+};
+
+const applyCornerAwareRendering = (obj: any) => {
+  if (!isRectLikeShape(obj) || obj?.__cornerAwareRenderingApplied) return;
+
+  const originalRender = typeof obj?._render === "function" ? obj._render.bind(obj) : undefined;
+
+  obj._render = function cornerAwareRender(this: any, ctx: CanvasRenderingContext2D) {
+    const dataRadii = this?.data?.cornerRadii as Partial<RectCornerRadii> | undefined;
+    const hasCustomRadii = dataRadii && [dataRadii.tl, dataRadii.tr, dataRadii.br, dataRadii.bl].some((n) => Number(n ?? 0) > 0);
+
+    if (!hasCustomRadii || !this?.width || !this?.height || typeof this?._renderPaintInOrder !== "function") {
+      originalRender?.(ctx);
+      return;
+    }
+
+    drawCornerAwareRectPath(ctx, Number(this.width), Number(this.height), {
+      tl: Number(dataRadii?.tl ?? this.rx ?? 0),
+      tr: Number(dataRadii?.tr ?? this.rx ?? 0),
+      br: Number(dataRadii?.br ?? this.rx ?? 0),
+      bl: Number(dataRadii?.bl ?? this.rx ?? 0)
+    });
+    this._renderPaintInOrder(ctx);
+  };
+
+  obj.__cornerAwareRenderingApplied = true;
+};
+
 const abs = (n: unknown, fallback = 1) => Math.abs(Number.isFinite(Number(n)) ? Number(n) : fallback);
 
 const getScaleSign = (n: unknown) => (Number(n) < 0 ? -1 : 1);
@@ -51,6 +112,7 @@ export const ensureRectRadiusMetadata = (obj: any) => {
   const radii = normalizeCornerRadii(obj);
   const uniform = Math.max(radii.tl, radii.tr, radii.br, radii.bl);
   obj.set("data", { ...data, cornerRadiusPx: uniform, cornerRadii: radii });
+  applyCornerAwareRendering(obj);
 };
 
 export const getRectCornerRadiiPx = (obj: any): RectCornerRadii => {
