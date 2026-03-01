@@ -1,4 +1,4 @@
-import { Lock } from "lucide-react";
+import { Lock, Unlock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   ensureRectRadiusMetadata,
@@ -33,6 +33,7 @@ export function ShapeInspector() {
   const [width, setWidth] = useState(initial.width);
   const [height, setHeight] = useState(initial.height);
   const [lockAspect, setLockAspect] = useState(true);
+  const [lockCornerSides, setLockCornerSides] = useState(true);
   const [radius, setRadius] = useState(Math.max(0, Number(obj?.rx ?? 0)));
   const [cornerRadii, setCornerRadii] = useState({ tl: 0, tr: 0, br: 0, bl: 0 });
   const [fillColor, setFillColor] = useState(normalizeColor(obj?.fill, "#E2E8F0"));
@@ -134,6 +135,7 @@ export function ShapeInspector() {
     });
     setRadius(next);
     setCornerRadii({ tl: next, tr: next, br: next, bl: next });
+    setLockCornerSides(true);
   };
 
   const onCornerRadiusSideChange = (key: "tl" | "tr" | "br" | "bl", value: number) => {
@@ -239,6 +241,18 @@ export function ShapeInspector() {
             onChange={(e) => onCornerRadiusChange(Number(e.target.value))}
           />
 
+          <div className="mb-1 flex items-center justify-between">
+            <p className="text-xs text-slate-400">Individual corners</p>
+            <button
+              type="button"
+              className={`rounded border border-[#555] p-1.5 ${lockCornerSides ? "bg-[#3a3a3a]" : "bg-[#252525]"}`}
+              title={lockCornerSides ? "Unlock individual corner editing" : "Lock individual corner editing"}
+              onClick={() => setLockCornerSides((prev) => !prev)}
+            >
+              {lockCornerSides ? <Lock size={12} /> : <Unlock size={12} />}
+            </button>
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
             <label className="text-xs text-slate-400">Top-left
               <input
@@ -246,6 +260,7 @@ export function ShapeInspector() {
                 min={0}
                 value={cornerRadii.tl}
                 className="mt-1 w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
+                disabled={lockCornerSides}
                 onChange={(e) => onCornerRadiusSideChange("tl", Number(e.target.value))}
               />
             </label>
@@ -255,6 +270,7 @@ export function ShapeInspector() {
                 min={0}
                 value={cornerRadii.tr}
                 className="mt-1 w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
+                disabled={lockCornerSides}
                 onChange={(e) => onCornerRadiusSideChange("tr", Number(e.target.value))}
               />
             </label>
@@ -264,6 +280,7 @@ export function ShapeInspector() {
                 min={0}
                 value={cornerRadii.br}
                 className="mt-1 w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
+                disabled={lockCornerSides}
                 onChange={(e) => onCornerRadiusSideChange("br", Number(e.target.value))}
               />
             </label>
@@ -273,6 +290,7 @@ export function ShapeInspector() {
                 min={0}
                 value={cornerRadii.bl}
                 className="mt-1 w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
+                disabled={lockCornerSides}
                 onChange={(e) => onCornerRadiusSideChange("bl", Number(e.target.value))}
               />
             </label>
