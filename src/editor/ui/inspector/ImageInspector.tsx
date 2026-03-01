@@ -81,21 +81,6 @@ export function ImageInspector() {
   return (
     <div>
       <h3 className="mb-2 font-semibold">Image</h3>
-      <label className="mb-1 block text-xs">Opacity</label>
-      <input
-        type="range"
-        min={0}
-        max={1}
-        step={0.05}
-        value={selectedImage?.opacity ?? 1}
-        className="mb-3 w-full"
-        onChange={(e) => {
-          selectedImage?.set("opacity", Number(e.target.value));
-          canvas?.renderAll();
-        }}
-        disabled={cropActive}
-      />
-
       {(selectedImage || cropImage) && (
         <CropPanel active={cropActive} onStart={onStartCrop} onPreset={onPreset} onApply={onApplyCrop} onCancel={onCancelCrop} />
       )}
