@@ -9,6 +9,8 @@ import {
   Unlock
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Gradient } from "fabric";
+import { ColorStudio, type ColorSelection } from "../color/ColorStudio";
 
 type AxisAlignment = "left" | "center" | "right" | "top" | "middle" | "bottom";
 
@@ -90,6 +92,37 @@ const isTextboxLike = (obj: any) => {
 export function ObjectContextMenu() {
   const [snapshot, setSnapshot] = useState<ObjectSnapshot | null>(() => readSnapshot());
   const [lockAspect, setLockAspect] = useState(true);
+  const [openStudio, setOpenStudio] = useState<"fill" | "stroke" | null>(null);
+
+  const applyColorSelection = (property: "fill" | "stroke", value: ColorSelection) => {
+    mutate((obj) => {
+      if (value.mode === "solid") {
+        obj.set(property, value.hex);
+        return;
+      }
+
+      const radians = (Number(value.gradient.angle ?? 0) * Math.PI) / 180;
+      const x2 = (Math.cos(radians) + 1) / 2;
+      const y2 = (Math.sin(radians) + 1) / 2;
+
+      obj.set(
+        property,
+        new Gradient({
+          type: value.gradient.type,
+          gradientUnits: "percentage",
+          coords: {
+            x1: 0,
+            y1: 0,
+            x2,
+            y2,
+            r1: 0,
+            r2: 1
+          },
+          colorStops: value.gradient.stops
+        })
+      );
+    });
+  };
 
   useEffect(() => {
     const { canvas } = getActiveObject();
@@ -258,23 +291,36 @@ export function ObjectContextMenu() {
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">Fill</label>
-          <input
-            type="color"
-            value={snapshot.fill}
-            className="h-10 w-full cursor-pointer rounded border bg-white p-1"
-            onChange={(e) => mutate((obj) => obj.set("fill", e.target.value))}
+          <button
+            className="h-10 w-full rounded border"
+            style={{ backgroundColor: snapshot.fill }}
+            onClick={() => setOpenStudio((prev) => (prev === "fill" ? null : "fill"))}
           />
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">Stroke</label>
-          <input
-            type="color"
-            value={snapshot.stroke}
-            className="h-10 w-full cursor-pointer rounded border bg-white p-1"
-            onChange={(e) => mutate((obj) => obj.set("stroke", e.target.value))}
+          <button
+            className="h-10 w-full rounded border"
+            style={{ backgroundColor: snapshot.stroke }}
+            onClick={() => setOpenStudio((prev) => (prev === "stroke" ? null : "stroke"))}
           />
         </div>
       </div>
+
+      {openStudio === "fill" && (
+        <ColorStudio
+          value={{ mode: "solid", hex: snapshot.fill }}
+          onChange={(value) => applyColorSelection("fill", value)}
+        />
+      )}
+
+      {openStudio === "stroke" && (
+        <ColorStudio
+          value={{ mode: "solid", hex: snapshot.stroke }}
+          onChange={(value) => applyColorSelection("stroke", value)}
+          allowGradient={false}
+        />
+      )}
 
       <div>
         <label className="mb-1 block text-xs font-medium text-slate-600">Stroke width</label>
