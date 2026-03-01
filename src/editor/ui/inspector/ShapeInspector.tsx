@@ -148,33 +148,33 @@ export function ShapeInspector() {
   };
 
   return (
-    <div className="space-y-3">
-      <h3 className="font-semibold">Shape</h3>
+    <div className="space-y-3 rounded-xl border border-[#3f3f3f] bg-[#1f1f1f] p-3">
+      <h3 className="font-semibold text-slate-100">Shape</h3>
 
       <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
         <div>
-          <label className="mb-1 block text-xs text-slate-600">Width</label>
+          <label className="mb-1 block text-xs text-slate-400">Width</label>
           <input
             type="number"
             min={1}
             value={width}
-            className="w-full rounded border p-2"
+            className="w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
             onChange={(e) => onWidthChange(Number(e.target.value))}
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">Height</label>
+          <label className="mb-1 block text-xs text-slate-400">Height</label>
           <input
             type="number"
             min={1}
             value={height}
-            className="w-full rounded border p-2"
+            className="w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
             onChange={(e) => onHeightChange(Number(e.target.value))}
           />
         </div>
         <div className="flex items-end">
           <button
-            className={`rounded border p-2 ${lockAspect ? "bg-slate-100" : ""}`}
+            className={`rounded border border-[#555] p-2 ${lockAspect ? "bg-[#3a3a3a]" : "bg-[#252525]"}`}
             onClick={() => setLockAspect((v) => !v)}
             title="Constrain proportions"
           >
@@ -185,40 +185,40 @@ export function ShapeInspector() {
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="mb-1 block text-xs text-slate-600">Fill color</label>
-          <input type="color" value={fillColor} className="h-10 w-full rounded border p-1" onChange={(e) => onFillColorChange(e.target.value)} />
+          <label className="mb-1 block text-xs text-slate-400">Fill color</label>
+          <input type="color" value={fillColor} className="h-10 w-full rounded border border-[#555] p-1" onChange={(e) => onFillColorChange(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">Stroke color</label>
+          <label className="mb-1 block text-xs text-slate-400">Stroke color</label>
           <input
             type="color"
             value={strokeColor}
-            className="h-10 w-full rounded border p-1"
+            className="h-10 w-full rounded border border-[#555] p-1"
             onChange={(e) => onStrokeColorChange(e.target.value)}
           />
         </div>
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-slate-600">Stroke width</label>
+        <label className="mb-1 block text-xs text-slate-400">Stroke width</label>
         <input
           type="number"
           min={0}
           step={0.5}
           value={strokeWidth}
-          className="w-full rounded border p-2"
+          className="w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
           onChange={(e) => onStrokeWidthChange(Number(e.target.value))}
         />
       </div>
 
       {isRectangle && (
         <div>
-          <label className="mb-1 block text-xs text-slate-600">Corner radius</label>
+          <label className="mb-1 block text-xs text-slate-400">Corner radius</label>
           <input
             type="number"
             min={0}
             value={radius}
-            className="w-full rounded border p-2"
+            className="w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
             onChange={(e) => onCornerRadiusChange(Number(e.target.value))}
           />
         </div>
