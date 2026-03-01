@@ -89,10 +89,59 @@ const isTextboxLike = (obj: any) => {
   return type === "textbox";
 };
 
+const readColorSelection = (obj: any, key: "fill" | "stroke", fallback: string): ColorSelection => {
+  const value = obj?.[key];
+  if (!value || typeof value === "string") {
+    return { mode: "solid", hex: normalizeColor(value, fallback) };
+  }
+
+  const stopsRaw = Array.isArray(value.colorStops) ? value.colorStops : [];
+  const stops = stopsRaw
+    .map((stop: any, index: number) => ({
+      offset: Number.isFinite(Number(stop?.offset)) ? Number(stop.offset) : index,
+      color: normalizeColor(stop?.color, fallback)
+    }))
+    .sort((a: any, b: any) => a.offset - b.offset)
+    .map((stop: any, index: number, arr: any[]) => ({
+      offset: arr.length <= 1 ? index : Math.max(0, Math.min(1, stop.offset)),
+      color: stop.color
+    }));
+
+  const gradientType = value?.type === "radial" ? "radial" : "linear";
+  const coords = value?.coords ?? {};
+  const x1 = Number(coords.x1 ?? 0);
+  const y1 = Number(coords.y1 ?? 0);
+  const x2 = Number(coords.x2 ?? 1);
+  const y2 = Number(coords.y2 ?? 0);
+  const angle = Math.round((Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI);
+
+  if (!stops.length) return { mode: "solid", hex: normalizeColor(value?.color, fallback) };
+
+  return {
+    mode: "gradient",
+    gradient: {
+      type: gradientType,
+      angle,
+      stops
+    }
+  };
+};
+
+const toPreviewBackground = (selection: ColorSelection) => {
+  if (selection.mode === "solid") return selection.hex;
+  const sorted = selection.gradient.stops.slice().sort((a, b) => a.offset - b.offset);
+  const stops = sorted.map((stop) => `${stop.color} ${Math.round(stop.offset * 100)}%`).join(", ");
+  return selection.gradient.type === "radial"
+    ? `radial-gradient(circle, ${stops})`
+    : `linear-gradient(${selection.gradient.angle}deg, ${stops})`;
+};
+
 export function ObjectContextMenu() {
   const [snapshot, setSnapshot] = useState<ObjectSnapshot | null>(() => readSnapshot());
   const [lockAspect, setLockAspect] = useState(true);
   const [openStudio, setOpenStudio] = useState<"fill" | "stroke" | null>(null);
+  const [fillSelection, setFillSelection] = useState<ColorSelection>({ mode: "solid", hex: "#e2e8f0" });
+  const [strokeSelection, setStrokeSelection] = useState<ColorSelection>({ mode: "solid", hex: "#334155" });
 
   const applyColorSelection = (property: "fill" | "stroke", value: ColorSelection) => {
     mutate((obj) => {
@@ -128,7 +177,14 @@ export function ObjectContextMenu() {
     const { canvas } = getActiveObject();
     if (!canvas) return;
 
-    const sync = () => setSnapshot(readSnapshot());
+    const sync = () => {
+      const next = readSnapshot();
+      setSnapshot(next);
+      const { obj } = getActiveObject();
+      if (!obj) return;
+      setFillSelection(readColorSelection(obj, "fill", next?.fill ?? "#e2e8f0"));
+      setStrokeSelection(readColorSelection(obj, "stroke", next?.stroke ?? "#334155"));
+    };
     sync();
 
     canvas.on("selection:created", sync);
@@ -154,7 +210,10 @@ export function ObjectContextMenu() {
     fn(obj, canvas);
     obj.setCoords?.();
     canvas.requestRenderAll?.();
-    setSnapshot(readSnapshot());
+    const next = readSnapshot();
+    setSnapshot(next);
+    setFillSelection(readColorSelection(obj, "fill", next?.fill ?? "#e2e8f0"));
+    setStrokeSelection(readColorSelection(obj, "stroke", next?.stroke ?? "#334155"));
   };
 
   const align = (position: AxisAlignment) => {
@@ -292,16 +351,16 @@ export function ObjectContextMenu() {
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-400">Fill</label>
           <button
-            className="h-10 w-full rounded border"
-            style={{ backgroundColor: snapshot.fill }}
+            className="h-10 w-full rounded border border-[#555]"
+            style={{ background: toPreviewBackground(fillSelection) }}
             onClick={() => setOpenStudio((prev) => (prev === "fill" ? null : "fill"))}
           />
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-400">Stroke</label>
           <button
-            className="h-10 w-full rounded border"
-            style={{ backgroundColor: snapshot.stroke }}
+            className="h-10 w-full rounded border border-[#555]"
+            style={{ background: toPreviewBackground(strokeSelection) }}
             onClick={() => setOpenStudio((prev) => (prev === "stroke" ? null : "stroke"))}
           />
         </div>
@@ -309,16 +368,21 @@ export function ObjectContextMenu() {
 
       {openStudio === "fill" && (
         <ColorStudio
-          value={{ mode: "solid", hex: snapshot.fill }}
-          onChange={(value) => applyColorSelection("fill", value)}
+          value={fillSelection}
+          onChange={(value) => {
+            setFillSelection(value);
+            applyColorSelection("fill", value);
+          }}
         />
       )}
 
       {openStudio === "stroke" && (
         <ColorStudio
-          value={{ mode: "solid", hex: snapshot.stroke }}
-          onChange={(value) => applyColorSelection("stroke", value)}
-          allowGradient={false}
+          value={strokeSelection}
+          onChange={(value) => {
+            setStrokeSelection(value);
+            applyColorSelection("stroke", value);
+          }}
         />
       )}
 
