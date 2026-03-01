@@ -13,6 +13,19 @@ const toCanvasRect = (rect: any): RectBox => ({
   height: Math.max(1, Number(rect.height ?? 1) * Number(rect.scaleY ?? 1))
 });
 
+const toAppliedCropRect = (rect: any): RectBox => {
+  const bounds = toCanvasRect(rect);
+  const strokeX = Math.max(0, Number(rect.strokeWidth ?? 0) * Number(rect.scaleX ?? 1));
+  const strokeY = Math.max(0, Number(rect.strokeWidth ?? 0) * Number(rect.scaleY ?? 1));
+
+  return {
+    left: bounds.left - strokeX / 2,
+    top: bounds.top - strokeY / 2,
+    width: Math.max(1, bounds.width + strokeX),
+    height: Math.max(1, bounds.height + strokeY)
+  };
+};
+
 const setRectFromBounds = (rect: any, bounds: RectBox) => {
   rect.set({
     left: bounds.left,
@@ -141,7 +154,7 @@ export class CropModeController {
   apply() {
     if (!this.image || !this.cropRect || !this.imageBounds) return;
 
-    const rect = clampRectWithinBounds(toCanvasRect(this.cropRect), this.imageBounds);
+    const rect = clampRectWithinBounds(toAppliedCropRect(this.cropRect), this.imageBounds);
     const crop = canvasCropRectToSourceParams(this.image, rect);
     crop.aspect = this.currentAspect;
 
