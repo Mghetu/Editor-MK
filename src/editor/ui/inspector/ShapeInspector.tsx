@@ -1,11 +1,13 @@
-import { Lock } from "lucide-react";
+import { Lock, Unlock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   ensureRectRadiusMetadata,
+  getRectCornerRadiiPx,
   ensureShapeStrokeUniform,
   getRectRadiusPx,
   isRectLikeShape,
   normalizeRectAfterTransform,
+  setRectCornerRadiiPx,
   setRectRadiusPxPreserveSize
 } from "../../features/shapes/shapeGeometry";
 
@@ -31,7 +33,9 @@ export function ShapeInspector() {
   const [width, setWidth] = useState(initial.width);
   const [height, setHeight] = useState(initial.height);
   const [lockAspect, setLockAspect] = useState(true);
+  const [lockCornerSides, setLockCornerSides] = useState(true);
   const [radius, setRadius] = useState(Math.max(0, Number(obj?.rx ?? 0)));
+  const [cornerRadii, setCornerRadii] = useState({ tl: 0, tr: 0, br: 0, bl: 0 });
   const [fillColor, setFillColor] = useState(normalizeColor(obj?.fill, "#E2E8F0"));
   const [strokeColor, setStrokeColor] = useState(normalizeColor(obj?.stroke, "#334155"));
   const [strokeWidth, setStrokeWidth] = useState(Math.max(0, Number(obj?.strokeWidth ?? 1)));
@@ -48,6 +52,7 @@ export function ShapeInspector() {
       setWidth(size.width);
       setHeight(size.height);
       setRadius(Math.max(0, getRectRadiusPx(active) || 0));
+      setCornerRadii(getRectCornerRadiiPx(active));
       setFillColor(normalizeColor(active?.fill, "#E2E8F0"));
       setStrokeColor(normalizeColor(active?.stroke, "#334155"));
       setStrokeWidth(Math.max(0, Number(active?.strokeWidth ?? 1)));
@@ -129,6 +134,20 @@ export function ShapeInspector() {
       setRectRadiusPxPreserveSize(obj, next);
     });
     setRadius(next);
+    setCornerRadii({ tl: next, tr: next, br: next, bl: next });
+    setLockCornerSides(true);
+  };
+
+  const onCornerRadiusSideChange = (key: "tl" | "tr" | "br" | "bl", value: number) => {
+    const next = Math.max(0, Number.isFinite(value) ? value : 0);
+    const nextRadii = { ...cornerRadii, [key]: next };
+    mutate(() => {
+      setRectCornerRadiiPx(obj, nextRadii);
+      normalizeRectAfterTransform(obj);
+    });
+    const normalized = getRectCornerRadiiPx(obj);
+    setCornerRadii(normalized);
+    setRadius(Math.max(normalized.tl, normalized.tr, normalized.br, normalized.bl));
   };
 
   const onFillColorChange = (value: string) => {
@@ -148,33 +167,33 @@ export function ShapeInspector() {
   };
 
   return (
-    <div className="space-y-3">
-      <h3 className="font-semibold">Shape</h3>
+    <div className="space-y-3 rounded-xl border border-[#3f3f3f] bg-[#1f1f1f] p-3">
+      <h3 className="font-semibold text-slate-100">Shape</h3>
 
       <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
         <div>
-          <label className="mb-1 block text-xs text-slate-600">Width</label>
+          <label className="mb-1 block text-xs text-slate-400">Width</label>
           <input
             type="number"
             min={1}
             value={width}
-            className="w-full rounded border p-2"
+            className="w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
             onChange={(e) => onWidthChange(Number(e.target.value))}
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">Height</label>
+          <label className="mb-1 block text-xs text-slate-400">Height</label>
           <input
             type="number"
             min={1}
             value={height}
-            className="w-full rounded border p-2"
+            className="w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
             onChange={(e) => onHeightChange(Number(e.target.value))}
           />
         </div>
         <div className="flex items-end">
           <button
-            className={`rounded border p-2 ${lockAspect ? "bg-slate-100" : ""}`}
+            className={`rounded border border-[#555] p-2 ${lockAspect ? "bg-[#3a3a3a]" : "bg-[#252525]"}`}
             onClick={() => setLockAspect((v) => !v)}
             title="Constrain proportions"
           >
@@ -185,42 +204,97 @@ export function ShapeInspector() {
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="mb-1 block text-xs text-slate-600">Fill color</label>
-          <input type="color" value={fillColor} className="h-10 w-full rounded border p-1" onChange={(e) => onFillColorChange(e.target.value)} />
+          <label className="mb-1 block text-xs text-slate-400">Fill color</label>
+          <input type="color" value={fillColor} className="h-10 w-full rounded border border-[#555] p-1" onChange={(e) => onFillColorChange(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-600">Stroke color</label>
+          <label className="mb-1 block text-xs text-slate-400">Stroke color</label>
           <input
             type="color"
             value={strokeColor}
-            className="h-10 w-full rounded border p-1"
+            className="h-10 w-full rounded border border-[#555] p-1"
             onChange={(e) => onStrokeColorChange(e.target.value)}
           />
         </div>
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-slate-600">Stroke width</label>
+        <label className="mb-1 block text-xs text-slate-400">Stroke width</label>
         <input
           type="number"
           min={0}
           step={0.5}
           value={strokeWidth}
-          className="w-full rounded border p-2"
+          className="w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
           onChange={(e) => onStrokeWidthChange(Number(e.target.value))}
         />
       </div>
 
       {isRectangle && (
-        <div>
-          <label className="mb-1 block text-xs text-slate-600">Corner radius</label>
+        <div className="space-y-2">
+          <label className="mb-1 block text-xs text-slate-400">Corner radius (all)</label>
           <input
             type="number"
             min={0}
             value={radius}
-            className="w-full rounded border p-2"
+            className="w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
             onChange={(e) => onCornerRadiusChange(Number(e.target.value))}
           />
+
+          <div className="mb-1 flex items-center justify-between">
+            <p className="text-xs text-slate-400">Individual corners</p>
+            <button
+              type="button"
+              className={`rounded border border-[#555] p-1.5 ${lockCornerSides ? "bg-[#3a3a3a]" : "bg-[#252525]"}`}
+              title={lockCornerSides ? "Unlock individual corner editing" : "Lock individual corner editing"}
+              onClick={() => setLockCornerSides((prev) => !prev)}
+            >
+              {lockCornerSides ? <Lock size={12} /> : <Unlock size={12} />}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs text-slate-400">Top-left
+              <input
+                type="number"
+                min={0}
+                value={cornerRadii.tl}
+                className="mt-1 w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
+                disabled={lockCornerSides}
+                onChange={(e) => onCornerRadiusSideChange("tl", Number(e.target.value))}
+              />
+            </label>
+            <label className="text-xs text-slate-400">Top-right
+              <input
+                type="number"
+                min={0}
+                value={cornerRadii.tr}
+                className="mt-1 w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
+                disabled={lockCornerSides}
+                onChange={(e) => onCornerRadiusSideChange("tr", Number(e.target.value))}
+              />
+            </label>
+            <label className="text-xs text-slate-400">Bottom-right
+              <input
+                type="number"
+                min={0}
+                value={cornerRadii.br}
+                className="mt-1 w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
+                disabled={lockCornerSides}
+                onChange={(e) => onCornerRadiusSideChange("br", Number(e.target.value))}
+              />
+            </label>
+            <label className="text-xs text-slate-400">Bottom-left
+              <input
+                type="number"
+                min={0}
+                value={cornerRadii.bl}
+                className="mt-1 w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
+                disabled={lockCornerSides}
+                onChange={(e) => onCornerRadiusSideChange("bl", Number(e.target.value))}
+              />
+            </label>
+          </div>
         </div>
       )}
 

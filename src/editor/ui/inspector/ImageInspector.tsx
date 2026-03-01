@@ -79,14 +79,14 @@ export function ImageInspector() {
   };
 
   return (
-    <div>
-      <h3 className="mb-2 font-semibold">Image</h3>
+    <div className="space-y-3 rounded-xl border border-[#3f3f3f] bg-[#1f1f1f] p-3">
+      <h3 className="font-semibold text-slate-100">Image</h3>
       {(selectedImage || cropImage) && (
         <CropPanel active={cropActive} onStart={onStartCrop} onPreset={onPreset} onApply={onApplyCrop} onCancel={onCancelCrop} />
       )}
 
       <button
-        className="mt-2 rounded border px-3 py-1"
+        className="rounded border border-[#555] bg-[#252525] px-3 py-1 text-slate-100 hover:bg-[#333]"
         disabled={!selectedImage || cropActive}
         onClick={async () => {
           try {
