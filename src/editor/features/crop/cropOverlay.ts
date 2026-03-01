@@ -50,8 +50,11 @@ export const createGrid = (rect: any) => {
   const grid = new Group([makeLine(), makeLine(), makeLine(), makeLine()], {
     evented: false,
     selectable: false,
+    hasBorders: false,
+    hasControls: false,
     excludeFromExport: true
   }) as any;
+  grid.set("data", { id: crypto.randomUUID(), type: "crop-grid", isCropOverlay: true });
   updateGrid(grid, rect);
   return grid;
 };
@@ -75,9 +78,13 @@ export const createMask = (rect: any, imageBounds: RectBox) => {
     {
       evented: false,
       selectable: false,
+      hasBorders: false,
+      hasControls: false,
       excludeFromExport: true
     }
   ) as any;
+
+  mask.set("data", { id: crypto.randomUUID(), type: "crop-mask", isCropOverlay: true });
 
   updateMask(mask, rect, imageBounds);
   return mask;
