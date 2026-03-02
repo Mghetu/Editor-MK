@@ -1,6 +1,7 @@
 import { FabricImage, Group, Rect, type Canvas } from "fabric";
 
 export type ImageGridMode = "fixed" | "responsive";
+export type ImagePlacementMode = "cover" | "fit" | "crop";
 
 type GridSlot = {
   id: string;
@@ -9,6 +10,12 @@ type GridSlot = {
   rowSpan?: number;
   colSpan?: number;
   imageSrc?: string;
+  imageMode?: ImagePlacementMode;
+  cropScale?: number;
+  cropX?: number;
+  cropY?: number;
+  cornerRadius?: number;
+  backgroundColor?: string;
 };
 
 export type ImageGridData = {
@@ -36,6 +43,23 @@ type GridPreset = {
   slots?: Array<Pick<GridSlot, "row" | "col" | "rowSpan" | "colSpan">>;
   templateRects?: Array<{ x: number; y: number; w: number; h: number }>;
 };
+
+const DEFAULT_CELL_BACKGROUND = "#2c2c2c";
+
+const createDefaultSlot = (partial: Partial<GridSlot> & Pick<GridSlot, "row" | "col">): GridSlot => ({
+  id: crypto.randomUUID(),
+  row: partial.row,
+  col: partial.col,
+  rowSpan: partial.rowSpan ?? 1,
+  colSpan: partial.colSpan ?? 1,
+  imageSrc: partial.imageSrc,
+  imageMode: partial.imageMode ?? "cover",
+  cropScale: partial.cropScale ?? 1,
+  cropX: partial.cropX ?? 0,
+  cropY: partial.cropY ?? 0,
+  cornerRadius: partial.cornerRadius ?? 8,
+  backgroundColor: partial.backgroundColor ?? DEFAULT_CELL_BACKGROUND
+});
 
 export const IMAGE_GRID_PRESETS: GridPreset[] = [
   { id: "equal-2x2", name: "2×2 Equal", description: "Balanced 4-photo layout", columns: 2, rows: 2 },
@@ -91,18 +115,12 @@ const templateRectsToSlots = (rects: Array<{ x: number; y: number; w: number; h:
     const row = clamp(Math.round(rect.y * rows), 0, rows - 1);
     const colSpan = clamp(Math.max(1, Math.round(rect.w * cols)), 1, cols - col);
     const rowSpan = clamp(Math.max(1, Math.round(rect.h * rows)), 1, rows - row);
-    return { id: crypto.randomUUID(), row, col, colSpan, rowSpan, imageSrc: undefined };
+    return createDefaultSlot({ row, col, colSpan, rowSpan });
   });
 
 const getPresetSlots = (preset: GridPreset): GridSlot[] => {
   if (preset.slots?.length) {
-    return preset.slots.map((slot) => ({
-      id: crypto.randomUUID(),
-      row: slot.row,
-      col: slot.col,
-      rowSpan: slot.rowSpan ?? 1,
-      colSpan: slot.colSpan ?? 1
-    }));
+    return preset.slots.map((slot) => createDefaultSlot(slot));
   }
   if (preset.templateRects?.length) {
     return templateRectsToSlots(preset.templateRects, preset.columns, preset.rows);
@@ -111,7 +129,7 @@ const getPresetSlots = (preset: GridPreset): GridSlot[] => {
   const slots: GridSlot[] = [];
   for (let r = 0; r < preset.rows; r += 1) {
     for (let c = 0; c < preset.columns; c += 1) {
-      slots.push({ id: crypto.randomUUID(), row: r, col: c, rowSpan: 1, colSpan: 1 });
+      slots.push(createDefaultSlot({ row: r, col: c }));
     }
   }
   return slots;
@@ -134,11 +152,61 @@ const buildResponsiveSlots = (data: ImageGridData, columns: number): GridSlot[] 
   });
 };
 
-const setCoverScale = (img: FabricImage, w: number, h: number) => {
+const setImagePlacement = (img: FabricImage, slot: GridSlot, w: number, h: number) => {
   const baseW = Math.max(1, Number(img.width ?? 1));
   const baseH = Math.max(1, Number(img.height ?? 1));
-  const scale = Math.max(w / baseW, h / baseH);
-  img.set({ scaleX: scale, scaleY: scale });
+  const coverScale = Math.max(w / baseW, h / baseH);
+  const fitScale = Math.min(w / baseW, h / baseH);
+  const placement = slot.imageMode ?? "cover";
+
+  let scale = coverScale;
+  if (placement === "fit") scale = fitScale;
+  if (placement === "crop") scale = coverScale * Math.max(0.1, Number(slot.cropScale ?? 1));
+
+  const cropX = Number(slot.cropX ?? 0);
+  const cropY = Number(slot.cropY ?? 0);
+  const radius = Math.max(0, Number(slot.cornerRadius ?? 0));
+
+  img.set({
+    scaleX: scale,
+    scaleY: scale,
+    left: (img.left ?? 0) + cropX,
+    top: (img.top ?? 0) + cropY,
+    backgroundColor: slot.backgroundColor ?? DEFAULT_CELL_BACKGROUND
+  });
+  img.clipPath = new Rect({
+    width: w,
+    height: h,
+    rx: radius,
+    ry: radius,
+    originX: "center",
+    originY: "center",
+    left: -cropX,
+    top: -cropY,
+    absolutePositioned: false
+  });
+};
+
+const ensureSlotObject = (group: Group, slotId: string) => {
+  const objects = (group as any)._objects as any[];
+  const existing = objects.find((obj) => obj?.data?.slotId === slotId);
+  if (existing) return existing;
+  const placeholder = new Rect({
+    width: 10,
+    height: 10,
+    rx: 8,
+    ry: 8,
+    fill: DEFAULT_CELL_BACKGROUND,
+    stroke: "#666",
+    strokeWidth: 1,
+    data: { role: "slot", slotId },
+    selectable: false,
+    evented: false,
+    originX: "center",
+    originY: "center"
+  });
+  group.add(placeholder);
+  return placeholder;
 };
 
 const relayout = (group: Group, data: ImageGridData) => {
@@ -153,31 +221,31 @@ const relayout = (group: Group, data: ImageGridData) => {
   const innerH = Math.max(1, height - data.padding * 2);
   const cellH = Math.max(1, (innerH - data.gap * (rows - 1)) / rows);
 
-  const objects = (group as any)._objects as any[];
-  const bySlot = new Map<string, any>();
-  for (const obj of objects) {
-    const slotId = obj?.data?.slotId;
-    if (slotId) bySlot.set(slotId, obj);
-  }
-
   for (const slot of slots) {
-    const slotObj = bySlot.get(slot.id);
-    if (!slotObj) continue;
+    const slotObj = ensureSlotObject(group, slot.id);
 
     const x = -width / 2 + data.padding + slot.col * (cellW + data.gap);
     const y = -height / 2 + data.padding + slot.row * (cellH + data.gap);
     const w = cellW * (slot.colSpan ?? 1) + data.gap * ((slot.colSpan ?? 1) - 1);
     const h = cellH * (slot.rowSpan ?? 1) + data.gap * ((slot.rowSpan ?? 1) - 1);
     const { left, top } = toRelativeCenter(x, y, w, h);
+    const cornerRadius = Math.max(0, Number(slot.cornerRadius ?? 8));
 
-    slotObj.set({ left, top, originX: "center", originY: "center", stroke: data.showGuides ? "#8b5cf6" : "#666", strokeWidth: data.showGuides ? 2 : 1 });
+    slotObj.set({
+      left,
+      top,
+      originX: "center",
+      originY: "center",
+      stroke: data.showGuides ? "#8b5cf6" : "#666",
+      strokeWidth: data.showGuides ? 2 : 1,
+      selectable: false,
+      evented: false
+    });
 
     if (slotObj.type === "image") {
-      setCoverScale(slotObj, w, h);
-      slotObj.clipPath = new Rect({ width: w, height: h, originX: "center", originY: "center", left: 0, top: 0, absolutePositioned: false });
-      slotObj.set({ selectable: false, evented: false });
+      setImagePlacement(slotObj as FabricImage, slot, w, h);
     } else {
-      slotObj.set({ width: w, height: h, fill: "#2c2c2c", selectable: false, evented: false });
+      slotObj.set({ width: w, height: h, rx: cornerRadius, ry: cornerRadius, fill: slot.backgroundColor ?? DEFAULT_CELL_BACKGROUND });
     }
   }
 
@@ -189,7 +257,7 @@ const createSlotObject = async (slot: GridSlot) => {
   if (slot.imageSrc) {
     try {
       const img = await FabricImage.fromURL(slot.imageSrc, { crossOrigin: "anonymous" });
-      img.set({ data: { role: "slot", slotId: slot.id }, selectable: false, evented: false });
+      img.set({ data: { role: "slot", slotId: slot.id }, selectable: false, evented: false, originX: "center", originY: "center" });
       return img;
     } catch {
       // fall through
@@ -199,9 +267,9 @@ const createSlotObject = async (slot: GridSlot) => {
   return new Rect({
     width: 10,
     height: 10,
-    rx: 8,
-    ry: 8,
-    fill: "#2c2c2c",
+    rx: Number(slot.cornerRadius ?? 8),
+    ry: Number(slot.cornerRadius ?? 8),
+    fill: slot.backgroundColor ?? DEFAULT_CELL_BACKGROUND,
     stroke: "#666",
     strokeWidth: 1,
     data: { role: "slot", slotId: slot.id },
@@ -222,6 +290,21 @@ const normalizeGridScale = (grid: Group) => {
     scaleX: sx < 0 ? -1 : 1,
     scaleY: sy < 0 ? -1 : 1
   });
+};
+
+const normalizeSlotsForGridDimensions = (data: ImageGridData): ImageGridData => {
+  if (data.mode !== "fixed") return data;
+  const slots = [...data.slots];
+  const used = new Set(slots.map((slot) => `${slot.row}:${slot.col}`));
+  for (let r = 0; r < data.rows; r += 1) {
+    for (let c = 0; c < data.columns; c += 1) {
+      const key = `${r}:${c}`;
+      if (used.has(key)) continue;
+      slots.push(createDefaultSlot({ row: r, col: c }));
+      used.add(key);
+    }
+  }
+  return { ...data, slots };
 };
 
 export const createImageGrid = async (canvas: Canvas, presetId: string) => {
@@ -264,11 +347,18 @@ export const createImageGrid = async (canvas: Canvas, presetId: string) => {
 export const updateSelectedImageGrid = (canvas: Canvas, updater: (data: ImageGridData) => ImageGridData) => {
   const active = canvas.getActiveObject() as Group;
   if (!active || (active as any)?.data?.type !== "imageGrid") return;
-  const next = updater({ ...((active as any).data as ImageGridData) });
+  const next = normalizeSlotsForGridDimensions(updater({ ...((active as any).data as ImageGridData) }));
   (active as any).set("data", next);
   normalizeGridScale(active);
   relayout(active, next);
   canvas.requestRenderAll();
+};
+
+export const updateSelectedImageGridSlot = (canvas: Canvas, slotId: string, patch: Partial<GridSlot>) => {
+  updateSelectedImageGrid(canvas, (data) => ({
+    ...data,
+    slots: data.slots.map((slot) => (slot.id === slotId ? { ...slot, ...patch } : slot))
+  }));
 };
 
 export const refreshImageGrids = (canvas: Canvas) => {
@@ -296,10 +386,7 @@ export const replaceSelectedImageGridSlot = async (canvas: Canvas, slotId: strin
   if (!active || (active as any)?.data?.type !== "imageGrid") return;
   const src = URL.createObjectURL(file);
   await replaceSlotObject(active, slotId, src);
-  updateSelectedImageGrid(canvas, (data) => ({
-    ...data,
-    slots: data.slots.map((slot) => (slot.id === slotId ? { ...slot, imageSrc: src } : slot))
-  }));
+  updateSelectedImageGridSlot(canvas, slotId, { imageSrc: src });
 };
 
 export const addImagesToSelectedImageGrid = async (canvas: Canvas, files: File[]) => {
@@ -315,10 +402,7 @@ export const addImagesToSelectedImageGrid = async (canvas: Canvas, files: File[]
     const slot = orderedTargets[index];
     const src = URL.createObjectURL(files[index]);
     await replaceSlotObject(active, slot.id, src);
-    updateSelectedImageGrid(canvas, (data) => ({
-      ...data,
-      slots: data.slots.map((entry) => (entry.id === slot.id ? { ...entry, imageSrc: src } : entry))
-    }));
+    updateSelectedImageGridSlot(canvas, slot.id, { imageSrc: src });
   }
 };
 

@@ -7,7 +7,9 @@ import {
   shuffleSelectedImageGrid,
   swapSelectedImageGrid,
   type ImageGridData,
-  updateSelectedImageGrid
+  updateSelectedImageGrid,
+  updateSelectedImageGridSlot,
+  type ImagePlacementMode
 } from "../../features/imageGrid";
 
 const getActiveGrid = (canvas: any) => {
@@ -42,11 +44,19 @@ export function ImageGridInspector() {
   }, [canvas]);
 
   const slotOptions = useMemo(() => grid?.slots ?? [], [grid]);
+  const selectedSlot = slotOptions.find((slot) => slot.id === slotId) ?? slotOptions[0];
 
   if (!grid) return null;
 
   const patch = (patchData: Partial<ImageGridData>) => {
     updateSelectedImageGrid(canvas, (data) => ({ ...data, ...patchData }));
+    refreshImageGrids(canvas);
+    setGrid(getActiveGrid(canvas));
+  };
+
+  const patchSlot = (slotPatch: Record<string, unknown>) => {
+    if (!selectedSlot) return;
+    updateSelectedImageGridSlot(canvas, selectedSlot.id, slotPatch as any);
     refreshImageGrids(canvas);
     setGrid(getActiveGrid(canvas));
   };
@@ -115,7 +125,7 @@ export function ImageGridInspector() {
             input.accept = "image/*";
             input.onchange = () => {
               const file = input.files?.[0];
-              if (file && slotId) void replaceSelectedImageGridSlot(canvas, slotId, file);
+              if (file && selectedSlot?.id) void replaceSelectedImageGridSlot(canvas, selectedSlot.id, file);
             };
             input.click();
           }}
@@ -124,10 +134,45 @@ export function ImageGridInspector() {
         </button>
       </div>
 
-      <label className="block text-xs text-slate-300">Replace slot</label>
-      <select className="w-full rounded border border-[#555] bg-[#252525] p-2 text-slate-100" value={slotId} onChange={(e) => setSlotId(e.target.value)}>
+      <label className="block text-xs text-slate-300">Cell</label>
+      <select className="w-full rounded border border-[#555] bg-[#252525] p-2 text-slate-100" value={selectedSlot?.id ?? ""} onChange={(e) => setSlotId(e.target.value)}>
         {slotOptions.map((slot, idx) => <option key={slot.id} value={slot.id}>Slot {idx + 1}</option>)}
       </select>
+
+      {selectedSlot && (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs text-slate-300">Image mode
+              <select className="mt-1 w-full rounded border border-[#555] bg-[#252525] p-2 text-slate-100" value={selectedSlot.imageMode ?? "cover"} onChange={(e) => patchSlot({ imageMode: e.target.value as ImagePlacementMode })}>
+                <option value="cover">Cover</option>
+                <option value="fit">Fit</option>
+                <option value="crop">Crop</option>
+              </select>
+            </label>
+            <label className="text-xs text-slate-300">Corner roundness
+              <input className="mt-1 w-full rounded border border-[#555] bg-[#252525] p-2 text-slate-100" type="number" min={0} max={120} value={selectedSlot.cornerRadius ?? 8} onChange={(e) => patchSlot({ cornerRadius: Math.max(0, Number(e.target.value) || 0) })} />
+            </label>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs text-slate-300">Crop scale
+              <input className="mt-1 w-full rounded border border-[#555] bg-[#252525] p-2 text-slate-100" type="number" step="0.05" min={0.1} max={4} value={selectedSlot.cropScale ?? 1} onChange={(e) => patchSlot({ cropScale: Math.max(0.1, Number(e.target.value) || 1) })} />
+            </label>
+            <label className="text-xs text-slate-300">Background
+              <input className="mt-1 h-10 w-full rounded border border-[#555] bg-[#252525] p-1" type="color" value={selectedSlot.backgroundColor ?? "#2c2c2c"} onChange={(e) => patchSlot({ backgroundColor: e.target.value })} />
+            </label>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs text-slate-300">Crop X offset
+              <input className="mt-1 w-full rounded border border-[#555] bg-[#252525] p-2 text-slate-100" type="number" min={-500} max={500} value={selectedSlot.cropX ?? 0} onChange={(e) => patchSlot({ cropX: Number(e.target.value) || 0 })} />
+            </label>
+            <label className="text-xs text-slate-300">Crop Y offset
+              <input className="mt-1 w-full rounded border border-[#555] bg-[#252525] p-2 text-slate-100" type="number" min={-500} max={500} value={selectedSlot.cropY ?? 0} onChange={(e) => patchSlot({ cropY: Number(e.target.value) || 0 })} />
+            </label>
+          </div>
+        </>
+      )}
     </div>
   );
 }
