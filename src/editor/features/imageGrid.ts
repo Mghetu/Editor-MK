@@ -387,13 +387,14 @@ const relayout = (group: Group, data: ImageGridData) => {
       const badgeW = Math.min(24, Math.max(16, w * 0.22));
       const badgeH = Math.min(18, Math.max(14, h * 0.2));
       const labelLeft = clamp(left, -width / 2 + badgeW * 0.75, width / 2 - badgeW * 0.75);
+      const labelTop = top - h / 2 - badgeH * 0.7;
       selectedLabel.set({
         visible: true,
         text: String(index + 1),
         width: badgeW,
         height: badgeH,
         left: labelLeft,
-        top: -height / 2 - badgeH * 0.9,
+        top: labelTop,
         backgroundColor: "rgba(15, 15, 15, 0.82)",
         stroke: "rgba(255,255,255,0.34)",
         strokeWidth: 0.8
@@ -674,8 +675,17 @@ export const enableImageGridReflowBehavior = (canvas: Canvas) => {
 
   const onMouseDown = (event: any) => {
     const target = event?.target as any;
-    if (!target || target?.data?.type !== "imageGrid") return;
-    const grid = target as Group;
+    const active = canvas.getActiveObject?.() as any;
+
+    const grid =
+      target?.data?.type === "imageGrid"
+        ? (target as Group)
+        : active?.data?.type === "imageGrid"
+          ? (active as Group)
+          : null;
+
+    if (!grid) return;
+
     const data = (grid as any).data as ImageGridData;
     const pointer = event?.scenePoint ?? canvas.getScenePoint?.(event.e);
     if (!pointer) return;
@@ -692,6 +702,8 @@ export const enableImageGridReflowBehavior = (canvas: Canvas) => {
       return x >= left && x <= left + entry.width && y >= top && y <= top + entry.height;
     });
     if (!hit) return;
+
+    if (data.selectedSlotId === hit.slot.id) return;
 
     const next = { ...data, selectedSlotId: hit.slot.id };
     (grid as any).set("data", next);
