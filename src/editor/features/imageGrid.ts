@@ -152,7 +152,7 @@ const buildResponsiveSlots = (data: ImageGridData, columns: number): GridSlot[] 
   });
 };
 
-const setImagePlacement = (img: FabricImage, slot: GridSlot, w: number, h: number) => {
+const setImagePlacement = (img: FabricImage, slot: GridSlot, w: number, h: number, cellLeft: number, cellTop: number) => {
   const baseW = Math.max(1, Number(img.width ?? 1));
   const baseH = Math.max(1, Number(img.height ?? 1));
   const coverScale = Math.max(w / baseW, h / baseH);
@@ -170,8 +170,10 @@ const setImagePlacement = (img: FabricImage, slot: GridSlot, w: number, h: numbe
   img.set({
     scaleX: scale,
     scaleY: scale,
-    left: (img.left ?? 0) + cropX,
-    top: (img.top ?? 0) + cropY,
+    left: cellLeft + cropX,
+    top: cellTop + cropY,
+    originX: "center",
+    originY: "center",
     backgroundColor: slot.backgroundColor ?? DEFAULT_CELL_BACKGROUND
   });
   img.clipPath = new Rect({
@@ -243,7 +245,8 @@ const relayout = (group: Group, data: ImageGridData) => {
     });
 
     if (slotObj.type === "image") {
-      setImagePlacement(slotObj as FabricImage, slot, w, h);
+      slotObj.set({ strokeWidth: 0, stroke: undefined });
+      setImagePlacement(slotObj as FabricImage, slot, w, h, left, top);
     } else {
       slotObj.set({ width: w, height: h, rx: cornerRadius, ry: cornerRadius, fill: slot.backgroundColor ?? DEFAULT_CELL_BACKGROUND });
     }
@@ -375,10 +378,31 @@ const replaceSlotObject = async (grid: Group, slotId: string, src: string) => {
   const objects = (grid as any)._objects as any[];
   const index = objects.findIndex((obj) => obj?.data?.slotId === slotId);
   if (index < 0) return;
+
+  const frame = {
+    left: Number(grid.left ?? 0),
+    top: Number(grid.top ?? 0),
+    width: Math.max(80, Number(grid.width ?? 1)),
+    height: Math.max(80, Number(grid.height ?? 1)),
+    scaleX: Number(grid.scaleX ?? 1),
+    scaleY: Number(grid.scaleY ?? 1)
+  };
+
   const img = await FabricImage.fromURL(src, { crossOrigin: "anonymous" });
-  img.set({ data: { role: "slot", slotId }, selectable: false, evented: false, originX: "center", originY: "center" });
+  img.set({
+    data: { role: "slot", slotId },
+    selectable: false,
+    evented: false,
+    originX: "center",
+    originY: "center",
+    strokeWidth: 0,
+    stroke: undefined
+  });
+
   grid.remove(objects[index]);
   grid.insertAt(index, img);
+  grid.set(frame);
+  grid.setCoords();
 };
 
 export const replaceSelectedImageGridSlot = async (canvas: Canvas, slotId: string, file: File) => {
