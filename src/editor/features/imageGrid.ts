@@ -169,6 +169,12 @@ const setImagePlacement = (img: FabricImage, slot: GridSlot, w: number, h: numbe
   const cropY = Number(slot.cropY ?? 0);
   const radius = Math.max(0, Number(slot.cornerRadius ?? 0));
 
+  // clipPath on an object is transformed with the object itself.
+  // To keep a constant cell viewport in grid space, use inverse-scaled clip dimensions.
+  const clipWidth = Math.max(1, w / Math.max(0.0001, scale));
+  const clipHeight = Math.max(1, h / Math.max(0.0001, scale));
+  const clipRadius = Math.max(0, radius / Math.max(0.0001, scale));
+
   img.set({
     scaleX: scale,
     scaleY: scale,
@@ -178,15 +184,16 @@ const setImagePlacement = (img: FabricImage, slot: GridSlot, w: number, h: numbe
     originY: "center",
     backgroundColor: slot.backgroundColor ?? DEFAULT_CELL_BACKGROUND
   });
+
   img.clipPath = new Rect({
-    width: w,
-    height: h,
-    rx: radius,
-    ry: radius,
+    width: clipWidth,
+    height: clipHeight,
+    rx: clipRadius,
+    ry: clipRadius,
     originX: "center",
     originY: "center",
-    left: -cropX,
-    top: -cropY,
+    left: -cropX / Math.max(0.0001, scale),
+    top: -cropY / Math.max(0.0001, scale),
     absolutePositioned: false
   });
 };
