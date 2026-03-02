@@ -30,6 +30,8 @@ export type ImageGridData = {
   padding: number;
   responsiveMinCellWidth: number;
   isCustom: boolean;
+  frameWidth: number;
+  frameHeight: number;
   showGuides?: boolean;
   slots: GridSlot[];
 };
@@ -212,8 +214,9 @@ const ensureSlotObject = (group: Group, slotId: string) => {
 };
 
 const relayout = (group: Group, data: ImageGridData) => {
-  const width = Math.max(80, Number(group.width ?? 1));
-  const height = Math.max(80, Number(group.height ?? 1));
+  const width = Math.max(80, Number(data.frameWidth ?? group.width ?? 1));
+  const height = Math.max(80, Number(data.frameHeight ?? group.height ?? 1));
+  group.set({ width, height });
   const innerW = Math.max(1, width - data.padding * 2);
   const columns = getRenderedColumns(data, innerW);
   const slots = data.mode === "responsive" ? buildResponsiveSlots(data, columns) : data.slots;
@@ -283,16 +286,28 @@ const createSlotObject = async (slot: GridSlot) => {
   });
 };
 
-const normalizeGridScale = (grid: Group) => {
+const normalizeGridScale = (grid: Group, data: ImageGridData) => {
   const sx = Number(grid.scaleX ?? 1);
   const sy = Number(grid.scaleY ?? 1);
-  if (Math.abs(sx) === 1 && Math.abs(sy) === 1) return;
+  if (Math.abs(sx) === 1 && Math.abs(sy) === 1) {
+    grid.set({ width: Math.max(80, Number(data.frameWidth ?? grid.width ?? 1)), height: Math.max(80, Number(data.frameHeight ?? grid.height ?? 1)) });
+    return data;
+  }
+
+  const next: ImageGridData = {
+    ...data,
+    frameWidth: Math.max(80, Number(data.frameWidth ?? grid.width ?? 1) * Math.abs(sx)),
+    frameHeight: Math.max(80, Number(data.frameHeight ?? grid.height ?? 1) * Math.abs(sy))
+  };
+
   grid.set({
-    width: Math.max(80, Number(grid.width ?? 1) * Math.abs(sx)),
-    height: Math.max(80, Number(grid.height ?? 1) * Math.abs(sy)),
+    width: next.frameWidth,
+    height: next.frameHeight,
     scaleX: sx < 0 ? -1 : 1,
     scaleY: sy < 0 ? -1 : 1
   });
+
+  return next;
 };
 
 const normalizeSlotsForGridDimensions = (data: ImageGridData): ImageGridData => {
@@ -324,6 +339,8 @@ export const createImageGrid = async (canvas: Canvas, presetId: string) => {
     padding: 12,
     responsiveMinCellWidth: 160,
     isCustom: false,
+    frameWidth: 520,
+    frameHeight: 360,
     showGuides: false,
     slots: getPresetSlots(preset)
   };
@@ -332,16 +349,17 @@ export const createImageGrid = async (canvas: Canvas, presetId: string) => {
   const group = new Group(objects, {
     left: 120,
     top: 120,
-    width: 520,
-    height: 360,
+    width: data.frameWidth,
+    height: data.frameHeight,
     originX: "left",
     originY: "top",
     subTargetCheck: false
   });
   (group as any).set("data", data);
 
-  normalizeGridScale(group);
-  relayout(group, data);
+  const normalized = normalizeGridScale(group, data);
+  relayout(group, normalized);
+  (group as any).set("data", normalized);
   canvas.add(group);
   canvas.setActiveObject(group);
   canvas.requestRenderAll();
@@ -351,9 +369,9 @@ export const updateSelectedImageGrid = (canvas: Canvas, updater: (data: ImageGri
   const active = canvas.getActiveObject() as Group;
   if (!active || (active as any)?.data?.type !== "imageGrid") return;
   const next = normalizeSlotsForGridDimensions(updater({ ...((active as any).data as ImageGridData) }));
-  (active as any).set("data", next);
-  normalizeGridScale(active);
-  relayout(active, next);
+  const normalized = normalizeGridScale(active, next);
+  (active as any).set("data", normalized);
+  relayout(active, normalized);
   canvas.requestRenderAll();
 };
 
@@ -368,8 +386,10 @@ export const refreshImageGrids = (canvas: Canvas) => {
   canvas.getObjects().forEach((obj) => {
     if ((obj as any)?.data?.type !== "imageGrid") return;
     const grid = obj as Group;
-    normalizeGridScale(grid);
-    relayout(grid, (grid as any).data as ImageGridData);
+    const data = (grid as any).data as ImageGridData;
+    const normalized = normalizeGridScale(grid, data);
+    (grid as any).set("data", normalized);
+    relayout(grid, normalized);
   });
   canvas.requestRenderAll();
 };
@@ -379,11 +399,12 @@ const replaceSlotObject = async (grid: Group, slotId: string, src: string) => {
   const index = objects.findIndex((obj) => obj?.data?.slotId === slotId);
   if (index < 0) return;
 
+  const data = (grid as any).data as ImageGridData | undefined;
   const frame = {
     left: Number(grid.left ?? 0),
     top: Number(grid.top ?? 0),
-    width: Math.max(80, Number(grid.width ?? 1)),
-    height: Math.max(80, Number(grid.height ?? 1)),
+    width: Math.max(80, Number(data?.frameWidth ?? grid.width ?? 1)),
+    height: Math.max(80, Number(data?.frameHeight ?? grid.height ?? 1)),
     scaleX: Number(grid.scaleX ?? 1),
     scaleY: Number(grid.scaleY ?? 1)
   };
@@ -478,8 +499,10 @@ export const enableImageGridReflowBehavior = (canvas: Canvas) => {
   const onModified = ({ target }: any) => {
     if (!target || target?.data?.type !== "imageGrid") return;
     const grid = target as Group;
-    normalizeGridScale(grid);
-    relayout(grid, (grid as any).data as ImageGridData);
+    const data = (grid as any).data as ImageGridData;
+    const normalized = normalizeGridScale(grid, data);
+    (grid as any).set("data", normalized);
+    relayout(grid, normalized);
     canvas.requestRenderAll();
   };
 
