@@ -1,4 +1,4 @@
-import { FabricImage, Group, Rect, Textbox, type Canvas } from "fabric";
+import { FabricImage, Group, Point, Rect, Textbox, type Canvas } from "fabric";
 
 export type ImageGridMode = "fixed" | "responsive";
 export type ImagePlacementMode = "cover" | "fit" | "crop";
@@ -200,8 +200,8 @@ const setImagePlacement = (img: FabricImage, slot: GridSlot, w: number, h: numbe
   img.set({
     scaleX: scale,
     scaleY: scale,
-    left: cellLeft + cropX,
-    top: cellTop + cropY,
+    left: cellLeft,
+    top: cellTop,
     originX: "center",
     originY: "center",
     backgroundColor: slot.backgroundColor ?? DEFAULT_CELL_BACKGROUND
@@ -338,13 +338,14 @@ const relayout = (group: Group, data: ImageGridData) => {
       });
       const badgeW = Math.min(24, Math.max(16, w * 0.22));
       const badgeH = Math.min(18, Math.max(14, h * 0.2));
+      const labelLeft = clamp(left, -width / 2 + badgeW * 0.75, width / 2 - badgeW * 0.75);
       selectedLabel.set({
         visible: true,
         text: String(index + 1),
         width: badgeW,
         height: badgeH,
-        left,
-        top: top - h / 2 - badgeH * 0.65,
+        left: labelLeft,
+        top: -height / 2 - badgeH * 0.9,
         backgroundColor: "rgba(15, 15, 15, 0.82)",
         stroke: "rgba(255,255,255,0.34)",
         strokeWidth: 0.8
@@ -631,16 +632,16 @@ export const enableImageGridReflowBehavior = (canvas: Canvas) => {
     const pointer = event?.scenePoint ?? canvas.getScenePoint?.(event.e);
     if (!pointer) return;
 
-    const localX = Number(pointer.x ?? 0) - Number(grid.left ?? 0) + Number(data.frameWidth ?? grid.width ?? 1) / 2;
-    const localY = Number(pointer.y ?? 0) - Number(grid.top ?? 0) + Number(data.frameHeight ?? grid.height ?? 1) / 2;
-    const x = localX - Number(data.frameWidth ?? grid.width ?? 1) / 2;
-    const y = localY - Number(data.frameHeight ?? grid.height ?? 1) / 2;
+    const localPoint = (grid as any).toLocalPoint?.(new Point(Number(pointer.x ?? 0), Number(pointer.y ?? 0)), "center", "center");
+    if (!localPoint) return;
+    const x = Number(localPoint.x ?? 0);
+    const y = Number(localPoint.y ?? 0);
 
     const layout = resolveSlotLayout(data, Math.max(80, Number(data.frameWidth ?? grid.width ?? 1)), Math.max(80, Number(data.frameHeight ?? grid.height ?? 1)));
     const hit = layout.find((entry) => {
       const left = entry.left - entry.width / 2;
       const top = entry.top - entry.height / 2;
-      return x >= left && x <= left + entry.width && y >= top && y <= top + entry.height
+      return x >= left && x <= left + entry.width && y >= top && y <= top + entry.height;
     });
     if (!hit) return;
 
