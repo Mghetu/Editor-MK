@@ -4,6 +4,7 @@ import { bindSelectionEvents } from "./engine/selection";
 import HistoryManager from "./engine/history/history";
 import { useEditorStore } from "./state/useEditorStore";
 import { saveCanvasJson } from "./engine/serialize";
+import { refreshImageGrids } from "./features/imageGrid";
 
 export type StageApi = { canvas: any; history: HistoryManager };
 
@@ -143,6 +144,7 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     applyCanvasFrame(canvas, doc.canvas);
+    refreshImageGrids(canvas);
   }, [doc.canvas.width, doc.canvas.height, doc.canvas.background]);
 
   return (
