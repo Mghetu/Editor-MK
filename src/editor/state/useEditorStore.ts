@@ -1,12 +1,12 @@
 import { create } from "zustand";
 import { createBlankDoc, type DocModel, type ExportFormat } from "./documentModel";
 
-export type PanelTab = "select" | "templates" | "uploads" | "text" | "shapes" | "tables" | "pages" | "layers" | "settings";
+export type PanelTab = "select" | "templates" | "uploads" | "imageGrid" | "text" | "shapes" | "tables" | "pages" | "layers" | "settings";
 
 type EditorStore = {
   doc: DocModel;
   activeTab: PanelTab;
-  selectedObjectType?: "text" | "image" | "table" | "shape";
+  selectedObjectType?: "text" | "image" | "table" | "shape" | "imageGrid";
   selectedObjectId?: string;
   setTab: (tab: PanelTab) => void;
   setSelection: (id?: string, type?: EditorStore["selectedObjectType"]) => void;
