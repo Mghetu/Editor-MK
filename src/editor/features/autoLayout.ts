@@ -88,13 +88,40 @@ const relayoutAutoLayoutGroup = (group: Group, data: AutoLayoutData) => {
 
 export const createAutoLayoutFromSelection = (canvas: Canvas) => {
   const active = canvas.getActiveObject() as any;
-  if (!active) return;
+  const activeObjects = (canvas.getActiveObjects?.() as any[]) ?? [];
 
   let group: Group | null = null;
-  if (String(active?.type ?? "").toLowerCase() === "activeselection") {
-    group = (active as any).toGroup() as Group;
-  } else if (String(active?.type ?? "").toLowerCase() === "group") {
+  const activeType = String(active?.type ?? "").toLowerCase();
+
+  if (activeType === "group") {
     group = active as Group;
+  } else if (activeType === "activeselection" || activeObjects.length > 1) {
+    const selection = activeType === "activeselection" ? active : canvas.getActiveObject();
+    const toGroup = (selection as any)?.toGroup;
+    if (typeof toGroup === "function") {
+      group = toGroup.call(selection) as Group;
+    } else {
+      const objects = activeObjects.length > 0 ? activeObjects : ((selection as any)?._objects ?? []);
+      if (objects.length < 2) return;
+
+      const bounds = (selection as any)?.getBoundingRect?.(true, true);
+      const centerLeft = Number(bounds?.left ?? 0) + Number(bounds?.width ?? 0) / 2;
+      const centerTop = Number(bounds?.top ?? 0) + Number(bounds?.height ?? 0) / 2;
+
+      canvas.discardActiveObject();
+      objects.forEach((obj: any) => {
+        obj.setCoords?.();
+        canvas.remove(obj);
+      });
+
+      group = new Group(objects as any, {
+        originX: "center",
+        originY: "center",
+        left: centerLeft,
+        top: centerTop
+      });
+      canvas.add(group);
+    }
   }
 
   if (!group) return;
