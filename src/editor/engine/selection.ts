@@ -2,12 +2,12 @@ import type { Canvas } from "fabric";
 
 export const bindSelectionEvents = (
   canvas: Canvas,
-  onSelectionChange: (id?: string, type?: "text" | "image" | "table" | "shape" | "imageGrid") => void
+  onSelectionChange: (id?: string, type?: "text" | "image" | "table" | "shape" | "imageGrid" | "autoLayout") => void
 ) => {
   let lastId: string | undefined;
-  let lastType: "text" | "image" | "table" | "shape" | "imageGrid" | undefined;
+  let lastType: "text" | "image" | "table" | "shape" | "imageGrid" | "autoLayout" | undefined;
 
-  const emitIfChanged = (id?: string, type?: "text" | "image" | "table" | "shape" | "imageGrid") => {
+  const emitIfChanged = (id?: string, type?: "text" | "image" | "table" | "shape" | "imageGrid" | "autoLayout") => {
     if (id === lastId && type === lastType) return;
     lastId = id;
     lastType = type;

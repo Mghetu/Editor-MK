@@ -1,4 +1,4 @@
-import { AppWindow, Files, Grid3X3, Layers, LayoutTemplate, MousePointerClick, Settings, Shapes, Table2, Type, Upload, X } from "lucide-react";
+import { AppWindow, Files, Grid3X3, Layers, LayoutTemplate, MousePointerClick, PanelsTopLeft, Settings, Shapes, Table2, Type, Upload, X } from "lucide-react";
 import { useEditorStore, type PanelTab } from "../state/useEditorStore";
 import { LayersPanel } from "./panels/LayersPanel";
 import { PagesPanel } from "./panels/PagesPanel";
@@ -9,12 +9,14 @@ import { UploadsPanel } from "./panels/UploadsPanel";
 import { SettingsPanel } from "./panels/SettingsPanel";
 import { ShapesPanel } from "./panels/ShapesPanel";
 import { ImageGridPanel } from "./panels/ImageGridPanel";
+import { AutoLayoutPanel } from "./panels/AutoLayoutPanel";
 
 const tabs: { key: PanelTab; label: string; icon: any }[] = [
   { key: "select", label: "Select", icon: MousePointerClick },
   { key: "templates", label: "Templates", icon: LayoutTemplate },
   { key: "uploads", label: "Uploads", icon: Upload },
   { key: "imageGrid", label: "Image Grid", icon: Grid3X3 },
+  { key: "autoLayout", label: "Auto Layout", icon: PanelsTopLeft },
   { key: "text", label: "Text", icon: Type },
   { key: "shapes", label: "Shapes", icon: Shapes },
   { key: "tables", label: "Tables", icon: Table2 },
@@ -55,6 +57,7 @@ export function LeftSidebar() {
             {activeTab === "templates" && <TemplatesPanel />}
             {activeTab === "uploads" && <UploadsPanel />}
             {activeTab === "imageGrid" && <ImageGridPanel />}
+            {activeTab === "autoLayout" && <AutoLayoutPanel />}
             {activeTab === "text" && <TextPanel />}
             {activeTab === "shapes" && <ShapesPanel />}
             {activeTab === "tables" && <TablesPanel />}

@@ -2,6 +2,7 @@ import { Canvas, FabricImage } from "fabric";
 import { applyGlobalHandleStyle, applyObjectHandleStyle } from "./handleStyle";
 import { ensureRectRadiusMetadata, ensureShapeStrokeUniform, normalizeRectAfterTransform } from "../features/shapes/shapeGeometry";
 import { enableImageGridReflowBehavior } from "../features/imageGrid";
+import { enableAutoLayoutBehavior } from "../features/autoLayout";
 
 FabricImage.customProperties = Array.from(new Set([...(FabricImage.customProperties ?? []), "cropN", "cropState", "__cropState"]));
 
@@ -56,6 +57,7 @@ export const createCanvas = (el: HTMLCanvasElement, width: number, height: numbe
   });
 
   enableImageGridReflowBehavior(canvas);
+  enableAutoLayoutBehavior(canvas);
 
   return canvas;
 };
