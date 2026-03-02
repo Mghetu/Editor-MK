@@ -1,4 +1,4 @@
-import { FabricImage, Group, Rect, type Canvas } from "fabric";
+import { FabricImage, Group, Rect, Textbox, type Canvas } from "fabric";
 
 export type ImageGridMode = "fixed" | "responsive";
 export type ImagePlacementMode = "cover" | "fit" | "crop";
@@ -220,6 +220,28 @@ const ensureSlotObject = (group: Group, slotId: string) => {
   return placeholder;
 };
 
+const ensureSlotLabelObject = (group: Group, slotId: string) => {
+  const objects = (group as any)._objects as any[];
+  const existing = objects.find((obj) => obj?.data?.slotId === slotId && obj?.data?.role === "slot-label");
+  if (existing) return existing;
+  const label = new Textbox("1", {
+    width: 22,
+    height: 16,
+    fontSize: 11,
+    fontWeight: "700",
+    fill: "#ffffff",
+    textAlign: "center",
+    originX: "center",
+    originY: "center",
+    selectable: false,
+    evented: false,
+    data: { role: "slot-label", slotId }
+  });
+  group.add(label);
+  return label;
+};
+
+
 const relayout = (group: Group, data: ImageGridData) => {
   const width = Math.max(80, Number(data.frameWidth ?? group.width ?? 1));
   const height = Math.max(80, Number(data.frameHeight ?? group.height ?? 1));
@@ -233,8 +255,20 @@ const relayout = (group: Group, data: ImageGridData) => {
   const innerH = Math.max(1, height - data.padding * 2);
   const cellH = Math.max(1, (innerH - data.gap * (rows - 1)) / rows);
 
-  for (const slot of slots) {
+  const objects = (group as any)._objects as any[];
+  const activeSlotIds = new Set(slots.map((slot) => slot.id));
+  for (const obj of [...objects]) {
+    const slotId = obj?.data?.slotId;
+    const role = obj?.data?.role;
+    if (!slotId || (role !== "slot" && role !== "slot-label")) continue;
+    if (activeSlotIds.has(slotId)) continue;
+    group.remove(obj);
+  }
+
+  for (let index = 0; index < slots.length; index += 1) {
+    const slot = slots[index];
     const slotObj = ensureSlotObject(group, slot.id);
+    const labelObj = ensureSlotLabelObject(group, slot.id);
 
     const x = -width / 2 + data.padding + slot.col * (cellW + data.gap);
     const y = -height / 2 + data.padding + slot.row * (cellH + data.gap);
@@ -260,6 +294,24 @@ const relayout = (group: Group, data: ImageGridData) => {
     } else {
       slotObj.set({ width: w, height: h, rx: cornerRadius, ry: cornerRadius, fill: slot.backgroundColor ?? DEFAULT_CELL_BACKGROUND });
     }
+
+    const badgeW = Math.min(24, Math.max(16, w * 0.22));
+    const badgeH = Math.min(18, Math.max(14, h * 0.2));
+    labelObj.set({
+      text: String(index + 1),
+      width: badgeW,
+      height: badgeH,
+      left: left - w / 2 + badgeW * 0.55,
+      top: top - h / 2 + badgeH * 0.55,
+      backgroundColor: "rgba(15, 15, 15, 0.72)",
+      stroke: "rgba(255,255,255,0.24)",
+      strokeWidth: 0.8,
+      selectable: false,
+      evented: false,
+      originX: "center",
+      originY: "center"
+    });
+    labelObj.bringToFront?.();
   }
 
   group.set({ dirty: true });
@@ -319,7 +371,16 @@ const normalizeGridScale = (grid: Group, data: ImageGridData) => {
 
 const normalizeSlotsForGridDimensions = (data: ImageGridData): ImageGridData => {
   if (data.mode !== "fixed") return data;
-  const slots = [...data.slots];
+
+  const withinPerimeter = data.slots
+    .filter((slot) => slot.row >= 0 && slot.col >= 0 && slot.row < data.rows && slot.col < data.columns)
+    .map((slot) => {
+      const colSpan = clamp(Math.max(1, Number(slot.colSpan ?? 1)), 1, data.columns - slot.col);
+      const rowSpan = clamp(Math.max(1, Number(slot.rowSpan ?? 1)), 1, data.rows - slot.row);
+      return { ...slot, colSpan, rowSpan };
+    });
+
+  const slots: GridSlot[] = [...withinPerimeter];
   const used = new Set(slots.map((slot) => `${slot.row}:${slot.col}`));
   for (let r = 0; r < data.rows; r += 1) {
     for (let c = 0; c < data.columns; c += 1) {
@@ -329,6 +390,7 @@ const normalizeSlotsForGridDimensions = (data: ImageGridData): ImageGridData => 
       used.add(key);
     }
   }
+
   return { ...data, slots };
 };
 
