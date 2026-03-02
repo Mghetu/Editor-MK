@@ -302,6 +302,26 @@ export const replaceSelectedImageGridSlot = async (canvas: Canvas, slotId: strin
   }));
 };
 
+export const addImagesToSelectedImageGrid = async (canvas: Canvas, files: File[]) => {
+  const active = canvas.getActiveObject() as Group;
+  if (!active || (active as any)?.data?.type !== "imageGrid" || files.length === 0) return;
+
+  const current = (active as any).data as ImageGridData;
+  const emptySlots = current.slots.filter((slot) => !slot.imageSrc);
+  const remainingSlots = current.slots.filter((slot) => slot.imageSrc);
+  const orderedTargets = [...emptySlots, ...remainingSlots].slice(0, files.length);
+
+  for (let index = 0; index < orderedTargets.length; index += 1) {
+    const slot = orderedTargets[index];
+    const src = URL.createObjectURL(files[index]);
+    await replaceSlotObject(active, slot.id, src);
+    updateSelectedImageGrid(canvas, (data) => ({
+      ...data,
+      slots: data.slots.map((entry) => (entry.id === slot.id ? { ...entry, imageSrc: src } : entry))
+    }));
+  }
+};
+
 export const shuffleSelectedImageGrid = (canvas: Canvas) => {
   updateSelectedImageGrid(canvas, (data) => {
     const sources = data.slots.map((slot) => slot.imageSrc).filter(Boolean) as string[];

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  addImagesToSelectedImageGrid,
   convertSelectedImageGridToCustom,
   refreshImageGrids,
   replaceSelectedImageGridSlot,
@@ -87,9 +88,25 @@ export function ImageGridInspector() {
         <button className="rounded border border-[#555] bg-[#252525] px-2 py-1 hover:bg-[#333]" onClick={() => convertSelectedImageGridToCustom(canvas)}>Convert to Custom</button>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         <button className="rounded border border-[#555] bg-[#252525] px-2 py-1 hover:bg-[#333]" onClick={() => shuffleSelectedImageGrid(canvas)}>Shuffle</button>
         <button className="rounded border border-[#555] bg-[#252525] px-2 py-1 hover:bg-[#333]" onClick={() => swapSelectedImageGrid(canvas)}>Swap</button>
+        <button
+          className="rounded border border-[#555] bg-[#252525] px-2 py-1 hover:bg-[#333]"
+          onClick={() => {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = "image/*";
+            input.multiple = true;
+            input.onchange = () => {
+              const files = Array.from(input.files ?? []);
+              if (files.length) void addImagesToSelectedImageGrid(canvas, files);
+            };
+            input.click();
+          }}
+        >
+          Add images
+        </button>
         <button
           className="rounded border border-[#555] bg-[#252525] px-2 py-1 hover:bg-[#333]"
           onClick={() => {
