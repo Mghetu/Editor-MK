@@ -27,7 +27,7 @@ export function ImageGridInspector() {
     const sync = () => {
       const next = getActiveGrid(canvas);
       setGrid(next);
-      setSlotId((prev) => prev || next?.slots?.[0]?.id || "");
+      setSlotId(next?.selectedSlotId || next?.slots?.[0]?.id || "");
     };
     sync();
     canvas.on("selection:created", sync);
@@ -135,7 +135,7 @@ export function ImageGridInspector() {
       </div>
 
       <label className="block text-xs text-slate-300">Cell</label>
-      <select className="w-full rounded border border-[#555] bg-[#252525] p-2 text-slate-100" value={selectedSlot?.id ?? ""} onChange={(e) => setSlotId(e.target.value)}>
+      <select className="w-full rounded border border-[#555] bg-[#252525] p-2 text-slate-100" value={selectedSlot?.id ?? ""} onChange={(e) => { setSlotId(e.target.value); patch({ selectedSlotId: e.target.value }); }}>
         {slotOptions.map((slot, idx) => <option key={slot.id} value={slot.id}>Slot {idx + 1}</option>)}
       </select>
 

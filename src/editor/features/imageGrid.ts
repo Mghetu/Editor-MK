@@ -33,6 +33,7 @@ export type ImageGridData = {
   frameWidth: number;
   frameHeight: number;
   showGuides?: boolean;
+  selectedSlotId?: string;
   slots: GridSlot[];
 };
 
@@ -154,6 +155,27 @@ const buildResponsiveSlots = (data: ImageGridData, columns: number): GridSlot[] 
   });
 };
 
+
+type SlotLayout = { slot: GridSlot; index: number; left: number; top: number; width: number; height: number };
+
+const resolveSlotLayout = (data: ImageGridData, width: number, height: number): SlotLayout[] => {
+  const innerW = Math.max(1, width - data.padding * 2);
+  const columns = getRenderedColumns(data, innerW);
+  const slots = data.mode === "responsive" ? buildResponsiveSlots(data, columns) : data.slots;
+  const rows = data.mode === "responsive" ? Math.max(1, Math.ceil(slots.length / columns)) : Math.max(1, data.rows);
+  const cellW = Math.max(1, (innerW - data.gap * (columns - 1)) / columns);
+  const innerH = Math.max(1, height - data.padding * 2);
+  const cellH = Math.max(1, (innerH - data.gap * (rows - 1)) / rows);
+
+  return slots.map((slot, index) => {
+    const x = -width / 2 + data.padding + slot.col * (cellW + data.gap);
+    const y = -height / 2 + data.padding + slot.row * (cellH + data.gap);
+    const w = cellW * (slot.colSpan ?? 1) + data.gap * ((slot.colSpan ?? 1) - 1);
+    const h = cellH * (slot.rowSpan ?? 1) + data.gap * ((slot.rowSpan ?? 1) - 1);
+    const { left, top } = toRelativeCenter(x, y, w, h);
+    return { slot, index, left, top, width: w, height: h };
+  });
+};
 const setImagePlacement = (img: FabricImage, slot: GridSlot, w: number, h: number, cellLeft: number, cellTop: number) => {
   const baseW = Math.max(1, Number(img.width ?? 1));
   const baseH = Math.max(1, Number(img.height ?? 1));
@@ -220,11 +242,11 @@ const ensureSlotObject = (group: Group, slotId: string) => {
   return placeholder;
 };
 
-const ensureSlotLabelObject = (group: Group, slotId: string) => {
+const ensureSelectedSlotLabelObject = (group: Group) => {
   const objects = (group as any)._objects as any[];
-  const existing = objects.find((obj) => obj?.data?.slotId === slotId && obj?.data?.role === "slot-label");
+  const existing = objects.find((obj) => obj?.data?.role === "slot-label");
   if (existing) return existing;
-  const label = new Textbox("1", {
+  const label = new Textbox("", {
     width: 22,
     height: 16,
     fontSize: 11,
@@ -235,85 +257,108 @@ const ensureSlotLabelObject = (group: Group, slotId: string) => {
     originY: "center",
     selectable: false,
     evented: false,
-    data: { role: "slot-label", slotId }
+    visible: false,
+    data: { role: "slot-label" }
   });
   group.add(label);
   return label;
 };
 
+const ensureSelectedSlotOutlineObject = (group: Group) => {
+  const objects = (group as any)._objects as any[];
+  const existing = objects.find((obj) => obj?.data?.role === "slot-outline");
+  if (existing) return existing;
+  const outline = new Rect({
+    width: 10,
+    height: 10,
+    fill: "transparent",
+    stroke: "#a78bfa",
+    strokeWidth: 1.5,
+    originX: "center",
+    originY: "center",
+    selectable: false,
+    evented: false,
+    visible: false,
+    data: { role: "slot-outline" }
+  });
+  group.add(outline);
+  return outline;
+};
 
 const relayout = (group: Group, data: ImageGridData) => {
   const width = Math.max(80, Number(data.frameWidth ?? group.width ?? 1));
   const height = Math.max(80, Number(data.frameHeight ?? group.height ?? 1));
   group.set({ width, height });
-  const innerW = Math.max(1, width - data.padding * 2);
-  const columns = getRenderedColumns(data, innerW);
-  const slots = data.mode === "responsive" ? buildResponsiveSlots(data, columns) : data.slots;
-  const rows = data.mode === "responsive" ? Math.max(1, Math.ceil(slots.length / columns)) : Math.max(1, data.rows);
 
-  const cellW = Math.max(1, (innerW - data.gap * (columns - 1)) / columns);
-  const innerH = Math.max(1, height - data.padding * 2);
-  const cellH = Math.max(1, (innerH - data.gap * (rows - 1)) / rows);
-
+  const layout = resolveSlotLayout(data, width, height);
   const objects = (group as any)._objects as any[];
-  const activeSlotIds = new Set(slots.map((slot) => slot.id));
+  const activeSlotIds = new Set(layout.map((entry) => entry.slot.id));
   for (const obj of [...objects]) {
-    const slotId = obj?.data?.slotId;
     const role = obj?.data?.role;
-    if (!slotId || (role !== "slot" && role !== "slot-label")) continue;
-    if (activeSlotIds.has(slotId)) continue;
-    group.remove(obj);
+    const slotId = obj?.data?.slotId;
+    if (role === "slot" && slotId && !activeSlotIds.has(slotId)) group.remove(obj);
   }
 
-  for (let index = 0; index < slots.length; index += 1) {
-    const slot = slots[index];
-    const slotObj = ensureSlotObject(group, slot.id);
-    const labelObj = ensureSlotLabelObject(group, slot.id);
+  const selectedSlotId = data.selectedSlotId;
+  const selectedLabel = ensureSelectedSlotLabelObject(group);
+  const selectedOutline = ensureSelectedSlotOutlineObject(group);
 
-    const x = -width / 2 + data.padding + slot.col * (cellW + data.gap);
-    const y = -height / 2 + data.padding + slot.row * (cellH + data.gap);
-    const w = cellW * (slot.colSpan ?? 1) + data.gap * ((slot.colSpan ?? 1) - 1);
-    const h = cellH * (slot.rowSpan ?? 1) + data.gap * ((slot.rowSpan ?? 1) - 1);
-    const { left, top } = toRelativeCenter(x, y, w, h);
+  for (const entry of layout) {
+    const { slot, index, left, top, width: w, height: h } = entry;
+    const slotObj = ensureSlotObject(group, slot.id);
     const cornerRadius = Math.max(0, Number(slot.cornerRadius ?? 8));
+    const selected = slot.id === selectedSlotId;
 
     slotObj.set({
       left,
       top,
       originX: "center",
       originY: "center",
-      stroke: data.showGuides ? "#8b5cf6" : "#666",
-      strokeWidth: data.showGuides ? 2 : 1,
+      stroke: selected ? "#a78bfa" : data.showGuides ? "#8b5cf6" : "#666",
+      strokeWidth: selected ? 1.6 : data.showGuides ? 2 : 1,
       selectable: false,
       evented: false
     });
 
     if (slotObj.type === "image") {
-      slotObj.set({ strokeWidth: 0, stroke: undefined });
       setImagePlacement(slotObj as FabricImage, slot, w, h, left, top);
     } else {
       slotObj.set({ width: w, height: h, rx: cornerRadius, ry: cornerRadius, fill: slot.backgroundColor ?? DEFAULT_CELL_BACKGROUND });
     }
 
-    const badgeW = Math.min(24, Math.max(16, w * 0.22));
-    const badgeH = Math.min(18, Math.max(14, h * 0.2));
-    labelObj.set({
-      text: String(index + 1),
-      width: badgeW,
-      height: badgeH,
-      left: left - w / 2 + badgeW * 0.55,
-      top: top - h / 2 + badgeH * 0.55,
-      backgroundColor: "rgba(15, 15, 15, 0.72)",
-      stroke: "rgba(255,255,255,0.24)",
-      strokeWidth: 0.8,
-      selectable: false,
-      evented: false,
-      originX: "center",
-      originY: "center"
-    });
-    labelObj.bringToFront?.();
+    if (selected) {
+      selectedOutline.set({
+        visible: true,
+        left,
+        top,
+        width: Math.max(1, w),
+        height: Math.max(1, h),
+        rx: cornerRadius,
+        ry: cornerRadius
+      });
+      const badgeW = Math.min(24, Math.max(16, w * 0.22));
+      const badgeH = Math.min(18, Math.max(14, h * 0.2));
+      selectedLabel.set({
+        visible: true,
+        text: String(index + 1),
+        width: badgeW,
+        height: badgeH,
+        left,
+        top: top - h / 2 - badgeH * 0.65,
+        backgroundColor: "rgba(15, 15, 15, 0.82)",
+        stroke: "rgba(255,255,255,0.34)",
+        strokeWidth: 0.8
+      });
+    }
   }
 
+  if (!layout.some((entry) => entry.slot.id === selectedSlotId)) {
+    selectedLabel.set({ visible: false });
+    selectedOutline.set({ visible: false });
+  }
+
+  selectedOutline.bringToFront?.();
+  selectedLabel.bringToFront?.();
   group.set({ dirty: true });
   group.setCoords();
 };
@@ -411,6 +456,7 @@ export const createImageGrid = async (canvas: Canvas, presetId: string) => {
     frameWidth: 520,
     frameHeight: 360,
     showGuides: false,
+    selectedSlotId: undefined,
     slots: getPresetSlots(preset)
   };
 
@@ -427,8 +473,9 @@ export const createImageGrid = async (canvas: Canvas, presetId: string) => {
   (group as any).set("data", data);
 
   const normalized = normalizeGridScale(group, data);
-  relayout(group, normalized);
-  (group as any).set("data", normalized);
+  const withSelection = { ...normalized, selectedSlotId: normalized.selectedSlotId ?? normalized.slots[0]?.id };
+  relayout(group, withSelection);
+  (group as any).set("data", withSelection);
   canvas.add(group);
   canvas.setActiveObject(group);
   canvas.requestRenderAll();
@@ -575,6 +622,37 @@ export const enableImageGridReflowBehavior = (canvas: Canvas) => {
     canvas.requestRenderAll();
   };
 
+
+  const onMouseDown = (event: any) => {
+    const target = event?.target as any;
+    if (!target || target?.data?.type !== "imageGrid") return;
+    const grid = target as Group;
+    const data = (grid as any).data as ImageGridData;
+    const pointer = event?.scenePoint ?? canvas.getScenePoint?.(event.e);
+    if (!pointer) return;
+
+    const localX = Number(pointer.x ?? 0) - Number(grid.left ?? 0) + Number(data.frameWidth ?? grid.width ?? 1) / 2;
+    const localY = Number(pointer.y ?? 0) - Number(grid.top ?? 0) + Number(data.frameHeight ?? grid.height ?? 1) / 2;
+    const x = localX - Number(data.frameWidth ?? grid.width ?? 1) / 2;
+    const y = localY - Number(data.frameHeight ?? grid.height ?? 1) / 2;
+
+    const layout = resolveSlotLayout(data, Math.max(80, Number(data.frameWidth ?? grid.width ?? 1)), Math.max(80, Number(data.frameHeight ?? grid.height ?? 1)));
+    const hit = layout.find((entry) => {
+      const left = entry.left - entry.width / 2;
+      const top = entry.top - entry.height / 2;
+      return x >= left && x <= left + entry.width && y >= top && y <= top + entry.height
+    });
+    if (!hit) return;
+
+    const next = { ...data, selectedSlotId: hit.slot.id };
+    (grid as any).set("data", next);
+    relayout(grid, next);
+    canvas.requestRenderAll();
+  };
   canvas.on("object:modified", onModified);
-  return () => canvas.off("object:modified", onModified);
+  canvas.on("mouse:down", onMouseDown);
+  return () => {
+    canvas.off("object:modified", onModified);
+    canvas.off("mouse:down", onMouseDown);
+  };
 };
