@@ -187,15 +187,34 @@ const setImagePlacement = (img: FabricImage, slot: GridSlot, w: number, h: numbe
   if (placement === "fit") scale = fitScale;
   if (placement === "crop") scale = coverScale * Math.max(0.1, Number(slot.cropScale ?? 1));
 
-  const cropX = Number(slot.cropX ?? 0);
-  const cropY = Number(slot.cropY ?? 0);
+  const offsetX = Number(slot.cropX ?? 0);
+  const offsetY = Number(slot.cropY ?? 0);
   const radius = Math.max(0, Number(slot.cornerRadius ?? 0));
 
-  // clipPath on an object is transformed with the object itself.
-  // To keep a constant cell viewport in grid space, use inverse-scaled clip dimensions.
-  const clipWidth = Math.max(1, w / Math.max(0.0001, scale));
-  const clipHeight = Math.max(1, h / Math.max(0.0001, scale));
-  const clipRadius = Math.max(0, radius / Math.max(0.0001, scale));
+  // Keep the frame fixed at the cell center and pan only image content.
+  const viewportSourceW = Math.max(1, w / Math.max(0.0001, scale));
+  const viewportSourceH = Math.max(1, h / Math.max(0.0001, scale));
+
+  let sourceW = baseW;
+  let sourceH = baseH;
+  let sourceX = 0;
+  let sourceY = 0;
+
+  if (placement !== "fit") {
+    sourceW = Math.min(baseW, viewportSourceW);
+    sourceH = Math.min(baseH, viewportSourceH);
+
+    const centeredX = (baseW - sourceW) / 2;
+    const centeredY = (baseH - sourceH) / 2;
+    const maxPanX = centeredX;
+    const maxPanY = centeredY;
+
+    const panX = clamp(offsetX / Math.max(0.0001, scale), -maxPanX, maxPanX);
+    const panY = clamp(offsetY / Math.max(0.0001, scale), -maxPanY, maxPanY);
+
+    sourceX = clamp(centeredX - panX, 0, Math.max(0, baseW - sourceW));
+    sourceY = clamp(centeredY - panY, 0, Math.max(0, baseH - sourceH));
+  }
 
   img.set({
     scaleX: scale,
@@ -204,8 +223,16 @@ const setImagePlacement = (img: FabricImage, slot: GridSlot, w: number, h: numbe
     top: cellTop,
     originX: "center",
     originY: "center",
+    cropX: sourceX,
+    cropY: sourceY,
+    width: sourceW,
+    height: sourceH,
     backgroundColor: slot.backgroundColor ?? DEFAULT_CELL_BACKGROUND
   });
+
+  const clipWidth = Math.max(1, w / Math.max(0.0001, scale));
+  const clipHeight = Math.max(1, h / Math.max(0.0001, scale));
+  const clipRadius = Math.max(0, radius / Math.max(0.0001, scale));
 
   img.clipPath = new Rect({
     width: clipWidth,
@@ -214,11 +241,12 @@ const setImagePlacement = (img: FabricImage, slot: GridSlot, w: number, h: numbe
     ry: clipRadius,
     originX: "center",
     originY: "center",
-    left: -cropX / Math.max(0.0001, scale),
-    top: -cropY / Math.max(0.0001, scale),
+    left: 0,
+    top: 0,
     absolutePositioned: false
   });
 };
+
 
 const ensureSlotObject = (group: Group, slotId: string) => {
   const objects = (group as any)._objects as any[];
