@@ -176,9 +176,26 @@ const resolveSlotLayout = (data: ImageGridData, width: number, height: number): 
     return { slot, index, left, top, width: w, height: h };
   });
 };
+
+const getIntrinsicImageSize = (img: FabricImage) => {
+  const cachedW = Number((img as any).__slotNaturalWidth ?? 0);
+  const cachedH = Number((img as any).__slotNaturalHeight ?? 0);
+  if (cachedW > 0 && cachedH > 0) return { width: cachedW, height: cachedH };
+
+  const element = (img as any).getElement?.() ?? (img as any)._element;
+  const naturalW = Number(element?.naturalWidth ?? element?.videoWidth ?? element?.width ?? img.width ?? 1);
+  const naturalH = Number(element?.naturalHeight ?? element?.videoHeight ?? element?.height ?? img.height ?? 1);
+  const width = Math.max(1, naturalW);
+  const height = Math.max(1, naturalH);
+  (img as any).__slotNaturalWidth = width;
+  (img as any).__slotNaturalHeight = height;
+  return { width, height };
+};
+
 const setImagePlacement = (img: FabricImage, slot: GridSlot, w: number, h: number, cellLeft: number, cellTop: number) => {
-  const baseW = Math.max(1, Number(img.width ?? 1));
-  const baseH = Math.max(1, Number(img.height ?? 1));
+  const intrinsic = getIntrinsicImageSize(img);
+  const baseW = intrinsic.width;
+  const baseH = intrinsic.height;
   const coverScale = Math.max(w / baseW, h / baseH);
   const fitScale = Math.min(w / baseW, h / baseH);
   const placement = slot.imageMode ?? "cover";
@@ -206,11 +223,14 @@ const setImagePlacement = (img: FabricImage, slot: GridSlot, w: number, h: numbe
 
     const centeredX = (baseW - sourceW) / 2;
     const centeredY = (baseH - sourceH) / 2;
-    const maxPanX = centeredX;
-    const maxPanY = centeredY;
+    const availablePanX = (baseW - sourceW) / 2;
+    const availablePanY = (baseH - sourceH) / 2;
 
-    const panX = clamp(offsetX / Math.max(0.0001, scale), -maxPanX, maxPanX);
-    const panY = clamp(offsetY / Math.max(0.0001, scale), -maxPanY, maxPanY);
+    const sourceOffsetX = offsetX / Math.max(0.0001, scale);
+    const sourceOffsetY = offsetY / Math.max(0.0001, scale);
+
+    const panX = clamp(sourceOffsetX, -availablePanX, availablePanX);
+    const panY = clamp(sourceOffsetY, -availablePanY, availablePanY);
 
     sourceX = clamp(centeredX - panX, 0, Math.max(0, baseW - sourceW));
     sourceY = clamp(centeredY - panY, 0, Math.max(0, baseH - sourceH));
