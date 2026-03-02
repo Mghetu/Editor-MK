@@ -4,6 +4,7 @@ import { ObjectContextMenu } from "./inspector/ObjectContextMenu";
 import { ShapeInspector } from "./inspector/ShapeInspector";
 import { TableInspector } from "./inspector/TableInspector";
 import { TextInspector } from "./inspector/TextInspector";
+import { ImageGridInspector } from "./inspector/ImageGridInspector";
 
 export function RightInspector() {
   const { selectedObjectType } = useEditorStore();
@@ -18,6 +19,7 @@ export function RightInspector() {
         {selectedObjectType === "image" && <ImageInspector />}
         {selectedObjectType === "table" && <TableInspector />}
         {selectedObjectType === "shape" && <ShapeInspector />}
+        {selectedObjectType === "imageGrid" && <ImageGridInspector />}
       </div>
     </div>
   );
