@@ -5,7 +5,7 @@ import { loadCanvasJson, saveCanvasJson } from "../engine/serialize";
 import { setActivePageByNumber, setActivePageByOffset } from "../features/pages/pagesController";
 import { useEditorStore } from "../state/useEditorStore";
 
-export function TopBar({ undo, redo }: { undo: () => void; redo: () => void }) {
+export function TopBar({ undo, redo, persistNow }: { undo: () => void; redo: () => void; persistNow?: () => void }) {
   const { doc, setExportFormat, updateDoc, setTab, activeTab } = useEditorStore();
   const activeIndex = Math.max(0, doc.pages.findIndex((p) => p.id === doc.activePageId));
 
@@ -98,7 +98,14 @@ export function TopBar({ undo, redo }: { undo: () => void; redo: () => void }) {
         >
           <Download size={14} className="mr-1 inline" /> Export
         </button>
-        <button className="rounded bg-fuchsia-600 px-3 py-1 text-white hover:bg-fuchsia-500" onClick={() => exportAllPagesZip((window as any).__editorCanvas, doc)}>
+        <button
+          className="rounded bg-fuchsia-600 px-3 py-1 text-white hover:bg-fuchsia-500"
+          onClick={() => {
+            persistNow?.();
+            const latestDoc = useEditorStore.getState().doc;
+            exportAllPagesZip((window as any).__editorCanvas, latestDoc);
+          }}
+        >
           Export ZIP
         </button>
       </div>
