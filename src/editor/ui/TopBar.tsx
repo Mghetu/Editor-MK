@@ -97,7 +97,6 @@ export function TopBar({ undo, redo, persistNow }: { undo: () => void; redo: () 
         >
           <Download size={14} className="mr-1 inline" /> Export
         </button>
-<<<<<<< HEAD
         <button
           className="rounded bg-fuchsia-600 px-3 py-1 text-white hover:bg-fuchsia-500"
           onClick={() => {
@@ -108,8 +107,6 @@ export function TopBar({ undo, redo, persistNow }: { undo: () => void; redo: () 
         >
           Export ZIP
         </button>
-=======
->>>>>>> origin/codex/conduct-in-depth-code-review-of-editor-yqj4kn
       </div>
     </div>
   );
