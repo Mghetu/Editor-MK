@@ -1,6 +1,5 @@
 import { ChevronDown, ChevronLeft, ChevronRight, Download, MousePointerClick, Redo2, Undo2, Upload } from "lucide-react";
 import { exportCurrentPage } from "../engine/export/exportPage";
-import { exportAllPagesZip } from "../engine/export/exportZip";
 import { loadCanvasJson, saveCanvasJson } from "../engine/serialize";
 import { setActivePageByNumber, setActivePageByOffset } from "../features/pages/pagesController";
 import { useEditorStore } from "../state/useEditorStore";
@@ -98,6 +97,7 @@ export function TopBar({ undo, redo, persistNow }: { undo: () => void; redo: () 
         >
           <Download size={14} className="mr-1 inline" /> Export
         </button>
+<<<<<<< HEAD
         <button
           className="rounded bg-fuchsia-600 px-3 py-1 text-white hover:bg-fuchsia-500"
           onClick={() => {
@@ -108,6 +108,8 @@ export function TopBar({ undo, redo, persistNow }: { undo: () => void; redo: () 
         >
           Export ZIP
         </button>
+=======
+>>>>>>> origin/codex/conduct-in-depth-code-review-of-editor-yqj4kn
       </div>
     </div>
   );

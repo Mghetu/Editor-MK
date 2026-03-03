@@ -27,8 +27,8 @@ flowchart LR
   F --> SER[serialize.ts\nsave/load JSON]
   SER --> P[DocModel.pages[*].fabricJson + thumbnail]
   P --> S
-  U --> EXP[exportPage/exportImage/exportZip]
-  EXP --> FS[file-saver / zip download]
+  U --> EXP[exportPage/exportImage]
+  EXP --> FS[file-saver download]
 ```
 
 ### 2.2 Crop mode state machine
@@ -58,7 +58,7 @@ src/
       createCanvas.ts, selection.ts, serialize.ts
       factories/ (addText/addImage/addShape/addTable)
       history/history.ts
-      export/ (exportPage/exportImage/exportZip)
+      export/ (exportPage/exportImage)
     features/
       crop/ (CropModeController + math + overlay)
       pages/pagesController.ts
@@ -80,7 +80,7 @@ src/
 - **Tools and content creation**: factory modules add typed Fabric objects (`data.type` used throughout inspectors/layers/selection).
 - **Templates/pages**: template manifest loading + page list mutation controllers.
 - **History/undo-redo**: snapshot-based with debounce + coalescing.
-- **Export**: current canvas export, selected-image export, and all-pages ZIP via temporary canvas rehydration.
+- **Export**: current canvas export and selected-image export.
 
 ---
 
@@ -154,16 +154,14 @@ Key files:
 - `src/editor/ui/panels/TemplatesPanel.tsx`
 - `public/templates/manifest.json`
 
-### 4.7 Exports
+### 4.7 Exports (current)
 
 - **Current page**: direct `canvas.toDataURL(...)` then `file-saver` download.
 - **Selected image**: exports only active image crop window at display size (`cropX/cropY/width/height` + multiplier).
-- **All pages ZIP**: loop pages, load each `fabricJson` into the same canvas, render to data URL/blob, add to JSZip, download ZIP.
 
 Key files:
 - `src/editor/engine/export/exportPage.ts`
 - `src/editor/engine/export/exportImage.ts`
-- `src/editor/engine/export/exportZip.ts`
 - `src/editor/ui/TopBar.tsx`, `src/editor/ui/inspector/ImageInspector.tsx`
 
 ---
@@ -294,21 +292,18 @@ Files:
 - `src/editor/ui/CropPanel.tsx`
 - `src/editor/ui/inspector/ObjectContextMenu.tsx`
 
-## 5.8 Export current page + export all pages zip
+## 5.8 Export current page
 
-- **UX**: top bar export buttons + PNG/JPG toggle.
+- **UX**: top bar export button + PNG/JPG toggle.
 - **State**: format/multiplier read from `doc.export`.
-- **Fabric ops**:
-  - current page uses in-memory canvas directly.
-  - ZIP path rehydrates each page JSON sequentially into current canvas.
+- **Fabric ops**: current page uses in-memory canvas directly.
 - **Events**: none.
 - **Persistence**: export reads persisted page JSON; no doc mutation.
-- **Edge cases**: ZIP export temporarily mutates on-screen canvas to each page during generation.
+- **Edge cases**: export captures current canvas at chosen multiplier and format.
 
 Files:
 - `src/editor/ui/TopBar.tsx`
 - `src/editor/engine/export/exportPage.ts`
-- `src/editor/engine/export/exportZip.ts`
 
 ## 5.9 Undo/redo + keyboard shortcuts
 
@@ -352,7 +347,6 @@ Files:
 
 - **Canvas access pattern**: many UI modules call `(window as any).__editorCanvas` directly instead of consuming a typed context/stage API.
 - **Template apply currently replaces document pages with one page** rather than importing full multi-page template packs.
-- **ZIP export mutates active canvas while exporting** (can cause temporary on-screen page swaps).
 - **Crop shape support**: `circleMask.ts` exists, but crop mode currently implements rectangular crop overlays and does not wire circle masking into the active crop pipeline.
 - **Table editing depth**: tables are grouped primitives with minimal inspector controls (rows/cols readout only).
 

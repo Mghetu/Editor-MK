@@ -126,7 +126,10 @@ This can produce subtle timing issues:
 
 - Add integration tests for:
   - "Edit → immediate export" correctness.
+<<<<<<< HEAD
   - "Export ZIP preserves visible canvas state".
+=======
+>>>>>>> origin/codex/conduct-in-depth-code-review-of-editor-yqj4kn
   - "Undo/redo across page switch" edge sequences.
 - Reduce `any` surface for stage API and Fabric objects where practical.
 - Consider guarding global `window.__editorCanvas` usage behind a typed adapter module.
