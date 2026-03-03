@@ -97,16 +97,6 @@ export function TopBar({ undo, redo, persistNow }: { undo: () => void; redo: () 
         >
           <Download size={14} className="mr-1 inline" /> Export
         </button>
-        <button
-          className="rounded bg-fuchsia-600 px-3 py-1 text-white hover:bg-fuchsia-500"
-          onClick={() => {
-            persistNow?.();
-            const latestDoc = useEditorStore.getState().doc;
-            exportAllPagesZip((window as any).__editorCanvas, latestDoc);
-          }}
-        >
-          Export ZIP
-        </button>
       </div>
     </div>
   );

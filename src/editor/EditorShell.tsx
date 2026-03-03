@@ -29,7 +29,16 @@ export function EditorShell() {
 
   return (
     <div className="grid h-full grid-rows-[56px_44px_1fr] bg-[#121212] text-slate-100">
-      <TopBar undo={() => stage?.history.undo()} redo={() => stage?.history.redo()} persistNow={() => stage?.persistNow()} />
+      <TopBar
+        undo={() => {
+          if (!stage) return;
+          void stage.history.undo();
+        }}
+        redo={() => {
+          if (!stage) return;
+          void stage.history.redo();
+        }}
+      />
       <Toolbar />
       <div className="grid h-full" style={{ gridTemplateColumns: `${leftWidth} 1fr 300px` }}>
         <LeftSidebar />
