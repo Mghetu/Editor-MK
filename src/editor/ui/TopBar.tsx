@@ -4,7 +4,7 @@ import { loadCanvasJson, saveCanvasJson } from "../engine/serialize";
 import { setActivePageByNumber, setActivePageByOffset } from "../features/pages/pagesController";
 import { useEditorStore } from "../state/useEditorStore";
 
-export function TopBar({ undo, redo }: { undo: () => void; redo: () => void }) {
+export function TopBar({ undo, redo, persistNow }: { undo: () => void; redo: () => void; persistNow?: () => void }) {
   const { doc, setExportFormat, updateDoc, setTab, activeTab } = useEditorStore();
   const activeIndex = Math.max(0, doc.pages.findIndex((p) => p.id === doc.activePageId));
 
