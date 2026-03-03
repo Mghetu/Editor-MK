@@ -6,7 +6,7 @@ import { useEditorStore } from "./state/useEditorStore";
 import { saveCanvasJson } from "./engine/serialize";
 import { refreshImageGrids } from "./features/imageGrid";
 
-export type StageApi = { canvas: any; history: HistoryManager };
+export type StageApi = { canvas: any; history: HistoryManager; persistNow: () => void };
 
 const AUTOSAVE_DEBOUNCE_MS = 350;
 const PAGE_THUMBNAIL_MULTIPLIER = 0.15;
@@ -79,6 +79,12 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
       autosaveTimer.current = window.setTimeout(() => persistPage(pageId), AUTOSAVE_DEBOUNCE_MS);
     };
 
+    const persistNow = () => {
+      window.clearTimeout(autosaveTimer.current);
+      const pageId = useEditorStore.getState().doc.activePageId;
+      persistPage(pageId);
+    };
+
     const trackSave = () => {
       if (isHydratingRef.current) return;
       const pageId = useEditorStore.getState().doc.activePageId;
@@ -90,7 +96,7 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
     canvas.on("object:modified", trackSave);
     canvas.on("text:editing:exited", trackSave);
 
-    onReady({ canvas, history });
+    onReady({ canvas, history, persistNow });
 
     return () => {
       unbindSelection?.();

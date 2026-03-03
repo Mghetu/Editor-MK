@@ -22,7 +22,14 @@ export const bindSelectionEvents = (
 
   const clear = () => {
     const hasCropOverlay = canvas.getObjects().some((obj: any) => obj?.data?.isCropOverlay);
-    if (hasCropOverlay) return;
+    if (hasCropOverlay) {
+      // During crop mode we intentionally avoid clearing the inspector state,
+      // but we still need to reset the event cache so selecting the same object
+      // after undo/redo can emit again.
+      lastId = undefined;
+      lastType = undefined;
+      return;
+    }
     emitIfChanged(undefined, undefined);
   };
 
