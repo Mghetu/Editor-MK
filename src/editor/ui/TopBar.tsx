@@ -1,6 +1,5 @@
 import { ChevronDown, ChevronLeft, ChevronRight, Download, MousePointerClick, Redo2, Undo2, Upload } from "lucide-react";
 import { exportCurrentPage } from "../engine/export/exportPage";
-import { exportAllPagesZip } from "../engine/export/exportZip";
 import { loadCanvasJson, saveCanvasJson } from "../engine/serialize";
 import { setActivePageByNumber, setActivePageByOffset } from "../features/pages/pagesController";
 import { useEditorStore } from "../state/useEditorStore";
@@ -97,9 +96,6 @@ export function TopBar({ undo, redo }: { undo: () => void; redo: () => void }) {
           onClick={() => exportCurrentPage((window as any).__editorCanvas, doc.export.format, doc.export.multiplier, doc.pages.find((p) => p.id === doc.activePageId)?.name || "page")}
         >
           <Download size={14} className="mr-1 inline" /> Export
-        </button>
-        <button className="rounded bg-fuchsia-600 px-3 py-1 text-white hover:bg-fuchsia-500" onClick={() => exportAllPagesZip((window as any).__editorCanvas, doc)}>
-          Export ZIP
         </button>
       </div>
     </div>
