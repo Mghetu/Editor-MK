@@ -1,13 +1,35 @@
 import type { Canvas } from "fabric";
 
+type EditorSelectionType = "text" | "image" | "table" | "shape" | "imageGrid" | "autoLayout";
+
+const inferSelectionType = (obj: any): EditorSelectionType | undefined => {
+  const explicitType = obj?.data?.type;
+  if (explicitType === "text" || explicitType === "image" || explicitType === "table" || explicitType === "shape" || explicitType === "imageGrid" || explicitType === "autoLayout") {
+    return explicitType;
+  }
+
+  if (obj?.table) return "table";
+
+  const fabricType = String(obj?.type ?? "").toLowerCase();
+  if (fabricType === "textbox" || fabricType === "i-text" || fabricType === "text") return "text";
+  if (fabricType === "image") return "image";
+
+  // Rect/circle-like objects are edited with ShapeInspector in this editor.
+  if (fabricType === "rect" || fabricType === "circle" || fabricType === "triangle" || fabricType === "polygon" || fabricType === "ellipse") {
+    return "shape";
+  }
+
+  return undefined;
+};
+
 export const bindSelectionEvents = (
   canvas: Canvas,
-  onSelectionChange: (id?: string, type?: "text" | "image" | "table" | "shape" | "imageGrid" | "autoLayout") => void
+  onSelectionChange: (id?: string, type?: EditorSelectionType) => void
 ) => {
   let lastId: string | undefined;
-  let lastType: "text" | "image" | "table" | "shape" | "imageGrid" | "autoLayout" | undefined;
+  let lastType: EditorSelectionType | undefined;
 
-  const emitIfChanged = (id?: string, type?: "text" | "image" | "table" | "shape" | "imageGrid" | "autoLayout") => {
+  const emitIfChanged = (id?: string, type?: EditorSelectionType) => {
     if (id === lastId && type === lastType) return;
     lastId = id;
     lastType = type;
@@ -17,12 +39,31 @@ export const bindSelectionEvents = (
   const update = () => {
     const obj = canvas.getActiveObject() as any;
     if (obj?.data?.isCropOverlay) return;
-    emitIfChanged(obj?.data?.id, obj?.data?.type);
+
+    const type = inferSelectionType(obj);
+    if (obj && type && !obj?.data?.type) {
+      obj.set?.("data", {
+        ...(obj?.data ?? {}),
+        id: obj?.data?.id ?? obj?.id ?? crypto.randomUUID?.(),
+        type
+      });
+    }
+
+    const id = (obj?.data?.id ?? obj?.id) as string | undefined;
+
+    emitIfChanged(id, type);
   };
 
   const clear = () => {
     const hasCropOverlay = canvas.getObjects().some((obj: any) => obj?.data?.isCropOverlay);
-    if (hasCropOverlay) return;
+    if (hasCropOverlay) {
+      // During crop mode we intentionally avoid clearing the inspector state,
+      // but we still need to reset the event cache so selecting the same object
+      // after undo/redo can emit again.
+      lastId = undefined;
+      lastType = undefined;
+      return;
+    }
     emitIfChanged(undefined, undefined);
   };
 

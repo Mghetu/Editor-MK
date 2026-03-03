@@ -13,7 +13,7 @@ Editor-MK is a static, client-side Canva-like editor built with **React + TypeSc
 - Multi-page document editing
 - Basic content tools (text, image, shape, table)
 - Crop mode for image edits
-- Export current page / selected image / all pages as zip
+- Export current page / selected image
 - Snapshot-based undo/redo
 
 ### Architectural stance
@@ -98,7 +98,7 @@ Use this checklist for any new tool/feature:
 - Verify page switch saves your edits and reloads correctly.
 
 ### Step F — Export implications
-- If feature changes renderable output, verify current-page export and zip export reflect it.
+- If feature changes renderable output, verify current-page export and selected-image export reflect it.
 
 ---
 
@@ -113,8 +113,8 @@ Crop mode temporarily disables interactions for non-active objects and introduce
 ### 6.3 Table/group behavior
 Tables are Fabric `Group` objects with child objects. Generic inspectors and transforms may behave differently for grouped children vs top-level objects.
 
-### 6.4 Export-all side effects
-ZIP export reuses the visible canvas and loads each page sequentially. UI flicker/current-state disturbance is expected unless a separate off-screen canvas is introduced.
+### 6.4 Export behavior
+Current exports operate on the active canvas/selection (page export + selected-image export).
 
 ---
 
@@ -149,7 +149,7 @@ A feature is “done” only if:
 ## 9) Suggested next refactors (to improve feature velocity)
 
 1. Replace global `window.__editorCanvas` usage with a typed context or store-backed stage handle.
-2. Split rendering canvas from export canvas for side-effect-free zip export.
+2. Continue reducing direct `window.__editorCanvas` coupling by introducing a typed stage adapter.
 3. Formalize feature controller lifecycle interface (enter/exit/dispose) to standardize mode tools.
 4. Add integration tests around page-switch persistence + history replay.
 
