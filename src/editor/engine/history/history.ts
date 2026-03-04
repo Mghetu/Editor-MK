@@ -21,7 +21,6 @@ const DEFAULT_DEBOUNCE_MS = 280;
 const TEXT_DEBOUNCE_MS = 600;
 const COALESCE_WINDOW_MS = 450;
 
-
 const getObjectId = (event?: any): string | undefined => {
   const target = event?.target as any;
   return target?.data?.id ?? target?.id;
@@ -32,6 +31,9 @@ export class HistoryManager {
   private redoStack: HistoryEntry[] = [];
   private timer?: number;
   private textTimer?: number;
+  private pendingMeta?: CommitMeta;
+  private pendingTextMeta?: CommitMeta;
+  private lastSnapshotKey?: string;
   private isApplyingSnapshot = false;
   private listeners?: {
     onAdded: (event: any) => void;
@@ -47,11 +49,11 @@ export class HistoryManager {
     if (this.listeners) return;
 
     this.listeners = {
-      onAdded: (event) => this.track({ action: "add", objectId: getObjectId(event), coalesce: false }, event),
-      onRemoved: (event) => this.track({ action: "remove", objectId: getObjectId(event), coalesce: false }, event),
-      onModified: (event) => this.track({ action: "modify", objectId: getObjectId(event), coalesce: true }, event),
+      onAdded: (event) => this.track({ action: "add", objectId: getObjectId(event), coalesce: false }),
+      onRemoved: (event) => this.track({ action: "remove", objectId: getObjectId(event), coalesce: false }),
+      onModified: (event) => this.track({ action: "modify", objectId: getObjectId(event), coalesce: true }),
       onTextChanged: (event) => this.captureDebounced(TEXT_DEBOUNCE_MS, { action: "text-edit", objectId: getObjectId(event), coalesce: true }),
-      onTextEditExit: (event) => this.track({ action: "text-edit", objectId: getObjectId(event), coalesce: true }, event)
+      onTextEditExit: (event) => this.track({ action: "text-edit", objectId: getObjectId(event), coalesce: true })
     };
 
     this.canvas.on("object:added", this.listeners.onAdded);
@@ -71,32 +73,78 @@ export class HistoryManager {
     this.canvas.off("text:editing:exited", this.listeners.onTextEditExit);
     this.listeners = undefined;
 
+    this.cancelPendingCaptures();
+  }
+
+  private track(meta: CommitMeta): void {
+    if (this.isApplyingSnapshot) return;
+
+    const shouldCaptureImmediately = meta.action === "add" || meta.action === "remove";
+    if (shouldCaptureImmediately) {
+      this.flushPendingCaptures();
+      this.capture(meta);
+      return;
+    }
+
+    this.captureDebounced(DEFAULT_DEBOUNCE_MS, meta);
+  }
+
+  private cancelPendingCaptures(): void {
     clearTimeout(this.timer);
     clearTimeout(this.textTimer);
     this.timer = undefined;
     this.textTimer = undefined;
+    this.pendingMeta = undefined;
+    this.pendingTextMeta = undefined;
   }
 
-  private track(meta: CommitMeta, event?: any): void {
-    if (this.isApplyingSnapshot) return;
-    this.captureDebounced(DEFAULT_DEBOUNCE_MS, meta);
+  private flushPendingCaptures(): void {
+    const pendingTextMeta = this.pendingTextMeta;
+    const pendingMeta = this.pendingMeta;
+    this.cancelPendingCaptures();
+    if (pendingTextMeta) {
+      this.capture(pendingTextMeta);
+    }
+    if (pendingMeta) {
+      this.capture(pendingMeta);
+    }
   }
 
   captureDebounced(wait = DEFAULT_DEBOUNCE_MS, meta: CommitMeta = { action: "snapshot", coalesce: false }): void {
     const isText = meta.action === "text-edit";
     if (isText) {
       clearTimeout(this.textTimer);
-      this.textTimer = window.setTimeout(() => this.capture(meta), wait);
+      this.pendingTextMeta = meta;
+      this.textTimer = window.setTimeout(() => {
+        const pending = this.pendingTextMeta;
+        this.textTimer = undefined;
+        this.pendingTextMeta = undefined;
+        if (pending) this.capture(pending);
+      }, wait);
       return;
     }
 
     clearTimeout(this.timer);
-    this.timer = window.setTimeout(() => this.capture(meta), wait);
+    this.pendingMeta = meta;
+    this.timer = window.setTimeout(() => {
+      const pending = this.pendingMeta;
+      this.timer = undefined;
+      this.pendingMeta = undefined;
+      if (pending) this.capture(pending);
+    }, wait);
   }
 
   capture(meta: CommitMeta = { action: "snapshot", coalesce: false }): void {
+    if (this.isApplyingSnapshot) return;
+
+    const snapshot = saveCanvasJson(this.canvas);
+    const snapshotKey = JSON.stringify(snapshot);
+    if (snapshotKey === this.lastSnapshotKey) {
+      return;
+    }
+
     const entry: HistoryEntry = {
-      snapshot: saveCanvasJson(this.canvas),
+      snapshot,
       action: meta.action,
       objectId: meta.objectId,
       timestamp: Date.now()
@@ -120,13 +168,16 @@ export class HistoryManager {
       }
     }
 
+    this.lastSnapshotKey = snapshotKey;
     this.redoStack = [];
   }
 
   async loadSnapshot(json: unknown, options?: { capture?: boolean }): Promise<void> {
+    this.cancelPendingCaptures();
     this.isApplyingSnapshot = true;
     try {
       await loadCanvasJson(this.canvas, json);
+      this.lastSnapshotKey = JSON.stringify(json);
       if (options?.capture) {
         this.capture({ action: "snapshot", coalesce: false });
       }
@@ -136,6 +187,7 @@ export class HistoryManager {
   }
 
   undo(): Promise<void> {
+    this.flushPendingCaptures();
     if (this.undoStack.length < 2) {
       return Promise.resolve();
     }
@@ -150,6 +202,7 @@ export class HistoryManager {
   }
 
   redo(): Promise<void> {
+    this.flushPendingCaptures();
     const next = this.redoStack.pop();
     if (!next) {
       return Promise.resolve();
