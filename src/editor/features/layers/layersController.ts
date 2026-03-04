@@ -1,3 +1,4 @@
+import { reorderObjectWithHistory } from "../../engine/history/mutator";
 import type { Canvas } from "fabric";
 
 export type LayerItem = {
@@ -92,15 +93,13 @@ export const toggleHideLayer = (canvas: Canvas, id: string) => {
 export const bringForward = (canvas: Canvas, id: string) => {
   const obj = findLayerObject(canvas, id);
   if (obj) {
-    canvas.bringObjectForward(obj);
-    canvas.renderAll();
+    void reorderObjectWithHistory(canvas, obj, 1, "Bring forward");
   }
 };
 
 export const sendBackward = (canvas: Canvas, id: string) => {
   const obj = findLayerObject(canvas, id);
   if (obj) {
-    canvas.sendObjectBackwards(obj);
-    canvas.renderAll();
+    void reorderObjectWithHistory(canvas, obj, -1, "Send backward");
   }
 };

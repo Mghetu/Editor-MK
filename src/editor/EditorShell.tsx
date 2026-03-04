@@ -11,14 +11,15 @@ import { setActivePageByOffset } from "./features/pages/pagesController";
 
 export function EditorShell() {
   const [stage, setStage] = useState<StageApi | null>(null);
+  const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
   const { activeTab, updateDoc } = useEditorStore();
 
   useEffect(() => {
     if (!stage) return;
     (window as any).__editorCanvas = stage.canvas;
     const off = bindHotkeys({
-      undo: () => stage.history.undo(),
-      redo: () => stage.history.redo(),
+      undo: () => (stage.commandHistory ? stage.commandHistory.undo() : stage.history.undo()),
+      redo: () => (stage.commandHistory ? stage.commandHistory.redo() : stage.history.redo()),
       prevPage: () => updateDoc((doc) => setActivePageByOffset(doc, -1)),
       nextPage: () => updateDoc((doc) => setActivePageByOffset(doc, 1))
     });
@@ -27,16 +28,28 @@ export function EditorShell() {
 
   const leftWidth = activeTab === "select" ? "74px" : "360px";
 
+  useEffect(() => {
+    if (!stage?.commandHistory) {
+      setHistoryState({ canUndo: true, canRedo: true });
+      return;
+    }
+    return stage.commandHistory.subscribe((state) => {
+      setHistoryState({ canUndo: state.canUndo, canRedo: state.canRedo });
+    });
+  }, [stage]);
+
   return (
     <div className="grid h-full grid-rows-[56px_44px_1fr] bg-[#121212] text-slate-100">
       <TopBar
+        canUndo={historyState.canUndo}
+        canRedo={historyState.canRedo}
         undo={() => {
           if (!stage) return;
-          void stage.history.undo();
+          void (stage.commandHistory ? stage.commandHistory.undo() : stage.history.undo());
         }}
         redo={() => {
           if (!stage) return;
-          void stage.history.redo();
+          void (stage.commandHistory ? stage.commandHistory.redo() : stage.history.redo());
         }}
       />
       <Toolbar />
