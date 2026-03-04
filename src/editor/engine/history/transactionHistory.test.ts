@@ -316,6 +316,91 @@ describe("BatchSetPropertyCommand", () => {
 
 
 
+
+
+  it("simulates crop apply then cancel-style restoration with interleaved edits", async () => {
+    const { ctx, objects, ordered } = createMockContext();
+    const manager = new CommandHistoryManager(ctx);
+
+    const img = withObjectRuntime({
+      id: "img4",
+      data: { id: "img4", type: "image" },
+      left: 0,
+      top: 0,
+      width: 320,
+      height: 200,
+      cropX: 0,
+      cropY: 0,
+      cropState: null,
+      __cropState: null
+    });
+    objects.set("img4", img);
+    ordered.push(img);
+
+    const beforeCrop = {
+      left: 0,
+      top: 0,
+      width: 320,
+      height: 200,
+      cropX: 0,
+      cropY: 0,
+      cropState: null,
+      __cropState: null
+    };
+
+    const afterCrop = {
+      left: 25,
+      top: 15,
+      width: 160,
+      height: 100,
+      cropX: 25,
+      cropY: 15,
+      cropState: { enabled: true, aspect: 16 / 10 },
+      __cropState: { enabled: true, aspect: 16 / 10 }
+    };
+
+    // Crop apply + unrelated edits.
+    await manager.execute(new ApplyCropCommand("img4", beforeCrop, afterCrop));
+    await manager.execute(new BatchSetPropertyCommand("a", { x: 33 }));
+    await manager.execute(new ReorderObjectCommand("img4", 1, 0));
+
+    expect(objects.get("img4")?.width).toBe(160);
+    expect(objects.get("img4")?.cropX).toBe(25);
+    expect(objects.get("a")?.x).toBe(33);
+    expect(ordered.map((o) => o.id)[0]).toBe("img4");
+
+    // Simulate crop cancel semantics by applying inverse crop command.
+    await manager.execute(new ApplyCropCommand("img4", afterCrop, beforeCrop));
+    expect(objects.get("img4")?.width).toBe(320);
+    expect(objects.get("img4")?.cropX).toBe(0);
+
+    // Undo cancel -> returns to cropped state.
+    await manager.undo();
+    expect(objects.get("img4")?.width).toBe(160);
+    expect(objects.get("img4")?.cropX).toBe(25);
+
+    // Undo prior edits + apply.
+    await manager.undo();
+    await manager.undo();
+    await manager.undo();
+
+    expect(objects.get("a")?.x).toBe(0);
+    expect(ordered.map((o) => o.id)[0]).toBe("a");
+    expect(objects.get("img4")?.width).toBe(320);
+    expect(objects.get("img4")?.cropX).toBe(0);
+
+    // Redo full chain restores cancel-state result.
+    await manager.redo();
+    await manager.redo();
+    await manager.redo();
+    await manager.redo();
+
+    expect(objects.get("a")?.x).toBe(33);
+    expect(ordered.map((o) => o.id)[0]).toBe("img4");
+    expect(objects.get("img4")?.width).toBe(320);
+    expect(objects.get("img4")?.cropX).toBe(0);
+  });
+
   it("rolls back mixed in-flight transaction atomically", async () => {
     const { ctx, objects, ordered } = createMockContext();
     const manager = new CommandHistoryManager(ctx);
