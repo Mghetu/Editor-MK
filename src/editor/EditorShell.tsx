@@ -11,7 +11,10 @@ import { setActivePageByOffset } from "./features/pages/pagesController";
 
 export function EditorShell() {
   const [stage, setStage] = useState<StageApi | null>(null);
-  const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
+  const [historyState, setHistoryState] = useState<{ canUndo: boolean; canRedo: boolean; lastLabel?: string }>({
+    canUndo: false,
+    canRedo: false
+  });
   const { activeTab, updateDoc } = useEditorStore();
 
   useEffect(() => {
@@ -30,11 +33,11 @@ export function EditorShell() {
 
   useEffect(() => {
     if (!stage?.commandHistory) {
-      setHistoryState({ canUndo: true, canRedo: true });
+      setHistoryState({ canUndo: true, canRedo: true, lastLabel: undefined });
       return;
     }
     return stage.commandHistory.subscribe((state) => {
-      setHistoryState({ canUndo: state.canUndo, canRedo: state.canRedo });
+      setHistoryState({ canUndo: state.canUndo, canRedo: state.canRedo, lastLabel: state.lastLabel });
     });
   }, [stage]);
 
@@ -43,6 +46,7 @@ export function EditorShell() {
       <TopBar
         canUndo={historyState.canUndo}
         canRedo={historyState.canRedo}
+        lastActionLabel={historyState.lastLabel}
         undo={() => {
           if (!stage) return;
           void (stage.commandHistory ? stage.commandHistory.undo() : stage.history.undo());

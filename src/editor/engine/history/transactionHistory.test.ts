@@ -119,6 +119,23 @@ describe("BatchSetPropertyCommand", () => {
     expect(ordered.map((obj) => obj.id)).toEqual(["a", "b", "c"]);
   });
 
+
+
+  it("throws on nested beginTransaction", () => {
+    const { ctx } = createMockContext();
+    const manager = new CommandHistoryManager(ctx);
+    manager.beginTransaction("outer", { source: "ui" });
+    expect(() => manager.beginTransaction("inner", { source: "ui" })).toThrowError("History transaction already in progress");
+  });
+
+  it("does not create history entry for empty transaction commit", () => {
+    const { ctx } = createMockContext();
+    const manager = new CommandHistoryManager(ctx);
+    manager.beginTransaction("noop", { source: "ui" });
+    manager.commitTransaction();
+    expect(manager.canUndo).toBe(false);
+  });
+
   it("rolls back in-flight transaction", async () => {
     const { ctx, objects } = createMockContext();
     const manager = new CommandHistoryManager(ctx);
