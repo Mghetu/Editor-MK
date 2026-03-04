@@ -7,7 +7,6 @@ const ALLOWLIST = new Set([
   "src/editor/features/imageGrid.ts",
   "src/editor/features/shapes/shapeGeometry.ts",
   "src/editor/ui/inspector/ObjectContextMenu.tsx",
-  "src/editor/ui/inspector/ShapeInspector.tsx"
 ]);
 
 const cmd = 'rg -n "\\.set\\(" src/editor/ui src/editor/features src/editor/engine/factories';
