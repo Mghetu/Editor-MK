@@ -177,6 +177,61 @@ describe("BatchSetPropertyCommand", () => {
     expect(manager.canUndo).toBe(false);
   });
 
+  it("replays interleaved crop, reorder, and edits across undo/redo", async () => {
+    const { ctx, objects, ordered } = createMockContext();
+    const manager = new CommandHistoryManager(ctx);
+
+    const img = withObjectRuntime({
+      id: "img",
+      data: { id: "img", type: "image" },
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 120,
+      cropX: 0,
+      cropY: 0,
+      cropState: null,
+      __cropState: null,
+      x: 0
+    });
+
+    objects.set("img", img);
+    ordered.push(img);
+
+    await manager.execute(
+      new ApplyCropCommand(
+        "img",
+        { left: 0, top: 0, width: 200, height: 120, cropX: 0, cropY: 0, cropState: null, __cropState: null },
+        { left: 10, top: 5, width: 100, height: 60, cropX: 10, cropY: 5, cropState: { enabled: true }, __cropState: { enabled: true } }
+      )
+    );
+
+    await manager.execute(new ReorderObjectCommand("img", 1, 0));
+    await manager.execute(new BatchSetPropertyCommand("a", { x: 44 }));
+
+    expect(objects.get("img")?.width).toBe(100);
+    expect(ordered.map((obj) => obj.id)).toEqual(["img", "a"]);
+    expect(objects.get("a")?.x).toBe(44);
+
+    await manager.undo();
+    await manager.undo();
+    await manager.undo();
+
+    expect(objects.get("a")?.x).toBe(0);
+    expect(ordered.map((obj) => obj.id)).toEqual(["a", "img"]);
+    expect(objects.get("img")?.width).toBe(200);
+    expect(objects.get("img")?.cropX).toBe(0);
+
+    await manager.redo();
+    await manager.redo();
+    await manager.redo();
+
+    expect(objects.get("img")?.width).toBe(100);
+    expect(objects.get("img")?.cropX).toBe(10);
+    expect(ordered.map((obj) => obj.id)).toEqual(["img", "a"]);
+    expect(objects.get("a")?.x).toBe(44);
+  });
+
   it("rolls back in-flight transaction", async () => {
     const { ctx, objects } = createMockContext();
     const manager = new CommandHistoryManager(ctx);
