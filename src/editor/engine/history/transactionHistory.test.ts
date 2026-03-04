@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BatchSetPropertyCommand, ReplaceObjectStateCommand } from "./commands/basic";
+import { ApplyCropCommand, BatchSetPropertyCommand, ReplaceObjectStateCommand } from "./commands/basic";
 import { CommandHistoryManager } from "./transactionHistory";
 import type { HistoryContext } from "./commands/types";
 
@@ -60,6 +60,37 @@ describe("BatchSetPropertyCommand", () => {
     expect(objects.get("a")?.x).toBe(22);
     await manager.undo();
     expect(objects.get("a")?.x).toBe(0);
+  });
+
+
+
+  it("applies and reverts crop state changes", async () => {
+    const { ctx, objects } = createMockContext();
+    objects.set("img", {
+      id: "img",
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 120,
+      cropX: 0,
+      cropY: 0,
+      cropState: null,
+      __cropState: null,
+      set(values: Record<string, unknown>) { Object.assign(this, values); },
+      get(key: string) { return (this as any)[key]; },
+      setCoords() {}
+    });
+    const manager = new CommandHistoryManager(ctx);
+    await manager.execute(new ApplyCropCommand(
+      "img",
+      { left: 0, top: 0, width: 200, height: 120, cropX: 0, cropY: 0, cropState: null, __cropState: null },
+      { left: 20, top: 10, width: 80, height: 60, cropX: 20, cropY: 10, cropState: { enabled: true }, __cropState: { enabled: true } }
+    ));
+    expect(objects.get("img")?.width).toBe(80);
+    expect(objects.get("img")?.cropX).toBe(20);
+    await manager.undo();
+    expect(objects.get("img")?.width).toBe(200);
+    expect(objects.get("img")?.cropX).toBe(0);
   });
 
   it("rolls back in-flight transaction", async () => {

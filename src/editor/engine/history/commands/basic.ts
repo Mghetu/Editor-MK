@@ -170,3 +170,53 @@ export class ReplaceObjectStateCommand implements HistoryCommand {
     await this.replaceWith(ctx, this.before);
   }
 }
+
+
+type CropCommandState = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  cropX: number;
+  cropY: number;
+  cropState?: unknown;
+  __cropState?: unknown;
+};
+
+export class ApplyCropCommand implements HistoryCommand {
+  label = "Apply crop";
+  objectIds?: string[];
+
+  constructor(
+    private objectId: string,
+    private before: CropCommandState,
+    private after: CropCommandState
+  ) {
+    this.objectIds = [objectId];
+  }
+
+  private applyState(ctx: HistoryContext, state: CropCommandState) {
+    const obj = ctx.findObjectById(this.objectId);
+    if (!obj) throw new Error(`Cannot apply crop; missing object ${this.objectId}`);
+    obj.set({
+      left: state.left,
+      top: state.top,
+      width: state.width,
+      height: state.height,
+      cropX: state.cropX,
+      cropY: state.cropY,
+      cropState: state.cropState,
+      __cropState: state.__cropState
+    });
+    obj.setCoords?.();
+    ctx.render();
+  }
+
+  apply(ctx: HistoryContext) {
+    this.applyState(ctx, this.after);
+  }
+
+  revert(ctx: HistoryContext) {
+    this.applyState(ctx, this.before);
+  }
+}
