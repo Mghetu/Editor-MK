@@ -12,7 +12,7 @@ export const addText = async (canvas: Canvas) => {
     fill: "#111827",
     splitByGrapheme: true
   }) as any;
-  text.set("data", { id: crypto.randomUUID(), type: "text", name: "Text" });
+  text.data = { id: crypto.randomUUID(), type: "text", name: "Text" };
 
   const commandHistory = (window as any).__commandHistory;
   if (!commandHistory) {

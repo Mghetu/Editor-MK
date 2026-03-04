@@ -14,7 +14,7 @@ const SHAPE_STYLE = {
 
 const finalize = async (canvas: Canvas, obj: any, name: string, shapeKind: ShapeKind) => {
   const cornerRadiusPx = shapeKind === "circle" ? undefined : Math.max(0, Number(obj?.rx ?? obj?.ry ?? 0));
-  obj.set("data", { id: crypto.randomUUID(), type: "shape", name, shapeKind, cornerRadiusPx });
+  obj.data = { id: crypto.randomUUID(), type: "shape", name, shapeKind, cornerRadiusPx };
 
   const commandHistory = (window as any).__commandHistory;
   if (!commandHistory) {
