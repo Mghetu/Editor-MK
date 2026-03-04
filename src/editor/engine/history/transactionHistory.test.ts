@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BatchSetPropertyCommand } from "./commands/basic";
+import { BatchSetPropertyCommand, ReplaceObjectStateCommand } from "./commands/basic";
 import { CommandHistoryManager } from "./transactionHistory";
 import type { HistoryContext } from "./commands/types";
 
@@ -47,6 +47,17 @@ describe("BatchSetPropertyCommand", () => {
     await manager.execute(new BatchSetPropertyCommand("a", { x: 15 }));
     manager.commitTransaction();
     expect(objects.get("a")?.x).toBe(15);
+    await manager.undo();
+    expect(objects.get("a")?.x).toBe(0);
+  });
+
+
+
+  it("replaces serialized object state symmetrically", async () => {
+    const { ctx, objects } = createMockContext();
+    const manager = new CommandHistoryManager(ctx);
+    await manager.execute(new ReplaceObjectStateCommand("a", { id: "a", x: 0 }, { id: "a", x: 22 }), { source: "ui" });
+    expect(objects.get("a")?.x).toBe(22);
     await manager.undo();
     expect(objects.get("a")?.x).toBe(0);
   });

@@ -1,4 +1,4 @@
-import { BatchSetPropertyCommand, RemoveObjectCommand } from "./commands/basic";
+import { BatchSetPropertyCommand, RemoveObjectCommand, ReplaceObjectStateCommand } from "./commands/basic";
 import { createFabricHistoryContext, getFabricObjectId } from "./fabricHistoryContext";
 import type { CommandHistoryManager } from "./transactionHistory";
 
@@ -30,4 +30,31 @@ export const removeObjectWithHistory = async (canvas: any, obj: any, label = "De
 
   const cmd = RemoveObjectCommand.fromObject(obj, createFabricHistoryContext(canvas), label);
   await commandHistory.execute(cmd, { source: "ui" });
+};
+
+
+export const applyObjectMutation = async (
+  canvas: any,
+  obj: any,
+  mutate: (target: any, canvas: any) => void,
+  label = "Update object"
+) => {
+  const commandHistory = getCommandHistory();
+  const objectId = getFabricObjectId(obj);
+
+  if (!commandHistory || !objectId) {
+    mutate(obj, canvas);
+    obj.setCoords?.();
+    canvas?.requestRenderAll?.();
+    return;
+  }
+
+  const ctx = createFabricHistoryContext(canvas);
+  const before = ctx.serializeObject(obj);
+  mutate(obj, canvas);
+  obj.setCoords?.();
+  const after = ctx.serializeObject(obj);
+  const command = new ReplaceObjectStateCommand(objectId, before, after);
+  command.label = label;
+  await commandHistory.execute(command, { source: "ui", objectIds: [objectId] });
 };

@@ -137,3 +137,36 @@ export class TransformObjectCommand extends BatchSetPropertyCommand {
     this.label = "Transform object";
   }
 }
+
+
+export class ReplaceObjectStateCommand implements HistoryCommand {
+  label = "Update object";
+  objectIds?: string[];
+
+  constructor(
+    private objectId: string,
+    private before: SerializedObject,
+    private after: SerializedObject
+  ) {
+    this.objectIds = [objectId];
+  }
+
+  private async replaceWith(ctx: HistoryContext, snapshot: SerializedObject) {
+    const existing = ctx.findObjectById(this.objectId);
+    if (!existing) throw new Error(`Cannot replace state; missing object ${this.objectId}`);
+    const index = (ctx.canvas.getObjects() as any[]).indexOf(existing);
+    ctx.removeObject(existing);
+    const next = await ctx.enlivenObject(snapshot);
+    ctx.addObject(next, index);
+    ctx.canvas.setActiveObject?.(next);
+    ctx.render();
+  }
+
+  async apply(ctx: HistoryContext) {
+    await this.replaceWith(ctx, this.after);
+  }
+
+  async revert(ctx: HistoryContext) {
+    await this.replaceWith(ctx, this.before);
+  }
+}
