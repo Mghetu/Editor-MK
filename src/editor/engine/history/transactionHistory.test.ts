@@ -1,15 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { ApplyCropCommand, BatchSetPropertyCommand, ReplaceObjectStateCommand } from "./commands/basic";
+import { ApplyCropCommand, BatchSetPropertyCommand, ReorderObjectCommand, ReplaceObjectStateCommand } from "./commands/basic";
 import { CommandHistoryManager } from "./transactionHistory";
 import type { HistoryContext } from "./commands/types";
 
 const createMockContext = () => {
+  const ordered: any[] = [];
   const objects = new Map<string, any>();
-  objects.set("a", { id: "a", x: 0, set(values: Record<string, unknown>) { Object.assign(this, values); }, get(key: string) { return (this as any)[key]; }, setCoords() {} });
+  const add = (obj: any) => { objects.set(String(obj.id), obj); ordered.push(obj); };
+  add({ id: "a", x: 0, set(values: Record<string, unknown>) { Object.assign(this, values); }, get(key: string) { return (this as any)[key]; }, setCoords() {} });
 
   const ctx: HistoryContext = {
     canvas: {
-      getObjects: () => Array.from(objects.values())
+      getObjects: () => ordered,
+      moveObjectTo: (obj: any, index: number) => {
+        const current = ordered.indexOf(obj);
+        if (current < 0) return;
+        ordered.splice(current, 1);
+        ordered.splice(index, 0, obj);
+      }
     } as any,
     getObjectId: (obj: any) => obj?.id,
     findObjectById: (id: string) => objects.get(id),
@@ -17,14 +25,17 @@ const createMockContext = () => {
     enlivenObject: async (serialized) => ({ ...serialized }),
     addObject: (obj: any) => {
       objects.set(String(obj.id), obj);
+      ordered.push(obj);
     },
     removeObject: (obj: any) => {
       objects.delete(String(obj.id));
+      const idx = ordered.indexOf(obj);
+      if (idx >= 0) ordered.splice(idx, 1);
     },
     render: () => {}
   };
 
-  return { ctx, objects };
+  return { ctx, objects, ordered };
 };
 
 describe("BatchSetPropertyCommand", () => {
@@ -91,6 +102,21 @@ describe("BatchSetPropertyCommand", () => {
     await manager.undo();
     expect(objects.get("img")?.width).toBe(200);
     expect(objects.get("img")?.cropX).toBe(0);
+  });
+
+
+
+  it("reorders layer and restores on undo", async () => {
+    const { ctx, ordered } = createMockContext();
+    const manager = new CommandHistoryManager(ctx);
+    const b = { id: "b", set(values: Record<string, unknown>) { Object.assign(this, values); }, get(key: string) { return (this as any)[key]; }, setCoords() {} };
+    const c = { id: "c", set(values: Record<string, unknown>) { Object.assign(this, values); }, get(key: string) { return (this as any)[key]; }, setCoords() {} };
+    ordered.push(b, c);
+
+    await manager.execute(new ReorderObjectCommand("a", 0, 2));
+    expect(ordered.map((obj) => obj.id)).toEqual(["b", "c", "a"]);
+    await manager.undo();
+    expect(ordered.map((obj) => obj.id)).toEqual(["a", "b", "c"]);
   });
 
   it("rolls back in-flight transaction", async () => {

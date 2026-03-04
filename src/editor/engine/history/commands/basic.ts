@@ -220,3 +220,33 @@ export class ApplyCropCommand implements HistoryCommand {
     this.applyState(ctx, this.before);
   }
 }
+
+
+export class ReorderObjectCommand implements HistoryCommand {
+  label = "Reorder layer";
+  objectIds?: string[];
+
+  constructor(
+    private objectId: string,
+    private fromIndex: number,
+    private toIndex: number
+  ) {
+    this.objectIds = [objectId];
+  }
+
+  private move(ctx: HistoryContext, index: number) {
+    const obj = ctx.findObjectById(this.objectId);
+    if (!obj) throw new Error(`Cannot reorder object; missing object ${this.objectId}`);
+    (ctx.canvas as any).moveObjectTo?.(obj, index);
+    ctx.canvas.setActiveObject?.(obj);
+    ctx.render();
+  }
+
+  apply(ctx: HistoryContext) {
+    this.move(ctx, this.toIndex);
+  }
+
+  revert(ctx: HistoryContext) {
+    this.move(ctx, this.fromIndex);
+  }
+}

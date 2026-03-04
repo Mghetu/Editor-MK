@@ -1,4 +1,4 @@
-import { BatchSetPropertyCommand, RemoveObjectCommand, ReplaceObjectStateCommand } from "./commands/basic";
+import { AddObjectCommand, BatchSetPropertyCommand, RemoveObjectCommand, ReorderObjectCommand, ReplaceObjectStateCommand } from "./commands/basic";
 import { createFabricHistoryContext, getFabricObjectId } from "./fabricHistoryContext";
 import type { CommandHistoryManager } from "./transactionHistory";
 
@@ -57,4 +57,56 @@ export const applyObjectMutation = async (
   const command = new ReplaceObjectStateCommand(objectId, before, after);
   command.label = label;
   await commandHistory.execute(command, { source: "ui", objectIds: [objectId] });
+};
+
+
+export const duplicateObjectWithHistory = async (canvas: any, obj: any, label = "Duplicate object") => {
+  if (!canvas || !obj) return;
+  const cloned = await obj.clone();
+  const originalData = obj?.data ?? {};
+  const clonedData = cloned?.data ?? {};
+  cloned.set("data", {
+    ...originalData,
+    ...clonedData,
+    id: crypto.randomUUID()
+  });
+  cloned.set({ left: (obj.left ?? 0) + 20, top: (obj.top ?? 0) + 20 });
+
+  const commandHistory = getCommandHistory();
+  if (!commandHistory) {
+    canvas.add(cloned);
+    canvas.setActiveObject(cloned);
+    canvas.renderAll();
+    return;
+  }
+
+  const ctx = createFabricHistoryContext(canvas);
+  await commandHistory.execute(AddObjectCommand.fromObject(cloned, ctx, label), { source: "ui" });
+};
+
+export const reorderObjectWithHistory = async (
+  canvas: any,
+  obj: any,
+  delta: -1 | 1,
+  label = delta > 0 ? "Bring forward" : "Send backward"
+) => {
+  if (!canvas || !obj) return;
+  const commandHistory = getCommandHistory();
+  const objectId = getFabricObjectId(obj);
+  const objects = canvas.getObjects?.() ?? [];
+  const fromIndex = objects.indexOf(obj);
+  if (fromIndex < 0) return;
+  const toIndex = Math.max(0, Math.min(objects.length - 1, fromIndex + delta));
+  if (toIndex === fromIndex) return;
+
+  if (!commandHistory || !objectId) {
+    if (delta > 0) canvas.bringObjectForward(obj);
+    else canvas.sendObjectBackwards(obj);
+    canvas.renderAll?.();
+    return;
+  }
+
+  const cmd = new ReorderObjectCommand(objectId, fromIndex, toIndex);
+  cmd.label = label;
+  await commandHistory.execute(cmd, { source: "ui", objectIds: [objectId] });
 };
