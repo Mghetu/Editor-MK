@@ -1,7 +1,9 @@
 import { Textbox } from "fabric";
 import type { Canvas } from "fabric";
+import { AddObjectCommand } from "../history/commands/basic";
+import { createFabricHistoryContext } from "../history/fabricHistoryContext";
 
-export const addText = (canvas: Canvas) => {
+export const addText = async (canvas: Canvas) => {
   const text = new Textbox("Edit me", {
     left: 120,
     top: 120,
@@ -11,7 +13,15 @@ export const addText = (canvas: Canvas) => {
     splitByGrapheme: true
   }) as any;
   text.set("data", { id: crypto.randomUUID(), type: "text", name: "Text" });
-  canvas.add(text);
-  canvas.setActiveObject(text);
-  canvas.renderAll();
+
+  const commandHistory = (window as any).__commandHistory;
+  if (!commandHistory) {
+    canvas.add(text);
+    canvas.setActiveObject(text);
+    canvas.renderAll();
+    return;
+  }
+
+  const ctx = createFabricHistoryContext(canvas);
+  await commandHistory.execute(AddObjectCommand.fromObject(text, ctx, "Add text"), { source: "ui" });
 };
