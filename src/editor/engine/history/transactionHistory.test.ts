@@ -314,6 +314,51 @@ describe("BatchSetPropertyCommand", () => {
     expect(objects.get("tmp")).toBeFalsy();
   });
 
+
+
+  it("rolls back mixed in-flight transaction atomically", async () => {
+    const { ctx, objects, ordered } = createMockContext();
+    const manager = new CommandHistoryManager(ctx);
+
+    const img = withObjectRuntime({
+      id: "img3",
+      data: { id: "img3", type: "image" },
+      left: 0,
+      top: 0,
+      width: 240,
+      height: 160,
+      cropX: 0,
+      cropY: 0,
+      cropState: null,
+      __cropState: null
+    });
+    objects.set("img3", img);
+    ordered.push(img);
+
+    manager.beginTransaction("Mixed edit", { source: "ui" });
+    await manager.execute(
+      new ApplyCropCommand(
+        "img3",
+        { left: 0, top: 0, width: 240, height: 160, cropX: 0, cropY: 0, cropState: null, __cropState: null },
+        { left: 20, top: 10, width: 120, height: 80, cropX: 20, cropY: 10, cropState: { enabled: true }, __cropState: { enabled: true } }
+      )
+    );
+    await manager.execute(new ReorderObjectCommand("img3", 1, 0));
+    await manager.execute(new BatchSetPropertyCommand("a", { x: 88 }));
+
+    expect(objects.get("img3")?.width).toBe(120);
+    expect(ordered.map((obj) => obj.id)[0]).toBe("img3");
+    expect(objects.get("a")?.x).toBe(88);
+
+    await manager.rollbackTransaction();
+
+    expect(objects.get("img3")?.width).toBe(240);
+    expect(objects.get("img3")?.cropX).toBe(0);
+    expect(ordered.map((obj) => obj.id)[0]).toBe("a");
+    expect(objects.get("a")?.x).toBe(0);
+    expect(manager.canUndo).toBe(false);
+  });
+
   it("rolls back in-flight transaction", async () => {
     const { ctx, objects } = createMockContext();
     const manager = new CommandHistoryManager(ctx);
