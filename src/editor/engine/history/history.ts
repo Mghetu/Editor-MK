@@ -78,6 +78,14 @@ export class HistoryManager {
 
   private track(meta: CommitMeta): void {
     if (this.isApplyingSnapshot) return;
+
+    const shouldCaptureImmediately = meta.action === "add" || meta.action === "remove";
+    if (shouldCaptureImmediately) {
+      this.flushPendingCaptures();
+      this.capture(meta);
+      return;
+    }
+
     this.captureDebounced(DEFAULT_DEBOUNCE_MS, meta);
   }
 
