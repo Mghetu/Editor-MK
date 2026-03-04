@@ -255,6 +255,65 @@ describe("BatchSetPropertyCommand", () => {
     expect(objects.get("a")?.x).toBe(44);
   });
 
+
+
+  it("simulates crop apply then restore with interleaved add/remove/reorder replay", async () => {
+    const { ctx, objects, ordered } = createMockContext();
+    const manager = new CommandHistoryManager(ctx);
+
+    const img = withObjectRuntime({
+      id: "img2",
+      data: { id: "img2", type: "image" },
+      left: 0,
+      top: 0,
+      width: 300,
+      height: 180,
+      cropX: 0,
+      cropY: 0,
+      cropState: null,
+      __cropState: null
+    });
+    objects.set("img2", img);
+    ordered.push(img);
+
+    await manager.execute(
+      new ApplyCropCommand(
+        "img2",
+        { left: 0, top: 0, width: 300, height: 180, cropX: 0, cropY: 0, cropState: null, __cropState: null },
+        { left: 15, top: 10, width: 140, height: 90, cropX: 15, cropY: 10, cropState: { enabled: true }, __cropState: { enabled: true } }
+      )
+    );
+
+    await manager.execute(new AddObjectCommand({ id: "tmp", data: { id: "tmp", type: "shape" }, x: 5 }));
+    await manager.execute(new ReorderObjectCommand("img2", 1, 0));
+    await manager.execute(new RemoveObjectCommand("tmp", { id: "tmp", data: { id: "tmp", type: "shape" }, x: 5 }));
+
+    expect(objects.get("img2")?.width).toBe(140);
+    expect(ordered.map((obj) => obj.id)).toContain("img2");
+    expect(objects.get("tmp")).toBeFalsy();
+
+    // Undo remove first (tmp returns), then remaining steps
+    await manager.undo();
+    expect(objects.get("tmp")?.x).toBe(5);
+    await manager.undo();
+    await manager.undo();
+    await manager.undo();
+
+    expect(objects.get("tmp")).toBeFalsy();
+    expect(ordered.map((obj) => obj.id)[0]).toBe("a");
+    expect(objects.get("img2")?.width).toBe(300);
+    expect(objects.get("img2")?.cropX).toBe(0);
+
+    await manager.redo();
+    await manager.redo();
+    await manager.redo();
+    await manager.redo();
+
+    expect(objects.get("img2")?.width).toBe(140);
+    expect(objects.get("img2")?.cropX).toBe(15);
+    expect(objects.get("tmp")).toBeFalsy();
+  });
+
   it("rolls back in-flight transaction", async () => {
     const { ctx, objects } = createMockContext();
     const manager = new CommandHistoryManager(ctx);
