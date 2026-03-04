@@ -1,3 +1,4 @@
+import { applyObjectMutation, reorderObjectWithHistory } from "../../engine/history/mutator";
 import type { Canvas } from "fabric";
 
 export type LayerItem = {
@@ -53,54 +54,56 @@ export const selectLayer = (canvas: Canvas, id: string) => {
   canvas.renderAll();
 };
 
-export const toggleLockLayer = (canvas: Canvas, id: string) => {
+export const toggleLockLayer = async (canvas: Canvas, id: string) => {
   const obj = findLayerObject(canvas, id);
   if (!obj) return;
   const data = ensureData(obj, "Layer");
   const locked = !data.locked;
-  obj.set("data", { ...data, locked });
-  obj.set({
-    lockMovementX: locked,
-    lockMovementY: locked,
-    lockScalingX: locked,
-    lockScalingY: locked,
-    lockRotation: locked,
-    hasControls: !locked,
-    selectable: !locked && obj.visible !== false,
-    evented: !locked && obj.visible !== false
-  });
-  canvas.renderAll();
+
+  await applyObjectMutation(canvas, obj, (target) => {
+    target.set("data", { ...data, locked });
+    target.set({
+      lockMovementX: locked,
+      lockMovementY: locked,
+      lockScalingX: locked,
+      lockScalingY: locked,
+      lockRotation: locked,
+      hasControls: !locked,
+      selectable: !locked && target.visible !== false,
+      evented: !locked && target.visible !== false
+    });
+  }, locked ? "Lock layer" : "Unlock layer");
 };
 
-export const toggleHideLayer = (canvas: Canvas, id: string) => {
+export const toggleHideLayer = async (canvas: Canvas, id: string) => {
   const obj = findLayerObject(canvas, id);
   if (!obj) return;
   const data = ensureData(obj, "Layer");
   const hidden = !data.hidden;
-  obj.set("data", { ...data, hidden });
-  obj.set({
-    visible: !hidden,
-    selectable: !hidden && !data.locked,
-    evented: !hidden && !data.locked
-  });
-  if (hidden && canvas.getActiveObject() === obj) {
-    canvas.discardActiveObject();
-  }
-  canvas.renderAll();
+
+  await applyObjectMutation(canvas, obj, (target, currentCanvas) => {
+    target.set("data", { ...data, hidden });
+    target.set({
+      visible: !hidden,
+      selectable: !hidden && !data.locked,
+      evented: !hidden && !data.locked
+    });
+    if (hidden && currentCanvas.getActiveObject?.() === target) {
+      currentCanvas.discardActiveObject();
+    }
+  }, hidden ? "Hide layer" : "Show layer");
 };
 
 export const bringForward = (canvas: Canvas, id: string) => {
   const obj = findLayerObject(canvas, id);
   if (obj) {
-    canvas.bringObjectForward(obj);
-    canvas.renderAll();
+    void reorderObjectWithHistory(canvas, obj, 1, "Bring forward");
   }
 };
 
 export const sendBackward = (canvas: Canvas, id: string) => {
   const obj = findLayerObject(canvas, id);
   if (obj) {
-    canvas.sendObjectBackwards(obj);
-    canvas.renderAll();
+    void reorderObjectWithHistory(canvas, obj, -1, "Send backward");
   }
 };

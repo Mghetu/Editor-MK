@@ -11,6 +11,7 @@ import {
 import { useEffect, useState } from "react";
 import { Gradient } from "fabric";
 import { ColorStudio, type ColorSelection } from "../color/ColorStudio";
+import { applyObjectMutation } from "../../engine/history/mutator";
 
 type AxisAlignment = "left" | "center" | "right" | "top" | "middle" | "bottom";
 
@@ -170,7 +171,7 @@ export function ObjectContextMenu() {
           colorStops: value.gradient.stops
         })
       );
-    });
+    }, `Set ${property}`);
   };
 
   useEffect(() => {
@@ -204,16 +205,21 @@ export function ObjectContextMenu() {
     };
   }, []);
 
-  const mutate = (fn: (obj: any, canvas: any) => void) => {
-    const { canvas, obj } = getActiveObject();
-    if (!obj || !canvas) return;
-    fn(obj, canvas);
-    obj.setCoords?.();
-    canvas.requestRenderAll?.();
+  const refreshSnapshotState = () => {
     const next = readSnapshot();
     setSnapshot(next);
+    const { obj } = getActiveObject();
+    if (!obj) return;
     setFillSelection(readColorSelection(obj, "fill", next?.fill ?? "#e2e8f0"));
     setStrokeSelection(readColorSelection(obj, "stroke", next?.stroke ?? "#334155"));
+  };
+
+  const mutate = (fn: (obj: any, canvas: any) => void, label = "Update object") => {
+    const { canvas, obj } = getActiveObject();
+    if (!obj || !canvas) return;
+    void applyObjectMutation(canvas, obj, fn, label).finally(() => {
+      refreshSnapshotState();
+    });
   };
 
   const align = (position: AxisAlignment) => {
@@ -238,7 +244,7 @@ export function ObjectContextMenu() {
         left: Number(obj.left ?? 0) + deltaX,
         top: Number(obj.top ?? 0) + deltaY
       });
-    });
+    }, `Align ${position}`);
   };
 
   const updateSize = (key: "width" | "height", nextValue: number) => {
@@ -284,7 +290,7 @@ export function ObjectContextMenu() {
         scaleY: signY * (targetH / baseH),
         strokeUniform: true
       });
-    });
+    }, `Set ${key}`);
   };
 
   if (!snapshot) return null;
@@ -343,7 +349,7 @@ export function ObjectContextMenu() {
           step={0.01}
           value={snapshot.opacity}
           className="w-full"
-          onChange={(e) => mutate((obj) => obj.set("opacity", Number(e.target.value)))}
+          onChange={(e) => mutate((obj) => obj.set("opacity", Number(e.target.value)), "Set opacity")}
         />
       </div>
 
@@ -394,7 +400,7 @@ export function ObjectContextMenu() {
           step={0.5}
           value={snapshot.strokeWidth}
           className="w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
-          onChange={(e) => mutate((obj) => obj.set({ strokeWidth: Math.max(0, Number(e.target.value)), strokeUniform: true }))}
+          onChange={(e) => mutate((obj) => obj.set({ strokeWidth: Math.max(0, Number(e.target.value)), strokeUniform: true }), "Set stroke width")}
         />
       </div>
     </div>

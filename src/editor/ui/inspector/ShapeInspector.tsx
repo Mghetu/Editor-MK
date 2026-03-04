@@ -1,3 +1,4 @@
+import { applyObjectMutation } from "../../engine/history/mutator";
 import { Lock, Unlock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -75,10 +76,11 @@ export function ShapeInspector() {
 
   if (!obj || obj?.data?.type !== "shape") return null;
 
-  const mutate = (fn: () => void) => {
-    fn();
-    obj.setCoords();
-    canvas?.requestRenderAll?.();
+  const mutate = (fn: () => void, label = "Update shape") => {
+    void applyObjectMutation(canvas, obj, () => {
+      fn();
+      obj.setCoords?.();
+    }, label);
   };
 
   const mutateSize = (nextW: number, nextH: number) => {
@@ -102,7 +104,7 @@ export function ShapeInspector() {
           strokeUniform: true
         });
       }
-    });
+    }, "Resize shape");
 
     setWidth(Math.round(widthPx));
     setHeight(Math.round(heightPx));
@@ -132,7 +134,7 @@ export function ShapeInspector() {
     const next = Math.max(0, Number.isFinite(value) ? value : 0);
     mutate(() => {
       setRectRadiusPxPreserveSize(obj, next);
-    });
+    }, "Set corner radius");
     setRadius(next);
     setCornerRadii({ tl: next, tr: next, br: next, bl: next });
     setLockCornerSides(true);
@@ -144,7 +146,7 @@ export function ShapeInspector() {
     mutate(() => {
       setRectCornerRadiiPx(obj, nextRadii);
       normalizeRectAfterTransform(obj);
-    });
+    }, "Set corner radii");
     const normalized = getRectCornerRadiiPx(obj);
     setCornerRadii(normalized);
     setRadius(Math.max(normalized.tl, normalized.tr, normalized.br, normalized.bl));
@@ -152,18 +154,18 @@ export function ShapeInspector() {
 
   const onFillColorChange = (value: string) => {
     setFillColor(value);
-    mutate(() => obj.set({ fill: value }));
+    mutate(() => obj.set({ fill: value }), "Set fill color");
   };
 
   const onStrokeColorChange = (value: string) => {
     setStrokeColor(value);
-    mutate(() => obj.set({ stroke: value }));
+    mutate(() => obj.set({ stroke: value }), "Set stroke color");
   };
 
   const onStrokeWidthChange = (value: number) => {
     const next = Math.max(0, Number.isFinite(value) ? value : 0);
     setStrokeWidth(next);
-    mutate(() => obj.set({ strokeWidth: next, strokeUniform: true }));
+    mutate(() => obj.set({ strokeWidth: next, strokeUniform: true }), "Set stroke width");
   };
 
   return (
