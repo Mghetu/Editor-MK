@@ -1,13 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { ApplyCropCommand, BatchSetPropertyCommand, ReorderObjectCommand, ReplaceObjectStateCommand } from "./commands/basic";
+import { AddObjectCommand, ApplyCropCommand, BatchSetPropertyCommand, ReorderObjectCommand, ReplaceObjectStateCommand } from "./commands/basic";
 import { CommandHistoryManager } from "./transactionHistory";
 import type { HistoryContext } from "./commands/types";
+
+const withObjectRuntime = (obj: Record<string, unknown>) => ({
+  ...obj,
+  set(values: Record<string, unknown>) {
+    Object.assign(this, values);
+  },
+  get(key: string) {
+    return (this as any)[key];
+  },
+  setCoords() {}
+});
 
 const createMockContext = () => {
   const ordered: any[] = [];
   const objects = new Map<string, any>();
-  const add = (obj: any) => { objects.set(String(obj.id), obj); ordered.push(obj); };
-  add({ id: "a", x: 0, set(values: Record<string, unknown>) { Object.assign(this, values); }, get(key: string) { return (this as any)[key]; }, setCoords() {} });
+  const add = (obj: any) => {
+    objects.set(String(obj.id), obj);
+    ordered.push(obj);
+  };
+  add(withObjectRuntime({ id: "a", data: { id: "a" }, x: 0 }));
 
   const ctx: HistoryContext = {
     canvas: {
@@ -22,7 +36,7 @@ const createMockContext = () => {
     getObjectId: (obj: any) => obj?.id,
     findObjectById: (id: string) => objects.get(id),
     serializeObject: (obj: any) => ({ ...obj }),
-    enlivenObject: async (serialized) => ({ ...serialized }),
+    enlivenObject: async (serialized) => withObjectRuntime(serialized),
     addObject: (obj: any) => {
       objects.set(String(obj.id), obj);
       ordered.push(obj);
@@ -62,8 +76,6 @@ describe("BatchSetPropertyCommand", () => {
     expect(objects.get("a")?.x).toBe(0);
   });
 
-
-
   it("replaces serialized object state symmetrically", async () => {
     const { ctx, objects } = createMockContext();
     const manager = new CommandHistoryManager(ctx);
@@ -73,11 +85,9 @@ describe("BatchSetPropertyCommand", () => {
     expect(objects.get("a")?.x).toBe(0);
   });
 
-
-
   it("applies and reverts crop state changes", async () => {
-    const { ctx, objects } = createMockContext();
-    objects.set("img", {
+    const { ctx, objects, ordered } = createMockContext();
+    const img = withObjectRuntime({
       id: "img",
       left: 0,
       top: 0,
@@ -86,17 +96,19 @@ describe("BatchSetPropertyCommand", () => {
       cropX: 0,
       cropY: 0,
       cropState: null,
-      __cropState: null,
-      set(values: Record<string, unknown>) { Object.assign(this, values); },
-      get(key: string) { return (this as any)[key]; },
-      setCoords() {}
+      __cropState: null
     });
+    objects.set("img", img);
+    ordered.push(img);
+
     const manager = new CommandHistoryManager(ctx);
-    await manager.execute(new ApplyCropCommand(
-      "img",
-      { left: 0, top: 0, width: 200, height: 120, cropX: 0, cropY: 0, cropState: null, __cropState: null },
-      { left: 20, top: 10, width: 80, height: 60, cropX: 20, cropY: 10, cropState: { enabled: true }, __cropState: { enabled: true } }
-    ));
+    await manager.execute(
+      new ApplyCropCommand(
+        "img",
+        { left: 0, top: 0, width: 200, height: 120, cropX: 0, cropY: 0, cropState: null, __cropState: null },
+        { left: 20, top: 10, width: 80, height: 60, cropX: 20, cropY: 10, cropState: { enabled: true }, __cropState: { enabled: true } }
+      )
+    );
     expect(objects.get("img")?.width).toBe(80);
     expect(objects.get("img")?.cropX).toBe(20);
     await manager.undo();
@@ -104,14 +116,10 @@ describe("BatchSetPropertyCommand", () => {
     expect(objects.get("img")?.cropX).toBe(0);
   });
 
-
-
   it("reorders layer and restores on undo", async () => {
     const { ctx, ordered } = createMockContext();
     const manager = new CommandHistoryManager(ctx);
-    const b = { id: "b", set(values: Record<string, unknown>) { Object.assign(this, values); }, get(key: string) { return (this as any)[key]; }, setCoords() {} };
-    const c = { id: "c", set(values: Record<string, unknown>) { Object.assign(this, values); }, get(key: string) { return (this as any)[key]; }, setCoords() {} };
-    ordered.push(b, c);
+    ordered.push(withObjectRuntime({ id: "b" }), withObjectRuntime({ id: "c" }));
 
     await manager.execute(new ReorderObjectCommand("a", 0, 2));
     expect(ordered.map((obj) => obj.id)).toEqual(["b", "c", "a"]);
@@ -119,7 +127,40 @@ describe("BatchSetPropertyCommand", () => {
     expect(ordered.map((obj) => obj.id)).toEqual(["a", "b", "c"]);
   });
 
+  it("handles multi-object edit/add and undo-redo replay", async () => {
+    const { ctx, objects } = createMockContext();
+    const manager = new CommandHistoryManager(ctx);
 
+    await manager.execute(new AddObjectCommand({ id: "b", data: { id: "b", type: "shape" }, x: 0 }));
+    await manager.execute(new AddObjectCommand({ id: "c", data: { id: "c", type: "shape" }, x: 0 }));
+    await manager.execute(new AddObjectCommand({ id: "d", data: { id: "d", type: "shape" }, x: 0 }));
+    await manager.execute(new AddObjectCommand({ id: "img", data: { id: "img", type: "image" }, x: 0 }));
+
+    await manager.execute(new BatchSetPropertyCommand("a", { x: 10 }));
+    await manager.execute(new BatchSetPropertyCommand("b", { x: 20 }));
+    await manager.execute(new BatchSetPropertyCommand("img", { x: 30 }));
+
+    expect(objects.get("img")?.x).toBe(30);
+    expect(objects.get("d")).toBeTruthy();
+
+    await manager.undo();
+    await manager.undo();
+    await manager.undo();
+    await manager.undo();
+
+    expect(objects.get("img")).toBeFalsy();
+    expect(objects.get("a")?.x).toBe(0);
+    expect(objects.get("b")?.x).toBe(0);
+
+    await manager.redo();
+    await manager.redo();
+    await manager.redo();
+    await manager.redo();
+
+    expect(objects.get("img")?.x).toBe(30);
+    expect(objects.get("a")?.x).toBe(10);
+    expect(objects.get("b")?.x).toBe(20);
+  });
 
   it("throws on nested beginTransaction", () => {
     const { ctx } = createMockContext();
