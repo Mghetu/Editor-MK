@@ -5,7 +5,6 @@ const ALLOWLIST = new Set([
   "src/editor/features/crop/CropModeController.ts",
   "src/editor/features/crop/cropOverlay.ts",
   "src/editor/features/imageGrid.ts",
-  "src/editor/features/layers/layersController.ts",
   "src/editor/features/shapes/shapeGeometry.ts",
   "src/editor/ui/inspector/ObjectContextMenu.tsx",
   "src/editor/ui/inspector/ShapeInspector.tsx"

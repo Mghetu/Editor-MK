@@ -14,13 +14,14 @@ export type LayerItem = {
 const ensureData = (obj: any, fallbackName: string) => {
   const existing = obj?.data ?? {};
   const data = {
+    ...existing,
     id: existing.id ?? crypto.randomUUID(),
     name: existing.name ?? fallbackName,
     type: existing.type ?? obj?.type ?? "object",
     locked: Boolean(existing.locked),
     hidden: Boolean(existing.hidden)
   };
-  obj.set("data", data);
+  obj.data = data;
   return data;
 };
 
@@ -61,8 +62,8 @@ export const toggleLockLayer = async (canvas: Canvas, id: string) => {
   const locked = !data.locked;
 
   await applyObjectMutation(canvas, obj, (target) => {
-    target.set("data", { ...data, locked });
-    target.set({
+    target.data = { ...data, locked };
+    Object.assign(target, {
       lockMovementX: locked,
       lockMovementY: locked,
       lockScalingX: locked,
@@ -80,13 +81,14 @@ export const toggleHideLayer = async (canvas: Canvas, id: string) => {
   if (!obj) return;
   const data = ensureData(obj, "Layer");
   const hidden = !data.hidden;
+  const locked = Boolean(data.locked);
 
   await applyObjectMutation(canvas, obj, (target, currentCanvas) => {
-    target.set("data", { ...data, hidden });
-    target.set({
+    target.data = { ...data, hidden };
+    Object.assign(target, {
       visible: !hidden,
-      selectable: !hidden && !data.locked,
-      evented: !hidden && !data.locked
+      selectable: !hidden && !locked,
+      evented: !hidden && !locked
     });
     if (hidden && currentCanvas.getActiveObject?.() === target) {
       currentCanvas.discardActiveObject();
