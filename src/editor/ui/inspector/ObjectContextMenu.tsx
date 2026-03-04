@@ -147,7 +147,7 @@ export function ObjectContextMenu() {
   const applyColorSelection = (property: "fill" | "stroke", value: ColorSelection) => {
     mutate((obj) => {
       if (value.mode === "solid") {
-        obj.set(property, value.hex);
+        obj[property] = value.hex;
         return;
       }
 
@@ -155,22 +155,19 @@ export function ObjectContextMenu() {
       const x2 = (Math.cos(radians) + 1) / 2;
       const y2 = (Math.sin(radians) + 1) / 2;
 
-      obj.set(
-        property,
-        new Gradient({
-          type: value.gradient.type,
-          gradientUnits: "percentage",
-          coords: {
-            x1: 0,
-            y1: 0,
-            x2,
-            y2,
-            r1: 0,
-            r2: 1
-          },
-          colorStops: value.gradient.stops
-        })
-      );
+      obj[property] = new Gradient({
+        type: value.gradient.type,
+        gradientUnits: "percentage",
+        coords: {
+          x1: 0,
+          y1: 0,
+          x2,
+          y2,
+          r1: 0,
+          r2: 1
+        },
+        colorStops: value.gradient.stops
+      });
     }, `Set ${property}`);
   };
 
@@ -240,7 +237,7 @@ export function ObjectContextMenu() {
       if (position === "middle") deltaY = canvasHeight / 2 - (bounds.top + bounds.height / 2);
       if (position === "bottom") deltaY = canvasHeight - (bounds.top + bounds.height);
 
-      obj.set({
+      Object.assign(obj, {
         left: Number(obj.left ?? 0) + deltaX,
         top: Number(obj.top ?? 0) + deltaY
       });
@@ -256,7 +253,7 @@ export function ObjectContextMenu() {
         const nextWidth = key === "width" ? sanitized : lockAspect ? Math.max(1, Math.round((sanitized * snapshot.width) / Math.max(1, snapshot.height))) : snapshot.width;
         const nextHeight = key === "height" ? sanitized : lockAspect ? Math.max(1, Math.round((sanitized * snapshot.height) / Math.max(1, snapshot.width))) : snapshot.height;
 
-        obj.set({
+        Object.assign(obj, {
           width: Math.max(1, nextWidth),
           height: Math.max(1, nextHeight),
           scaleX: Number(obj.scaleX ?? 1) < 0 ? -1 : 1,
@@ -266,7 +263,7 @@ export function ObjectContextMenu() {
       }
 
       if (isTextboxLike(obj) && key === "width") {
-        obj.set({
+        Object.assign(obj, {
           width: sanitized,
           scaleX: Number(obj.scaleX ?? 1) < 0 ? -1 : 1,
           strokeUniform: true
@@ -285,7 +282,7 @@ export function ObjectContextMenu() {
       const signX = Number(obj.scaleX ?? 1) < 0 ? -1 : 1;
       const signY = Number(obj.scaleY ?? 1) < 0 ? -1 : 1;
 
-      obj.set({
+      Object.assign(obj, {
         scaleX: signX * (targetW / baseW),
         scaleY: signY * (targetH / baseH),
         strokeUniform: true
@@ -349,7 +346,11 @@ export function ObjectContextMenu() {
           step={0.01}
           value={snapshot.opacity}
           className="w-full"
-          onChange={(e) => mutate((obj) => obj.set("opacity", Number(e.target.value)), "Set opacity")}
+          onChange={(e) =>
+            mutate((obj) => {
+              obj.opacity = Number(e.target.value);
+            }, "Set opacity")
+          }
         />
       </div>
 
@@ -400,7 +401,10 @@ export function ObjectContextMenu() {
           step={0.5}
           value={snapshot.strokeWidth}
           className="w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
-          onChange={(e) => mutate((obj) => obj.set({ strokeWidth: Math.max(0, Number(e.target.value)), strokeUniform: true }), "Set stroke width")}
+          onChange={(e) => mutate((obj) => {
+            obj.strokeWidth = Math.max(0, Number(e.target.value));
+            obj.strokeUniform = true;
+          }, "Set stroke width")}
         />
       </div>
     </div>
