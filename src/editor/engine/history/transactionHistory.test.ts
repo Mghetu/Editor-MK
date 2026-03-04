@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AddObjectCommand, ApplyCropCommand, BatchSetPropertyCommand, ReorderObjectCommand, ReplaceObjectStateCommand } from "./commands/basic";
+import { AddObjectCommand, ApplyCropCommand, BatchSetPropertyCommand, RemoveObjectCommand, ReorderObjectCommand, ReplaceObjectStateCommand } from "./commands/basic";
 import { CommandHistoryManager } from "./transactionHistory";
 import type { HistoryContext } from "./commands/types";
 
@@ -125,6 +125,29 @@ describe("BatchSetPropertyCommand", () => {
     expect(ordered.map((obj) => obj.id)).toEqual(["b", "c", "a"]);
     await manager.undo();
     expect(ordered.map((obj) => obj.id)).toEqual(["a", "b", "c"]);
+  });
+
+
+
+  it("replays add/remove object commands across undo and redo", async () => {
+    const { ctx, objects } = createMockContext();
+    const manager = new CommandHistoryManager(ctx);
+
+    await manager.execute(new AddObjectCommand({ id: "b", data: { id: "b", type: "shape" }, x: 1 }));
+    expect(objects.get("b")?.x).toBe(1);
+
+    await manager.execute(new RemoveObjectCommand("a", { id: "a", data: { id: "a" }, x: 0 }));
+    expect(objects.get("a")).toBeFalsy();
+
+    await manager.undo();
+    expect(objects.get("a")?.x).toBe(0);
+    await manager.undo();
+    expect(objects.get("b")).toBeFalsy();
+
+    await manager.redo();
+    expect(objects.get("b")?.x).toBe(1);
+    await manager.redo();
+    expect(objects.get("a")).toBeFalsy();
   });
 
   it("handles multi-object edit/add and undo-redo replay", async () => {
