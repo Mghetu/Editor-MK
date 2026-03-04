@@ -2,11 +2,19 @@ import { useEffect, useRef } from "react";
 import { createCanvas } from "./engine/createCanvas";
 import { bindSelectionEvents } from "./engine/selection";
 import HistoryManager from "./engine/history/history";
+import { CommandHistoryManager } from "./engine/history/transactionHistory";
+import { createFabricHistoryContext } from "./engine/history/fabricHistoryContext";
+import { USE_COMMAND_HISTORY } from "./engine/history/flags";
 import { useEditorStore } from "./state/useEditorStore";
 import { saveCanvasJson } from "./engine/serialize";
 import { refreshImageGrids } from "./features/imageGrid";
 
-export type StageApi = { canvas: any; history: HistoryManager; persistNow: () => void };
+export type StageApi = {
+  canvas: any;
+  history: HistoryManager;
+  commandHistory?: CommandHistoryManager;
+  persistNow: () => void;
+};
 
 const AUTOSAVE_DEBOUNCE_MS = 350;
 const PAGE_THUMBNAIL_MULTIPLIER = 0.15;
@@ -44,6 +52,7 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
   const canvasEl = useRef<HTMLCanvasElement>(null);
   const canvasRef = useRef<any>(null);
   const historyRef = useRef<HistoryManager | null>(null);
+  const commandHistoryRef = useRef<CommandHistoryManager | null>(null);
   const autosaveTimer = useRef<number>();
   const previousActivePageIdRef = useRef<string>();
   const isHydratingRef = useRef(false);
@@ -54,8 +63,10 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
 
     const canvas = createCanvas(canvasEl.current, doc.canvas.width, doc.canvas.height, doc.canvas.background);
     const history = new HistoryManager(canvas);
+    const commandHistory = USE_COMMAND_HISTORY ? new CommandHistoryManager(createFabricHistoryContext(canvas)) : null;
     canvasRef.current = canvas;
     historyRef.current = history;
+    commandHistoryRef.current = commandHistory;
 
     applyCanvasFrame(canvas, doc.canvas);
 
@@ -96,7 +107,10 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
     canvas.on("object:modified", trackSave);
     canvas.on("text:editing:exited", trackSave);
 
-    onReady({ canvas, history, persistNow });
+    if (commandHistory) (window as any).__commandHistory = commandHistory;
+    else delete (window as any).__commandHistory;
+
+    onReady({ canvas, history, commandHistory: commandHistory ?? undefined, persistNow });
 
     return () => {
       unbindSelection?.();
@@ -108,6 +122,8 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
       window.clearTimeout(autosaveTimer.current);
       canvasRef.current = null;
       historyRef.current = null;
+      commandHistoryRef.current = null;
+      delete (window as any).__commandHistory;
       void canvas.dispose();
     };
   }, []);
