@@ -1,11 +1,16 @@
 import { execSync } from "node:child_process";
 
-const ALLOWLIST = new Set([
-  "src/editor/features/imageGrid.ts",
-]);
+const ALLOWLIST = new Set([]);
 
 const cmd = 'rg -n "\\.set\\(" src/editor/ui src/editor/features src/editor/engine/factories';
-const output = execSync(cmd, { encoding: "utf8" }).trim();
+let output = "";
+
+try {
+  output = execSync(cmd, { encoding: "utf8" }).trim();
+} catch (error) {
+  if (!error || typeof error !== "object" || !("status" in error) || error.status !== 1) throw error;
+  output = "";
+}
 
 if (!output) {
   console.log("No direct .set(...) calls found in scoped paths.");
