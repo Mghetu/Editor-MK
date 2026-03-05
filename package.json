@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "check:history-mutations": "node scripts/check-history-mutations.mjs",
-    "verify:history-migration": "node scripts/verify-history-migration.mjs"
+    "verify:history-migration": "node scripts/verify-history-migration.mjs",
+    "signoff:history": "node scripts/create-history-signoff.mjs"
   },
   "dependencies": {
     "fabric": "^7.1.0",
