@@ -53,6 +53,7 @@ export const applyObjectMutation = async (
   const before = ctx.serializeObject(obj);
   mutate(obj, canvas);
   obj.setCoords?.();
+  canvas?.requestRenderAll?.();
   const after = ctx.serializeObject(obj);
   const command = new ReplaceObjectStateCommand(objectId, before, after);
   command.label = label;
