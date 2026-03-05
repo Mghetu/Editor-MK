@@ -4,7 +4,7 @@ import { loadCanvasJson, saveCanvasJson } from "../engine/serialize";
 import { setActivePageByNumber, setActivePageByOffset } from "../features/pages/pagesController";
 import { useEditorStore } from "../state/useEditorStore";
 
-export function TopBar({ undo, redo, persistNow }: { undo: () => void; redo: () => void; persistNow?: () => void }) {
+export function TopBar({ undo, redo, canUndo = true, canRedo = true, lastActionLabel, persistNow }: { undo: () => void; redo: () => void; canUndo?: boolean; canRedo?: boolean; lastActionLabel?: string; persistNow?: () => void }) {
   const { doc, setExportFormat, updateDoc, setTab, activeTab } = useEditorStore();
   const activeIndex = Math.max(0, doc.pages.findIndex((p) => p.id === doc.activePageId));
 
@@ -55,8 +55,8 @@ export function TopBar({ undo, redo, persistNow }: { undo: () => void; redo: () 
 
       <div className="mx-1 h-6 w-px bg-[#3a3a3a]" />
 
-      <button className="rounded p-2 hover:bg-[#2a2a2a]" onClick={undo} title="Undo"><Undo2 size={16} /></button>
-      <button className="rounded p-2 hover:bg-[#2a2a2a]" onClick={redo} title="Redo"><Redo2 size={16} /></button>
+      <button className="rounded p-2 hover:bg-[#2a2a2a] disabled:cursor-not-allowed disabled:opacity-40" onClick={undo} title={lastActionLabel ? `Undo ${lastActionLabel}` : "Undo"} disabled={!canUndo}><Undo2 size={16} /></button>
+      <button className="rounded p-2 hover:bg-[#2a2a2a] disabled:cursor-not-allowed disabled:opacity-40" onClick={redo} title="Redo" disabled={!canRedo}><Redo2 size={16} /></button>
 
       <div className="ml-2 flex items-center gap-1 rounded border border-[#454545] bg-[#2b2b2b] px-1 py-0.5 text-xs">
         <button
