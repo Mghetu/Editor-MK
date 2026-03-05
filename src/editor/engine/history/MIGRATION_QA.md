@@ -6,6 +6,7 @@ This checklist is the final closeout step after direct `.set(...)` migration has
 
 - Command history builds and tests pass.
 - `npm run check:history-mutations` reports no direct `.set(...)` in scoped paths.
+- `npm run verify:history-migration` passes (runs guardrails in history-disabled and history-enabled modes).
 - Run QA once with command history **disabled** and once with it **enabled** (`VITE_USE_COMMAND_HISTORY=true`) to compare behavior.
 
 ## Core Undo/Redo Scenarios
@@ -53,10 +54,26 @@ This checklist is the final closeout step after direct `.set(...)` migration has
    - Confirm no orphan objects, stale selection handles, or mismatched metadata.
 
 8. **Guardrail verification**
-   - Re-run:
-     - `npm run check:history-mutations`
-     - `npm test`
-     - `npm run build`
+   - Re-run `npm run verify:history-migration`.
+
+## Signoff Template
+
+Copy/paste into the PR description and fill in:
+
+```md
+### Migration QA Signoff
+- [ ] `npm run verify:history-migration`
+- [ ] Manual QA (history disabled)
+- [ ] Manual QA (history enabled)
+- [ ] Crop scenarios pass
+- [ ] Image grid scenarios pass
+- [ ] Shape radius scenarios pass
+- [ ] Long-session undo/redo stress pass
+
+Notes:
+- Regressions found:
+- Follow-up fixes:
+```
 
 ## Exit Criteria
 
