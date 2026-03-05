@@ -4,7 +4,6 @@ const ALLOWLIST = new Set([
   "src/editor/features/crop/CropModeController.ts",
   "src/editor/features/crop/cropOverlay.ts",
   "src/editor/features/imageGrid.ts",
-  "src/editor/features/shapes/shapeGeometry.ts",
 ]);
 
 const cmd = 'rg -n "\\.set\\(" src/editor/ui src/editor/features src/editor/engine/factories';
