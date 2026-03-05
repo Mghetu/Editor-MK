@@ -236,7 +236,7 @@ const setImagePlacement = (img: FabricImage, slot: GridSlot, w: number, h: numbe
     sourceY = clamp(centeredY - panY, 0, Math.max(0, baseH - sourceH));
   }
 
-  img.set({
+  Object.assign(img, {
     scaleX: scale,
     scaleY: scale,
     left: cellLeft,
@@ -336,7 +336,7 @@ const ensureSelectedSlotOutlineObject = (group: Group) => {
 const relayout = (group: Group, data: ImageGridData) => {
   const width = Math.max(80, Number(data.frameWidth ?? group.width ?? 1));
   const height = Math.max(80, Number(data.frameHeight ?? group.height ?? 1));
-  group.set({ width, height });
+  Object.assign(group, { width, height });
 
   const layout = resolveSlotLayout(data, width, height);
   const objects = (group as any)._objects as any[];
@@ -357,7 +357,7 @@ const relayout = (group: Group, data: ImageGridData) => {
     const cornerRadius = Math.max(0, Number(slot.cornerRadius ?? 8));
     const selected = slot.id === selectedSlotId;
 
-    slotObj.set({
+    Object.assign(slotObj, {
       left,
       top,
       originX: "center",
@@ -371,11 +371,11 @@ const relayout = (group: Group, data: ImageGridData) => {
     if (slotObj.type === "image") {
       setImagePlacement(slotObj as FabricImage, slot, w, h, left, top);
     } else {
-      slotObj.set({ width: w, height: h, rx: cornerRadius, ry: cornerRadius, fill: slot.backgroundColor ?? DEFAULT_CELL_BACKGROUND });
+      Object.assign(slotObj, { width: w, height: h, rx: cornerRadius, ry: cornerRadius, fill: slot.backgroundColor ?? DEFAULT_CELL_BACKGROUND });
     }
 
     if (selected) {
-      selectedOutline.set({
+      Object.assign(selectedOutline, {
         visible: true,
         left,
         top,
@@ -388,7 +388,7 @@ const relayout = (group: Group, data: ImageGridData) => {
       const badgeH = Math.min(18, Math.max(14, h * 0.2));
       const labelLeft = clamp(left, -width / 2 + badgeW * 0.75, width / 2 - badgeW * 0.75);
       const labelTop = top - h / 2 - badgeH * 0.7;
-      selectedLabel.set({
+      Object.assign(selectedLabel, {
         visible: true,
         text: String(index + 1),
         width: badgeW,
@@ -403,13 +403,13 @@ const relayout = (group: Group, data: ImageGridData) => {
   }
 
   if (!layout.some((entry) => entry.slot.id === selectedSlotId)) {
-    selectedLabel.set({ visible: false });
-    selectedOutline.set({ visible: false });
+    selectedLabel.visible = false;
+    selectedOutline.visible = false;
   }
 
   selectedOutline.bringToFront?.();
   selectedLabel.bringToFront?.();
-  group.set({ dirty: true });
+  group.dirty = true;
   group.setCoords();
 };
 
@@ -417,7 +417,7 @@ const createSlotObject = async (slot: GridSlot) => {
   if (slot.imageSrc) {
     try {
       const img = await FabricImage.fromURL(slot.imageSrc, { crossOrigin: "anonymous" });
-      img.set({ data: { role: "slot", slotId: slot.id }, selectable: false, evented: false, originX: "center", originY: "center" });
+      Object.assign(img, { data: { role: "slot", slotId: slot.id }, selectable: false, evented: false, originX: "center", originY: "center" });
       return img;
     } catch {
       // fall through
@@ -444,7 +444,7 @@ const normalizeGridScale = (grid: Group, data: ImageGridData) => {
   const sx = Number(grid.scaleX ?? 1);
   const sy = Number(grid.scaleY ?? 1);
   if (Math.abs(sx) === 1 && Math.abs(sy) === 1) {
-    grid.set({ width: Math.max(80, Number(data.frameWidth ?? grid.width ?? 1)), height: Math.max(80, Number(data.frameHeight ?? grid.height ?? 1)) });
+    Object.assign(grid, { width: Math.max(80, Number(data.frameWidth ?? grid.width ?? 1)), height: Math.max(80, Number(data.frameHeight ?? grid.height ?? 1)) });
     return data;
   }
 
@@ -454,7 +454,7 @@ const normalizeGridScale = (grid: Group, data: ImageGridData) => {
     frameHeight: Math.max(80, Number(data.frameHeight ?? grid.height ?? 1) * Math.abs(sy))
   };
 
-  grid.set({
+  Object.assign(grid, {
     width: next.frameWidth,
     height: next.frameHeight,
     scaleX: sx < 0 ? -1 : 1,
@@ -520,12 +520,12 @@ export const createImageGrid = async (canvas: Canvas, presetId: string) => {
     originY: "top",
     subTargetCheck: false
   });
-  (group as any).set("data", data);
+  (group as any).data = data;
 
   const normalized = normalizeGridScale(group, data);
   const withSelection = { ...normalized, selectedSlotId: normalized.selectedSlotId ?? normalized.slots[0]?.id };
   relayout(group, withSelection);
-  (group as any).set("data", withSelection);
+  (group as any).data = withSelection;
   canvas.add(group);
   canvas.setActiveObject(group);
   canvas.requestRenderAll();
@@ -536,7 +536,7 @@ export const updateSelectedImageGrid = (canvas: Canvas, updater: (data: ImageGri
   if (!active || (active as any)?.data?.type !== "imageGrid") return;
   const next = normalizeSlotsForGridDimensions(updater({ ...((active as any).data as ImageGridData) }));
   const normalized = normalizeGridScale(active, next);
-  (active as any).set("data", normalized);
+  (active as any).data = normalized;
   relayout(active, normalized);
   canvas.requestRenderAll();
 };
@@ -554,7 +554,7 @@ export const refreshImageGrids = (canvas: Canvas) => {
     const grid = obj as Group;
     const data = (grid as any).data as ImageGridData;
     const normalized = normalizeGridScale(grid, data);
-    (grid as any).set("data", normalized);
+    (grid as any).data = normalized;
     relayout(grid, normalized);
   });
   canvas.requestRenderAll();
@@ -576,7 +576,7 @@ const replaceSlotObject = async (grid: Group, slotId: string, src: string) => {
   };
 
   const img = await FabricImage.fromURL(src, { crossOrigin: "anonymous" });
-  img.set({
+  Object.assign(img, {
     data: { role: "slot", slotId },
     selectable: false,
     evented: false,
@@ -588,7 +588,7 @@ const replaceSlotObject = async (grid: Group, slotId: string, src: string) => {
 
   grid.remove(objects[index]);
   grid.insertAt(index, img);
-  grid.set(frame);
+  Object.assign(grid, frame);
   grid.setCoords();
 };
 
@@ -667,7 +667,7 @@ export const enableImageGridReflowBehavior = (canvas: Canvas) => {
     const grid = target as Group;
     const data = (grid as any).data as ImageGridData;
     const normalized = normalizeGridScale(grid, data);
-    (grid as any).set("data", normalized);
+    (grid as any).data = normalized;
     relayout(grid, normalized);
     canvas.requestRenderAll();
   };
@@ -706,7 +706,7 @@ export const enableImageGridReflowBehavior = (canvas: Canvas) => {
     if (data.selectedSlotId === hit.slot.id) return;
 
     const next = { ...data, selectedSlotId: hit.slot.id };
-    (grid as any).set("data", next);
+    (grid as any).data = next;
     relayout(grid, next);
     canvas.requestRenderAll();
   };
