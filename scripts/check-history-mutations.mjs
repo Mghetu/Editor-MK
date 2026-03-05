@@ -1,7 +1,6 @@
 import { execSync } from "node:child_process";
 
 const ALLOWLIST = new Set([
-  "src/editor/features/autoLayout.ts",
   "src/editor/features/crop/CropModeController.ts",
   "src/editor/features/crop/cropOverlay.ts",
   "src/editor/features/imageGrid.ts",
