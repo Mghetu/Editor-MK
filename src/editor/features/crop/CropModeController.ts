@@ -29,7 +29,7 @@ const toAppliedCropRect = (rect: any): RectBox => {
 };
 
 const setRectFromBounds = (rect: any, bounds: RectBox) => {
-  rect.set({
+  Object.assign(rect, {
     left: bounds.left,
     top: bounds.top,
     width: Math.max(MIN_CROP_SIZE, bounds.width),
@@ -107,7 +107,7 @@ export class CropModeController {
     if (hasSavedCrop) {
       const scaleX = Number(image.scaleX ?? 1);
       const scaleY = Number(image.scaleY ?? 1);
-      image.set({
+      Object.assign(image, {
         left: this.snapshot.left - this.snapshot.cropX * scaleX,
         top: this.snapshot.top - this.snapshot.cropY * scaleY,
         cropX: 0,
@@ -195,7 +195,7 @@ export class CropModeController {
       const cmd = new ApplyCropCommand(objectId, before, after);
       void commandHistory.execute(cmd, { source: "ui", objectIds: [objectId] });
     } else {
-      this.image.set(after);
+      Object.assign(this.image, after);
       this.image.setCoords();
     }
 
@@ -209,7 +209,7 @@ export class CropModeController {
       return;
     }
 
-    this.image.set({
+    Object.assign(this.image, {
       left: this.snapshot.left,
       top: this.snapshot.top,
       width: this.snapshot.width,
@@ -368,10 +368,10 @@ export class CropModeController {
 
     this.canvas.selection = false;
     this.previousInteractionState.objectStates.forEach(({ obj }) => {
-      obj.set({ selectable: false, evented: false });
+      Object.assign(obj, { selectable: false, evented: false });
     });
 
-    activeImage.set({ selectable: true, evented: true, hasControls: true });
+    Object.assign(activeImage, { selectable: true, evented: true, hasControls: true });
   }
 
   private restoreInteractions() {
@@ -379,12 +379,12 @@ export class CropModeController {
 
     this.canvas.selection = this.previousInteractionState.canvasSelection;
     this.previousInteractionState.objectStates.forEach(({ obj, selectable, evented }) => {
-      obj.set({ selectable, evented });
+      Object.assign(obj, { selectable, evented });
     });
 
     if (this.image) {
       const activeImageState = this.previousInteractionState.activeImageState;
-      this.image.set({
+      Object.assign(this.image, {
         selectable: activeImageState.selectable,
         evented: activeImageState.evented,
         hasControls: activeImageState.hasControls
