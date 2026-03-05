@@ -1,10 +1,11 @@
 # History Migration Signoff
 
-Generated: 2026-03-05T11:21:08.012Z
-Commit: a8700ea
+Generated: 2026-03-05T11:28:19.637Z
+Commit: d2e82a8
 
 ## Automated verification
-- [ ] `npm run verify:history-migration`
+- [x] `npm run verify:history-migration`
+- Automated verification executed during signoff generation.
 
 ## Manual verification
 - [ ] Manual QA run (history disabled)
