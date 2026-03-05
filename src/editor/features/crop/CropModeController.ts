@@ -1,4 +1,6 @@
 import type { Canvas } from "fabric";
+import { ApplyCropCommand } from "../../engine/history/commands/basic";
+import { getFabricObjectId } from "../../engine/history/fabricHistoryContext";
 import { clampRectWithinBounds, canvasCropRectToSourceParams, fitRectToAspectWithinBounds, getImageDisplayRect, sourceParamsToCanvasCropRect } from "./cropMath";
 import { createCropRect, createGrid, createMask, updateGrid, updateMask } from "./cropOverlay";
 import type { CropMask } from "./cropOverlay";
@@ -51,6 +53,8 @@ type ImageSnapshot = {
   height: number;
   cropX: number;
   cropY: number;
+  cropState?: CropState | null;
+  __cropState?: CropState | null;
 };
 
 export class CropModeController {
@@ -86,7 +90,9 @@ export class CropModeController {
       width: Number(image.width ?? 1),
       height: Number(image.height ?? 1),
       cropX: Number(image.cropX ?? 0),
-      cropY: Number(image.cropY ?? 0)
+      cropY: Number(image.cropY ?? 0),
+      cropState: (image.cropState ?? null) as CropState | null,
+      __cropState: (image.__cropState ?? null) as CropState | null
     };
 
     this.disableOtherInteractions(image);
@@ -152,7 +158,7 @@ export class CropModeController {
   }
 
   apply() {
-    if (!this.image || !this.cropRect || !this.imageBounds) return;
+    if (!this.image || !this.cropRect || !this.imageBounds || !this.snapshot) return;
 
     const rect = clampRectWithinBounds(toAppliedCropRect(this.cropRect), this.imageBounds);
     const crop = canvasCropRectToSourceParams(this.image, rect);
@@ -161,7 +167,18 @@ export class CropModeController {
     const scaleX = Number(this.image.scaleX ?? 1);
     const scaleY = Number(this.image.scaleY ?? 1);
 
-    this.image.set({
+    const before = {
+      left: this.snapshot.left,
+      top: this.snapshot.top,
+      width: this.snapshot.width,
+      height: this.snapshot.height,
+      cropX: this.snapshot.cropX,
+      cropY: this.snapshot.cropY,
+      cropState: this.snapshot.cropState,
+      __cropState: this.snapshot.__cropState
+    };
+
+    const after = {
       cropX: crop.cropX,
       cropY: crop.cropY,
       width: crop.cropW,
@@ -170,9 +187,18 @@ export class CropModeController {
       top: (this.imageBounds.top ?? 0) + crop.cropY * scaleY,
       cropState: crop,
       __cropState: crop
-    });
+    };
 
-    this.image.setCoords();
+    const commandHistory = (window as any).__commandHistory;
+    const objectId = getFabricObjectId(this.image);
+    if (commandHistory && objectId) {
+      const cmd = new ApplyCropCommand(objectId, before, after);
+      void commandHistory.execute(cmd, { source: "ui", objectIds: [objectId] });
+    } else {
+      this.image.set(after);
+      this.image.setCoords();
+    }
+
     this.exit(false);
     this.canvas.requestRenderAll();
   }
@@ -189,7 +215,9 @@ export class CropModeController {
       width: this.snapshot.width,
       height: this.snapshot.height,
       cropX: this.snapshot.cropX,
-      cropY: this.snapshot.cropY
+      cropY: this.snapshot.cropY,
+      cropState: this.snapshot.cropState,
+      __cropState: this.snapshot.__cropState
     });
 
     this.image.setCoords();
