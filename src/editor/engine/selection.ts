@@ -2,20 +2,30 @@ import type { Canvas } from "fabric";
 
 type EditorSelectionType = "text" | "image" | "table" | "shape" | "imageGrid" | "autoLayout";
 
+
+const unwrapSelectionTarget = (obj: any) => {
+  const fabricType = String(obj?.type ?? "").toLowerCase();
+  if (fabricType !== "activeselection") return obj;
+  const items = Array.isArray(obj?._objects) ? obj._objects : [];
+  if (items.length === 1) return items[0];
+  return obj;
+};
+
 export const inferSelectionType = (obj: any): EditorSelectionType | undefined => {
-  const explicitType = obj?.data?.type;
+  const target = unwrapSelectionTarget(obj);
+  const explicitType = target?.data?.type;
   if (explicitType === "text" || explicitType === "image" || explicitType === "table" || explicitType === "shape" || explicitType === "imageGrid" || explicitType === "autoLayout") {
     return explicitType;
   }
 
-  if (obj?.table) return "table";
+  if (target?.table) return "table";
 
 
-  if (Array.isArray(obj?.data?.slots) && Number.isFinite(Number(obj?.data?.frameWidth ?? NaN)) && Number.isFinite(Number(obj?.data?.frameHeight ?? NaN))) {
+  if (Array.isArray(target?.data?.slots) && Number.isFinite(Number(target?.data?.frameWidth ?? NaN)) && Number.isFinite(Number(target?.data?.frameHeight ?? NaN))) {
     return "imageGrid";
   }
 
-  const fabricType = String(obj?.type ?? "").toLowerCase();
+  const fabricType = String(target?.type ?? "").toLowerCase();
   if (fabricType === "textbox" || fabricType === "i-text" || fabricType === "text") return "text";
   if (fabricType === "image") return "image";
 
@@ -25,8 +35,8 @@ export const inferSelectionType = (obj: any): EditorSelectionType | undefined =>
   }
 
   if (fabricType === "group") {
-    if (Array.isArray(obj?.data?.slots)) return "imageGrid";
-    if (obj?.table) return "table";
+    if (Array.isArray(target?.data?.slots)) return "imageGrid";
+    if (target?.table) return "table";
   }
 
   return undefined;
@@ -50,18 +60,19 @@ export const bindSelectionEvents = (
   const update = () => {
     clearToken += 1;
     const obj = canvas.getActiveObject() as any;
-    if (obj?.data?.isCropOverlay) return;
+    const target = unwrapSelectionTarget(obj);
+    if (target?.data?.isCropOverlay) return;
 
-    const type = inferSelectionType(obj);
-    if (obj && type && !obj?.data?.type) {
-      obj.set?.("data", {
-        ...(obj?.data ?? {}),
-        id: obj?.data?.id ?? obj?.id ?? crypto.randomUUID?.(),
+    const type = inferSelectionType(target);
+    if (target && type && !target?.data?.type) {
+      target.set?.("data", {
+        ...(target?.data ?? {}),
+        id: target?.data?.id ?? target?.id ?? crypto.randomUUID?.(),
         type
       });
     }
 
-    const id = (obj?.data?.id ?? obj?.id) as string | undefined;
+    const id = (target?.data?.id ?? target?.id) as string | undefined;
 
     emitIfChanged(id, type, true);
   };

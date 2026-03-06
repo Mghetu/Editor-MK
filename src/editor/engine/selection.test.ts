@@ -71,4 +71,9 @@ describe("inferSelectionType", () => {
   it("infers shape for rect fabric objects with generic shape data", () => {
     expect(inferSelectionType({ type: "rect", data: { type: "shape" } })).toBe("shape");
   });
+
+  it("infers imageGrid from activeSelection wrapper with one grid group", () => {
+    const grid = { type: "group", data: { id: "g1", slots: [{ id: "s1" }], frameWidth: 300, frameHeight: 200 } };
+    expect(inferSelectionType({ type: "activeSelection", _objects: [grid] })).toBe("imageGrid");
+  });
 });
