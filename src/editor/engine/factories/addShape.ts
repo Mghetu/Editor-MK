@@ -1,5 +1,7 @@
 import { Circle, Rect } from "fabric";
 import type { Canvas } from "fabric";
+import { AddObjectCommand } from "../history/commands/basic";
+import { createFabricHistoryContext } from "../history/fabricHistoryContext";
 
 type ShapeKind = "rect" | "square" | "circle";
 
@@ -10,12 +12,20 @@ const SHAPE_STYLE = {
   strokeUniform: true
 } as const;
 
-const finalize = (canvas: Canvas, obj: any, name: string, shapeKind: ShapeKind) => {
+const finalize = async (canvas: Canvas, obj: any, name: string, shapeKind: ShapeKind) => {
   const cornerRadiusPx = shapeKind === "circle" ? undefined : Math.max(0, Number(obj?.rx ?? obj?.ry ?? 0));
-  obj.set("data", { id: crypto.randomUUID(), type: "shape", name, shapeKind, cornerRadiusPx });
-  canvas.add(obj);
-  canvas.setActiveObject(obj);
-  canvas.renderAll();
+  obj.data = { id: crypto.randomUUID(), type: "shape", name, shapeKind, cornerRadiusPx };
+
+  const commandHistory = (window as any).__commandHistory;
+  if (!commandHistory) {
+    canvas.add(obj);
+    canvas.setActiveObject(obj);
+    canvas.renderAll();
+    return;
+  }
+
+  const ctx = createFabricHistoryContext(canvas);
+  await commandHistory.execute(AddObjectCommand.fromObject(obj, ctx, `Add ${name.toLowerCase()}`), { source: "ui" });
 };
 
 export const addRectangle = (canvas: Canvas) => {
@@ -29,7 +39,7 @@ export const addRectangle = (canvas: Canvas) => {
     ...SHAPE_STYLE
   }) as any;
 
-  finalize(canvas, rect, "Rectangle", "rect");
+  void finalize(canvas, rect, "Rectangle", "rect");
 };
 
 export const addSquare = (canvas: Canvas) => {
@@ -43,7 +53,7 @@ export const addSquare = (canvas: Canvas) => {
     ...SHAPE_STYLE
   }) as any;
 
-  finalize(canvas, square, "Square", "square");
+  void finalize(canvas, square, "Square", "square");
 };
 
 export const addCircle = (canvas: Canvas) => {
@@ -54,5 +64,5 @@ export const addCircle = (canvas: Canvas) => {
     ...SHAPE_STYLE
   }) as any;
 
-  finalize(canvas, circle, "Circle", "circle");
+  void finalize(canvas, circle, "Circle", "circle");
 };
