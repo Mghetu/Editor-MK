@@ -142,13 +142,16 @@ export class TransformObjectCommand extends BatchSetPropertyCommand {
 export class ReplaceObjectStateCommand implements HistoryCommand {
   label = "Update object";
   objectIds?: string[];
+  private skipNextApply = false;
 
   constructor(
     private objectId: string,
     private before: SerializedObject,
-    private after: SerializedObject
+    private after: SerializedObject,
+    options?: { alreadyApplied?: boolean }
   ) {
     this.objectIds = [objectId];
+    this.skipNextApply = Boolean(options?.alreadyApplied);
   }
 
   private async replaceWith(ctx: HistoryContext, snapshot: SerializedObject) {
@@ -163,6 +166,10 @@ export class ReplaceObjectStateCommand implements HistoryCommand {
   }
 
   async apply(ctx: HistoryContext) {
+    if (this.skipNextApply) {
+      this.skipNextApply = false;
+      return;
+    }
     await this.replaceWith(ctx, this.after);
   }
 

@@ -55,7 +55,7 @@ export const applyObjectMutation = async (
   obj.setCoords?.();
   canvas?.requestRenderAll?.();
   const after = ctx.serializeObject(obj);
-  const command = new ReplaceObjectStateCommand(objectId, before, after);
+  const command = new ReplaceObjectStateCommand(objectId, before, after, { alreadyApplied: true });
   command.label = label;
   await commandHistory.execute(command, { source: "ui", objectIds: [objectId] });
 };

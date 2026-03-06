@@ -85,6 +85,23 @@ describe("BatchSetPropertyCommand", () => {
     expect(objects.get("a")?.x).toBe(0);
   });
 
+  it("supports optimistic replace commands without re-applying on initial execute", async () => {
+    const { ctx, objects } = createMockContext();
+    const manager = new CommandHistoryManager(ctx);
+    objects.set("a", withObjectRuntime({ id: "a", data: { id: "a" }, x: 22 }));
+
+    await manager.execute(
+      new ReplaceObjectStateCommand("a", { id: "a", x: 0, data: { id: "a" } }, { id: "a", x: 22, data: { id: "a" } }, { alreadyApplied: true }),
+      { source: "ui" }
+    );
+
+    expect(objects.get("a")?.x).toBe(22);
+    await manager.undo();
+    expect(objects.get("a")?.x).toBe(0);
+    await manager.redo();
+    expect(objects.get("a")?.x).toBe(22);
+  });
+
   it("applies and reverts crop state changes", async () => {
     const { ctx, objects, ordered } = createMockContext();
     const img = withObjectRuntime({
