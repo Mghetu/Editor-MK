@@ -2,13 +2,18 @@ import type { Canvas } from "fabric";
 
 type EditorSelectionType = "text" | "image" | "table" | "shape" | "imageGrid" | "autoLayout";
 
-const inferSelectionType = (obj: any): EditorSelectionType | undefined => {
+export const inferSelectionType = (obj: any): EditorSelectionType | undefined => {
   const explicitType = obj?.data?.type;
   if (explicitType === "text" || explicitType === "image" || explicitType === "table" || explicitType === "shape" || explicitType === "imageGrid" || explicitType === "autoLayout") {
     return explicitType;
   }
 
   if (obj?.table) return "table";
+
+
+  if (Array.isArray(obj?.data?.slots) && Number.isFinite(Number(obj?.data?.frameWidth ?? NaN)) && Number.isFinite(Number(obj?.data?.frameHeight ?? NaN))) {
+    return "imageGrid";
+  }
 
   const fabricType = String(obj?.type ?? "").toLowerCase();
   if (fabricType === "textbox" || fabricType === "i-text" || fabricType === "text") return "text";
@@ -17,6 +22,11 @@ const inferSelectionType = (obj: any): EditorSelectionType | undefined => {
   // Rect/circle-like objects are edited with ShapeInspector in this editor.
   if (fabricType === "rect" || fabricType === "circle" || fabricType === "triangle" || fabricType === "polygon" || fabricType === "ellipse") {
     return "shape";
+  }
+
+  if (fabricType === "group") {
+    if (Array.isArray(obj?.data?.slots)) return "imageGrid";
+    if (obj?.table) return "table";
   }
 
   return undefined;
@@ -28,15 +38,17 @@ export const bindSelectionEvents = (
 ) => {
   let lastId: string | undefined;
   let lastType: EditorSelectionType | undefined;
+  let clearToken = 0;
 
-  const emitIfChanged = (id?: string, type?: EditorSelectionType) => {
-    if (id === lastId && type === lastType) return;
+  const emitIfChanged = (id?: string, type?: EditorSelectionType, force = false) => {
+    if (!force && id === lastId && type === lastType) return;
     lastId = id;
     lastType = type;
     onSelectionChange(id, type);
   };
 
   const update = () => {
+    clearToken += 1;
     const obj = canvas.getActiveObject() as any;
     if (obj?.data?.isCropOverlay) return;
 
@@ -51,10 +63,11 @@ export const bindSelectionEvents = (
 
     const id = (obj?.data?.id ?? obj?.id) as string | undefined;
 
-    emitIfChanged(id, type);
+    emitIfChanged(id, type, true);
   };
 
   const clear = () => {
+    const token = ++clearToken;
     const hasCropOverlay = canvas.getObjects().some((obj: any) => obj?.data?.isCropOverlay);
     if (hasCropOverlay) {
       // During crop mode we intentionally avoid clearing the inspector state,
@@ -64,7 +77,16 @@ export const bindSelectionEvents = (
       lastType = undefined;
       return;
     }
-    emitIfChanged(undefined, undefined);
+
+    queueMicrotask(() => {
+      if (token !== clearToken) return;
+      const active = canvas.getActiveObject() as any;
+      if (active && !active?.data?.isCropOverlay) {
+        update();
+        return;
+      }
+      emitIfChanged(undefined, undefined);
+    });
   };
 
   canvas.on("selection:created", update);

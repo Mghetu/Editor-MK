@@ -1,4 +1,6 @@
 import type { Canvas } from "fabric";
+import { ApplyCropCommand } from "../../engine/history/commands/basic";
+import { getFabricObjectId } from "../../engine/history/fabricHistoryContext";
 import { clampRectWithinBounds, canvasCropRectToSourceParams, fitRectToAspectWithinBounds, getImageDisplayRect, sourceParamsToCanvasCropRect } from "./cropMath";
 import { createCropRect, createGrid, createMask, updateGrid, updateMask } from "./cropOverlay";
 import type { CropMask } from "./cropOverlay";
@@ -27,7 +29,7 @@ const toAppliedCropRect = (rect: any): RectBox => {
 };
 
 const setRectFromBounds = (rect: any, bounds: RectBox) => {
-  rect.set({
+  Object.assign(rect, {
     left: bounds.left,
     top: bounds.top,
     width: Math.max(MIN_CROP_SIZE, bounds.width),
@@ -51,6 +53,8 @@ type ImageSnapshot = {
   height: number;
   cropX: number;
   cropY: number;
+  cropState?: CropState | null;
+  __cropState?: CropState | null;
 };
 
 export class CropModeController {
@@ -86,7 +90,9 @@ export class CropModeController {
       width: Number(image.width ?? 1),
       height: Number(image.height ?? 1),
       cropX: Number(image.cropX ?? 0),
-      cropY: Number(image.cropY ?? 0)
+      cropY: Number(image.cropY ?? 0),
+      cropState: (image.cropState ?? null) as CropState | null,
+      __cropState: (image.__cropState ?? null) as CropState | null
     };
 
     this.disableOtherInteractions(image);
@@ -101,7 +107,7 @@ export class CropModeController {
     if (hasSavedCrop) {
       const scaleX = Number(image.scaleX ?? 1);
       const scaleY = Number(image.scaleY ?? 1);
-      image.set({
+      Object.assign(image, {
         left: this.snapshot.left - this.snapshot.cropX * scaleX,
         top: this.snapshot.top - this.snapshot.cropY * scaleY,
         cropX: 0,
@@ -152,7 +158,7 @@ export class CropModeController {
   }
 
   apply() {
-    if (!this.image || !this.cropRect || !this.imageBounds) return;
+    if (!this.image || !this.cropRect || !this.imageBounds || !this.snapshot) return;
 
     const rect = clampRectWithinBounds(toAppliedCropRect(this.cropRect), this.imageBounds);
     const crop = canvasCropRectToSourceParams(this.image, rect);
@@ -161,7 +167,18 @@ export class CropModeController {
     const scaleX = Number(this.image.scaleX ?? 1);
     const scaleY = Number(this.image.scaleY ?? 1);
 
-    this.image.set({
+    const before = {
+      left: this.snapshot.left,
+      top: this.snapshot.top,
+      width: this.snapshot.width,
+      height: this.snapshot.height,
+      cropX: this.snapshot.cropX,
+      cropY: this.snapshot.cropY,
+      cropState: this.snapshot.cropState,
+      __cropState: this.snapshot.__cropState
+    };
+
+    const after = {
       cropX: crop.cropX,
       cropY: crop.cropY,
       width: crop.cropW,
@@ -170,9 +187,18 @@ export class CropModeController {
       top: (this.imageBounds.top ?? 0) + crop.cropY * scaleY,
       cropState: crop,
       __cropState: crop
-    });
+    };
 
-    this.image.setCoords();
+    const commandHistory = (window as any).__commandHistory;
+    const objectId = getFabricObjectId(this.image);
+    if (commandHistory && objectId) {
+      const cmd = new ApplyCropCommand(objectId, before, after);
+      void commandHistory.execute(cmd, { source: "ui", objectIds: [objectId] });
+    } else {
+      Object.assign(this.image, after);
+      this.image.setCoords();
+    }
+
     this.exit(false);
     this.canvas.requestRenderAll();
   }
@@ -183,13 +209,15 @@ export class CropModeController {
       return;
     }
 
-    this.image.set({
+    Object.assign(this.image, {
       left: this.snapshot.left,
       top: this.snapshot.top,
       width: this.snapshot.width,
       height: this.snapshot.height,
       cropX: this.snapshot.cropX,
-      cropY: this.snapshot.cropY
+      cropY: this.snapshot.cropY,
+      cropState: this.snapshot.cropState,
+      __cropState: this.snapshot.__cropState
     });
 
     this.image.setCoords();
@@ -340,10 +368,10 @@ export class CropModeController {
 
     this.canvas.selection = false;
     this.previousInteractionState.objectStates.forEach(({ obj }) => {
-      obj.set({ selectable: false, evented: false });
+      Object.assign(obj, { selectable: false, evented: false });
     });
 
-    activeImage.set({ selectable: true, evented: true, hasControls: true });
+    Object.assign(activeImage, { selectable: true, evented: true, hasControls: true });
   }
 
   private restoreInteractions() {
@@ -351,12 +379,12 @@ export class CropModeController {
 
     this.canvas.selection = this.previousInteractionState.canvasSelection;
     this.previousInteractionState.objectStates.forEach(({ obj, selectable, evented }) => {
-      obj.set({ selectable, evented });
+      Object.assign(obj, { selectable, evented });
     });
 
     if (this.image) {
       const activeImageState = this.previousInteractionState.activeImageState;
-      this.image.set({
+      Object.assign(this.image, {
         selectable: activeImageState.selectable,
         evented: activeImageState.evented,
         hasControls: activeImageState.hasControls

@@ -2,7 +2,9 @@ export const isShapeObject = (obj: any) => obj?.data?.type === "shape";
 
 export const isRectLikeShape = (obj: any) => {
   const kind = obj?.data?.shapeKind;
-  return isShapeObject(obj) && (kind === "rect" || kind === "square");
+  const fabricType = String(obj?.type ?? "").toLowerCase();
+  if (kind === "rect" || kind === "square") return true;
+  return isShapeObject(obj) && fabricType === "rect";
 };
 
 const drawCornerAwareRectPath = (ctx: CanvasRenderingContext2D, width: number, height: number, radii: RectCornerRadii) => {
@@ -64,11 +66,18 @@ const applyCornerAwareRendering = (obj: any) => {
   };
 
   obj.__cornerAwareRenderingApplied = true;
+  markShapeVisualDirty(obj);
 };
 
 const abs = (n: unknown, fallback = 1) => Math.abs(Number.isFinite(Number(n)) ? Number(n) : fallback);
 
 const getScaleSign = (n: unknown) => (Number(n) < 0 ? -1 : 1);
+
+const markShapeVisualDirty = (obj: any) => {
+  if (!obj) return;
+  obj.dirty = true;
+  if (obj.group) obj.group.dirty = true;
+};
 
 const getVisualCornerRadiusFromObject = (obj: any) => {
   const rx = Math.max(0, Number(obj?.rx ?? obj?.ry ?? 0));
@@ -103,7 +112,7 @@ const normalizeCornerRadii = (obj: any, incoming?: Partial<RectCornerRadii>): Re
 
 export const ensureShapeStrokeUniform = (obj: any) => {
   if (!isShapeObject(obj)) return;
-  if (obj.strokeUniform !== true) obj.set("strokeUniform", true);
+  if (obj.strokeUniform !== true) obj.strokeUniform = true;
 };
 
 export const ensureRectRadiusMetadata = (obj: any) => {
@@ -111,7 +120,7 @@ export const ensureRectRadiusMetadata = (obj: any) => {
   const data = obj?.data ?? {};
   const radii = normalizeCornerRadii(obj);
   const uniform = Math.max(radii.tl, radii.tr, radii.br, radii.bl);
-  obj.set("data", { ...data, cornerRadiusPx: uniform, cornerRadii: radii });
+  obj.data = { ...data, cornerRadiusPx: uniform, cornerRadii: radii };
   applyCornerAwareRendering(obj);
 };
 
@@ -137,8 +146,9 @@ export const setRectRadiusPx = (obj: any, radiusPx: number) => {
   });
   const next = Math.max(nextRadii.tl, nextRadii.tr, nextRadii.br, nextRadii.bl);
   const data = obj?.data ?? {};
-  obj.set("data", { ...data, cornerRadiusPx: next, cornerRadii: nextRadii });
-  obj.set({ rx: next, ry: next });
+  obj.data = { ...data, cornerRadiusPx: next, cornerRadii: nextRadii };
+  Object.assign(obj, { rx: next, ry: next });
+  markShapeVisualDirty(obj);
 };
 
 export const setRectCornerRadiiPx = (obj: any, radii: Partial<RectCornerRadii>) => {
@@ -146,9 +156,10 @@ export const setRectCornerRadiiPx = (obj: any, radii: Partial<RectCornerRadii>) 
   const nextRadii = normalizeCornerRadii(obj, radii);
   const uniform = Math.max(nextRadii.tl, nextRadii.tr, nextRadii.br, nextRadii.bl);
   const data = obj?.data ?? {};
-  obj.set("data", { ...data, cornerRadiusPx: uniform, cornerRadii: nextRadii });
+  obj.data = { ...data, cornerRadiusPx: uniform, cornerRadii: nextRadii };
   // Fabric Rect supports uniform radius only; keep the largest one to avoid clipping artifacts.
-  obj.set({ rx: uniform, ry: uniform });
+  Object.assign(obj, { rx: uniform, ry: uniform });
+  markShapeVisualDirty(obj);
 };
 
 export const setRectRadiusPxPreserveSize = (obj: any, radiusPx: number) => {
@@ -161,13 +172,14 @@ export const setRectRadiusPxPreserveSize = (obj: any, radiusPx: number) => {
 
   setRectRadiusPx(obj, radiusPx);
 
-  obj.set({
+  Object.assign(obj, {
     width: renderedW,
     height: renderedH,
     scaleX: signX,
     scaleY: signY,
     strokeUniform: true
   });
+  markShapeVisualDirty(obj);
 };
 
 export const normalizeRectAfterTransform = (obj: any) => {
@@ -184,7 +196,7 @@ export const normalizeRectAfterTransform = (obj: any) => {
   const maxAllowed = Math.max(0, Math.min(renderedW, renderedH) / 2);
   const nextRadius = Math.min(cornerRadiusPx, maxAllowed);
 
-  obj.set({
+  Object.assign(obj, {
     width: renderedW,
     height: renderedH,
     scaleX: signX,
@@ -195,4 +207,5 @@ export const normalizeRectAfterTransform = (obj: any) => {
   });
 
   setRectCornerRadiiPx(obj, getRectCornerRadiiPx(obj));
+  markShapeVisualDirty(obj);
 };
