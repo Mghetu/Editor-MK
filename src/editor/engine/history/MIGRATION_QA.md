@@ -1,0 +1,111 @@
+# Command History Migration QA Checklist
+
+This checklist is the final closeout step after direct `.set(...)` migration has reached zero allowlist exceptions.
+
+## Preconditions
+
+- Command history builds and tests pass.
+- `npm run check:history-mutations` reports no direct `.set(...)` in scoped paths.
+- `npm run verify:history-migration` passes (runs guardrails in history-disabled and history-enabled modes).
+- Run QA once with command history **disabled** and once with it **enabled** (`VITE_USE_COMMAND_HISTORY=true`) to compare behavior.
+
+## Core Undo/Redo Scenarios
+
+1. **Add/Edit/Delete lifecycle**
+   - Add text, shape, image, table.
+   - Edit each object (position, size, style).
+   - Delete each object.
+   - Undo all actions to blank canvas, redo back to final state.
+
+2. **Reorder operations**
+   - Bring forward / send backward for mixed object stacks.
+   - Verify undo/redo preserves z-order deterministically.
+
+3. **Transform transaction integrity**
+   - Drag/scale/rotate an object with multiple pointer moves.
+   - Verify one user interaction becomes one history intent (not noisy per-frame commands).
+   - Undo returns to exact pre-transform state.
+
+## Feature-Specific Scenarios
+
+4. **Crop mode**
+   - Enter crop, move/scale crop frame, apply.
+   - Undo/redo apply.
+   - Enter crop and cancel.
+   - Verify interaction lock/unlock is restored correctly after exit.
+
+5. **Image grid**
+   - Create grid from each major preset.
+   - Replace one slot image, replace multiple images, shuffle, swap.
+   - Resize grid frame and verify slot reflow.
+   - Select different slots and confirm selected outline/label behavior.
+   - Undo/redo all steps and confirm slot metadata (`selectedSlotId`, image assignment, frame size) remains consistent.
+
+6. **Shape radius/metadata**
+   - Edit uniform radius and per-corner radii.
+   - Scale shape after edits.
+   - Verify render parity and undo/redo symmetry.
+
+## Stability/Consistency Checks
+
+7. **Session stress**
+   - Perform a long mixed session (50+ operations across features).
+   - Undo to start and redo to end.
+   - Confirm no orphan objects, stale selection handles, or mismatched metadata.
+
+8. **Guardrail verification**
+   - Re-run `npm run verify:history-migration`.
+
+9. **Release-readiness gate**
+   - Run `npm run verify:history-ready` for automated readiness checks.
+   - Run `npm run verify:history-ready:strict` for final release signoff (requires manual checklist completion).
+
+
+## Verification Command Reference
+
+- `npm run verify:history-migration`
+  - Runs mutation guard + tests + build in both history-disabled and history-enabled modes.
+- `npm run verify:history-ready`
+  - CI-safe readiness check (automation only).
+- `npm run verify:history-ready:strict`
+  - Final release gate: readiness checks + strict signoff checklist enforcement.
+- `npm run check:history-signoff`
+  - Prints current signoff progress.
+- `npm run check:history-signoff:json`
+  - Machine-readable signoff progress for bots/dashboards.
+- `npm run check:history-signoff:strict`
+  - Fails until all manual checklist items are completed.
+
+### CI behavior
+
+- `.github/workflows/history-ready.yml` push runs execute automation checks (`verify:history-ready`).
+- Manual `workflow_dispatch` runs additionally enforce strict signoff (`check:history-signoff:strict`).
+
+## Signoff Template
+
+Copy/paste into the PR description and fill in:
+
+```md
+### Migration QA Signoff
+- [ ] `npm run verify:history-migration`
+- [ ] Manual QA (history disabled)
+- [ ] Manual QA (history enabled)
+- [ ] Crop scenarios pass
+- [ ] Image grid scenarios pass
+- [ ] Shape radius scenarios pass
+- [ ] Long-session undo/redo stress pass
+
+Notes:
+- Regressions found:
+- Follow-up fixes:
+```
+
+## Exit Criteria
+
+Migration is complete when:
+
+- All scenarios pass in both history-disabled and history-enabled runs.
+- Undo/redo parity is visually and structurally stable.
+- Guardrail/tests/build all pass.
+- `npm run verify:history-ready` passes.
+- `npm run verify:history-ready:strict` passes for final release signoff.
