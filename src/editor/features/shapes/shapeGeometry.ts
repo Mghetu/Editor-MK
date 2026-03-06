@@ -103,7 +103,7 @@ const normalizeCornerRadii = (obj: any, incoming?: Partial<RectCornerRadii>): Re
 
 export const ensureShapeStrokeUniform = (obj: any) => {
   if (!isShapeObject(obj)) return;
-  if (obj.strokeUniform !== true) obj.set("strokeUniform", true);
+  if (obj.strokeUniform !== true) obj.strokeUniform = true;
 };
 
 export const ensureRectRadiusMetadata = (obj: any) => {
@@ -111,7 +111,7 @@ export const ensureRectRadiusMetadata = (obj: any) => {
   const data = obj?.data ?? {};
   const radii = normalizeCornerRadii(obj);
   const uniform = Math.max(radii.tl, radii.tr, radii.br, radii.bl);
-  obj.set("data", { ...data, cornerRadiusPx: uniform, cornerRadii: radii });
+  obj.data = { ...data, cornerRadiusPx: uniform, cornerRadii: radii };
   applyCornerAwareRendering(obj);
 };
 
@@ -137,8 +137,8 @@ export const setRectRadiusPx = (obj: any, radiusPx: number) => {
   });
   const next = Math.max(nextRadii.tl, nextRadii.tr, nextRadii.br, nextRadii.bl);
   const data = obj?.data ?? {};
-  obj.set("data", { ...data, cornerRadiusPx: next, cornerRadii: nextRadii });
-  obj.set({ rx: next, ry: next });
+  obj.data = { ...data, cornerRadiusPx: next, cornerRadii: nextRadii };
+  Object.assign(obj, { rx: next, ry: next });
 };
 
 export const setRectCornerRadiiPx = (obj: any, radii: Partial<RectCornerRadii>) => {
@@ -146,9 +146,9 @@ export const setRectCornerRadiiPx = (obj: any, radii: Partial<RectCornerRadii>) 
   const nextRadii = normalizeCornerRadii(obj, radii);
   const uniform = Math.max(nextRadii.tl, nextRadii.tr, nextRadii.br, nextRadii.bl);
   const data = obj?.data ?? {};
-  obj.set("data", { ...data, cornerRadiusPx: uniform, cornerRadii: nextRadii });
+  obj.data = { ...data, cornerRadiusPx: uniform, cornerRadii: nextRadii };
   // Fabric Rect supports uniform radius only; keep the largest one to avoid clipping artifacts.
-  obj.set({ rx: uniform, ry: uniform });
+  Object.assign(obj, { rx: uniform, ry: uniform });
 };
 
 export const setRectRadiusPxPreserveSize = (obj: any, radiusPx: number) => {
@@ -161,7 +161,7 @@ export const setRectRadiusPxPreserveSize = (obj: any, radiusPx: number) => {
 
   setRectRadiusPx(obj, radiusPx);
 
-  obj.set({
+  Object.assign(obj, {
     width: renderedW,
     height: renderedH,
     scaleX: signX,
@@ -184,7 +184,7 @@ export const normalizeRectAfterTransform = (obj: any) => {
   const maxAllowed = Math.max(0, Math.min(renderedW, renderedH) / 2);
   const nextRadius = Math.min(cornerRadiusPx, maxAllowed);
 
-  obj.set({
+  Object.assign(obj, {
     width: renderedW,
     height: renderedH,
     scaleX: signX,

@@ -48,7 +48,7 @@ const relayoutAutoLayoutGroup = (group: Group, data: AutoLayoutData) => {
   const nextHeight = Math.max(1, contentH + padding * 2);
 
   const center = group.getCenterPoint();
-  group.set({ width: nextWidth, height: nextHeight });
+  Object.assign(group, { width: nextWidth, height: nextHeight });
   group.setPositionByOrigin(center, "center", "center");
 
   let cursor = data.direction === "row"
@@ -67,7 +67,7 @@ const relayoutAutoLayoutGroup = (group: Group, data: AutoLayoutData) => {
       if (data.align === "start") top = -nextHeight / 2 + padding + itemH / 2;
       if (data.align === "center") top = -alignSpan / 2 + 0;
       if (data.align === "end") top = nextHeight / 2 - padding - itemH / 2;
-      item.set({ left, top, originX: "center", originY: "center" });
+      Object.assign(item, { left, top, originX: "center", originY: "center" });
       cursor += itemW + gap;
     } else {
       const top = cursor + itemH / 2;
@@ -76,7 +76,7 @@ const relayoutAutoLayoutGroup = (group: Group, data: AutoLayoutData) => {
       if (data.align === "start") left = -nextWidth / 2 + padding + itemW / 2;
       if (data.align === "center") left = -alignSpan / 2 + 0;
       if (data.align === "end") left = nextWidth / 2 - padding - itemW / 2;
-      item.set({ left, top, originX: "center", originY: "center" });
+      Object.assign(item, { left, top, originX: "center", originY: "center" });
       cursor += itemH + gap;
     }
 
@@ -137,7 +137,7 @@ export const createAutoLayoutFromSelection = (canvas: Canvas) => {
     align: "center"
   };
 
-  (group as any).set("data", data);
+  (group as any).data = data;
   relayoutAutoLayoutGroup(group, data);
   canvas.setActiveObject(group);
   canvas.requestRenderAll();
@@ -157,7 +157,7 @@ export const updateSelectedAutoLayout = (canvas: Canvas, patch: Partial<AutoLayo
     padding: clamp(Number(patch.padding ?? current.padding ?? 0), 0, 240)
   };
 
-  (active as any).set("data", next);
+  (active as any).data = next;
   relayoutAutoLayoutGroup(active, next);
   canvas.requestRenderAll();
 };
