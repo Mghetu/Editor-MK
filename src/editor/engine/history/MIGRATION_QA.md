@@ -56,6 +56,9 @@ This checklist is the final closeout step after direct `.set(...)` migration has
 8. **Guardrail verification**
    - Re-run `npm run verify:history-migration`.
 
+9. **Release-readiness gate**
+   - Run `npm run verify:history-ready` (automated checks + strict signoff).
+
 ## Signoff Template
 
 Copy/paste into the PR description and fill in:
@@ -82,3 +85,4 @@ Migration is complete when:
 - All scenarios pass in both history-disabled and history-enabled runs.
 - Undo/redo parity is visually and structurally stable.
 - Guardrail/tests/build all pass.
+- `npm run verify:history-ready` passes.
