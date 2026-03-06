@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { bindSelectionEvents } from "./selection";
+import { bindSelectionEvents, inferSelectionType } from "./selection";
 
 describe("bindSelectionEvents", () => {
   it("emits selection updates even when id/type are unchanged", () => {
@@ -59,5 +59,16 @@ describe("bindSelectionEvents", () => {
     expect(onSelectionChange).toHaveBeenNthCalledWith(2, "grid-1", "imageGrid");
 
     unbind();
+  });
+});
+
+
+describe("inferSelectionType", () => {
+  it("infers imageGrid for group objects with grid slot data", () => {
+    expect(inferSelectionType({ type: "group", data: { slots: [{ id: "s1" }], frameWidth: 300, frameHeight: 200 } })).toBe("imageGrid");
+  });
+
+  it("infers shape for rect fabric objects with generic shape data", () => {
+    expect(inferSelectionType({ type: "rect", data: { type: "shape" } })).toBe("shape");
   });
 });

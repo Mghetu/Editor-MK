@@ -2,13 +2,18 @@ import type { Canvas } from "fabric";
 
 type EditorSelectionType = "text" | "image" | "table" | "shape" | "imageGrid" | "autoLayout";
 
-const inferSelectionType = (obj: any): EditorSelectionType | undefined => {
+export const inferSelectionType = (obj: any): EditorSelectionType | undefined => {
   const explicitType = obj?.data?.type;
   if (explicitType === "text" || explicitType === "image" || explicitType === "table" || explicitType === "shape" || explicitType === "imageGrid" || explicitType === "autoLayout") {
     return explicitType;
   }
 
   if (obj?.table) return "table";
+
+
+  if (Array.isArray(obj?.data?.slots) && Number.isFinite(Number(obj?.data?.frameWidth ?? NaN)) && Number.isFinite(Number(obj?.data?.frameHeight ?? NaN))) {
+    return "imageGrid";
+  }
 
   const fabricType = String(obj?.type ?? "").toLowerCase();
   if (fabricType === "textbox" || fabricType === "i-text" || fabricType === "text") return "text";
@@ -17,6 +22,11 @@ const inferSelectionType = (obj: any): EditorSelectionType | undefined => {
   // Rect/circle-like objects are edited with ShapeInspector in this editor.
   if (fabricType === "rect" || fabricType === "circle" || fabricType === "triangle" || fabricType === "polygon" || fabricType === "ellipse") {
     return "shape";
+  }
+
+  if (fabricType === "group") {
+    if (Array.isArray(obj?.data?.slots)) return "imageGrid";
+    if (obj?.table) return "table";
   }
 
   return undefined;

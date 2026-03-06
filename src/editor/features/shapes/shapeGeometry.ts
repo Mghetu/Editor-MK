@@ -2,7 +2,9 @@ export const isShapeObject = (obj: any) => obj?.data?.type === "shape";
 
 export const isRectLikeShape = (obj: any) => {
   const kind = obj?.data?.shapeKind;
-  return isShapeObject(obj) && (kind === "rect" || kind === "square");
+  const fabricType = String(obj?.type ?? "").toLowerCase();
+  if (kind === "rect" || kind === "square") return true;
+  return isShapeObject(obj) && fabricType === "rect";
 };
 
 const drawCornerAwareRectPath = (ctx: CanvasRenderingContext2D, width: number, height: number, radii: RectCornerRadii) => {
