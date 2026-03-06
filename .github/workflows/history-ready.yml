@@ -28,5 +28,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify history migration is release-ready
-        run: npm run verify:history-ready
+      - name: Verify history migration automation
+        run: npm run verify:history-migration
+
+      - name: Verify strict signoff gate (manual run only)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: npm run check:history-signoff:strict
