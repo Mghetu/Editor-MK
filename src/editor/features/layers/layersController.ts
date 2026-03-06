@@ -1,3 +1,4 @@
+import { applyObjectMutation, reorderObjectWithHistory } from "../../engine/history/mutator";
 import type { Canvas } from "fabric";
 
 export type LayerItem = {
@@ -13,13 +14,14 @@ export type LayerItem = {
 const ensureData = (obj: any, fallbackName: string) => {
   const existing = obj?.data ?? {};
   const data = {
+    ...existing,
     id: existing.id ?? crypto.randomUUID(),
     name: existing.name ?? fallbackName,
     type: existing.type ?? obj?.type ?? "object",
     locked: Boolean(existing.locked),
     hidden: Boolean(existing.hidden)
   };
-  obj.set("data", data);
+  obj.data = data;
   return data;
 };
 
@@ -53,54 +55,57 @@ export const selectLayer = (canvas: Canvas, id: string) => {
   canvas.renderAll();
 };
 
-export const toggleLockLayer = (canvas: Canvas, id: string) => {
+export const toggleLockLayer = async (canvas: Canvas, id: string) => {
   const obj = findLayerObject(canvas, id);
   if (!obj) return;
   const data = ensureData(obj, "Layer");
   const locked = !data.locked;
-  obj.set("data", { ...data, locked });
-  obj.set({
-    lockMovementX: locked,
-    lockMovementY: locked,
-    lockScalingX: locked,
-    lockScalingY: locked,
-    lockRotation: locked,
-    hasControls: !locked,
-    selectable: !locked && obj.visible !== false,
-    evented: !locked && obj.visible !== false
-  });
-  canvas.renderAll();
+
+  await applyObjectMutation(canvas, obj, (target) => {
+    target.data = { ...data, locked };
+    Object.assign(target, {
+      lockMovementX: locked,
+      lockMovementY: locked,
+      lockScalingX: locked,
+      lockScalingY: locked,
+      lockRotation: locked,
+      hasControls: !locked,
+      selectable: !locked && target.visible !== false,
+      evented: !locked && target.visible !== false
+    });
+  }, locked ? "Lock layer" : "Unlock layer");
 };
 
-export const toggleHideLayer = (canvas: Canvas, id: string) => {
+export const toggleHideLayer = async (canvas: Canvas, id: string) => {
   const obj = findLayerObject(canvas, id);
   if (!obj) return;
   const data = ensureData(obj, "Layer");
   const hidden = !data.hidden;
-  obj.set("data", { ...data, hidden });
-  obj.set({
-    visible: !hidden,
-    selectable: !hidden && !data.locked,
-    evented: !hidden && !data.locked
-  });
-  if (hidden && canvas.getActiveObject() === obj) {
-    canvas.discardActiveObject();
-  }
-  canvas.renderAll();
+  const locked = Boolean(data.locked);
+
+  await applyObjectMutation(canvas, obj, (target, currentCanvas) => {
+    target.data = { ...data, hidden };
+    Object.assign(target, {
+      visible: !hidden,
+      selectable: !hidden && !locked,
+      evented: !hidden && !locked
+    });
+    if (hidden && currentCanvas.getActiveObject?.() === target) {
+      currentCanvas.discardActiveObject();
+    }
+  }, hidden ? "Hide layer" : "Show layer");
 };
 
 export const bringForward = (canvas: Canvas, id: string) => {
   const obj = findLayerObject(canvas, id);
   if (obj) {
-    canvas.bringObjectForward(obj);
-    canvas.renderAll();
+    void reorderObjectWithHistory(canvas, obj, 1, "Bring forward");
   }
 };
 
 export const sendBackward = (canvas: Canvas, id: string) => {
   const obj = findLayerObject(canvas, id);
   if (obj) {
-    canvas.sendObjectBackwards(obj);
-    canvas.renderAll();
+    void reorderObjectWithHistory(canvas, obj, -1, "Send backward");
   }
 };
