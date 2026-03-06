@@ -30,4 +30,34 @@ describe("bindSelectionEvents", () => {
 
     unbind();
   });
+
+  it("does not clear inspector selection on transient selection:cleared during replacement", async () => {
+    const listeners = new Map<string, (evt?: any) => void>();
+    const activeObj: any = {
+      id: "grid-1",
+      type: "group",
+      data: { id: "grid-1", type: "imageGrid" },
+      set: vi.fn()
+    };
+
+    const canvas: any = {
+      getActiveObject: () => activeObj,
+      getObjects: () => [activeObj],
+      on: (event: string, handler: (evt?: any) => void) => listeners.set(event, handler),
+      off: (event: string) => listeners.delete(event)
+    };
+
+    const onSelectionChange = vi.fn();
+    const unbind = bindSelectionEvents(canvas, onSelectionChange);
+
+    listeners.get("selection:updated")?.();
+    listeners.get("selection:cleared")?.();
+    await Promise.resolve();
+
+    expect(onSelectionChange).toHaveBeenCalledTimes(2);
+    expect(onSelectionChange).toHaveBeenNthCalledWith(1, "grid-1", "imageGrid");
+    expect(onSelectionChange).toHaveBeenNthCalledWith(2, "grid-1", "imageGrid");
+
+    unbind();
+  });
 });
