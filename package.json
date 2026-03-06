@@ -13,7 +13,8 @@
     "signoff:history": "node scripts/create-history-signoff.mjs --run-verify",
     "signoff:history:template": "node scripts/create-history-signoff.mjs",
     "check:history-signoff": "node scripts/check-history-signoff.mjs",
-    "check:history-signoff:strict": "node scripts/check-history-signoff.mjs --strict"
+    "check:history-signoff:strict": "node scripts/check-history-signoff.mjs --strict",
+    "check:history-signoff:json": "node scripts/check-history-signoff.mjs --json"
   },
   "dependencies": {
     "fabric": "^7.1.0",
