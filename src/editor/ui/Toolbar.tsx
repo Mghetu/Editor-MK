@@ -1,5 +1,6 @@
 import { Copy, Layers, Trash2 } from "lucide-react";
 import { useEditorStore } from "../state/useEditorStore";
+import { applyObjectProperties, duplicateObjectWithHistory, removeObjectWithHistory, reorderObjectWithHistory } from "../engine/history/mutator";
 
 const fonts = ["Arial", "Inter", "Georgia", "Times New Roman", "Courier New"];
 
@@ -16,9 +17,8 @@ export function Toolbar() {
     );
   }
 
-  const mutate = (fn: () => void) => {
-    fn();
-    canvas?.renderAll();
+  const mutate = (values: Record<string, unknown>, label = "Update object") => {
+    void applyObjectProperties(canvas, active, values, label);
   };
 
   return (
@@ -29,7 +29,7 @@ export function Toolbar() {
           <input
             type="color"
             defaultValue={(active.fill as string) || "#111827"}
-            onChange={(e) => mutate(() => active.set("fill", e.target.value))}
+            onChange={(e) => mutate({ fill: e.target.value }, "Set fill") }
           />
         </>
       )}
@@ -39,7 +39,7 @@ export function Toolbar() {
           <select
             className="rounded border border-[#5a5a5a] bg-[#202020] px-2 py-1"
             defaultValue={active.fontFamily || "Arial"}
-            onChange={(e) => mutate(() => active.set("fontFamily", e.target.value))}
+            onChange={(e) => mutate({ fontFamily: e.target.value }, "Set font family") }
           >
             {fonts.map((font) => (
               <option key={font} value={font}>{font}</option>
@@ -49,7 +49,7 @@ export function Toolbar() {
             type="number"
             className="w-16 rounded border border-[#5a5a5a] bg-[#202020] px-2 py-1"
             defaultValue={active.fontSize || 48}
-            onChange={(e) => mutate(() => active.set("fontSize", Number(e.target.value)))}
+            onChange={(e) => mutate({ fontSize: Number(e.target.value) }, "Set font size") }
           />
         </>
       )}
@@ -63,7 +63,7 @@ export function Toolbar() {
             max={1}
             step={0.05}
             defaultValue={active.opacity ?? 1}
-            onChange={(e) => mutate(() => active.set("opacity", Number(e.target.value)))}
+            onChange={(e) => mutate({ opacity: Number(e.target.value) }, "Set opacity") }
           />
         </>
       )}
@@ -72,29 +72,14 @@ export function Toolbar() {
         <button
           className="rounded p-1.5 hover:bg-[#2a2a2a]"
           title="Duplicate"
-          onClick={async () => {
-            if (!canvas || !active) return;
-            const cloned = await active.clone();
-            const originalData = active?.data ?? {};
-            const clonedData = cloned?.data ?? {};
-
-            cloned.set("data", {
-              ...originalData,
-              ...clonedData,
-              id: crypto.randomUUID()
-            });
-            cloned.set({ left: (active.left ?? 0) + 20, top: (active.top ?? 0) + 20 });
-            canvas.add(cloned);
-            canvas.setActiveObject(cloned);
-            canvas.renderAll();
-          }}
+          onClick={() => { void duplicateObjectWithHistory(canvas, active, "Duplicate object"); }}
         >
           <Copy size={14} />
         </button>
-        <button className="rounded p-1.5 hover:bg-[#2a2a2a]" title="Bring forward" onClick={() => mutate(() => canvas?.bringObjectForward(active))}>
+        <button className="rounded p-1.5 hover:bg-[#2a2a2a]" title="Bring forward" onClick={() => { void reorderObjectWithHistory(canvas, active, 1, "Bring forward"); }}>
           <Layers size={14} />
         </button>
-        <button className="rounded p-1.5 text-rose-400 hover:bg-[#2a2a2a]" title="Delete" onClick={() => mutate(() => canvas?.remove(active))}>
+        <button className="rounded p-1.5 text-rose-400 hover:bg-[#2a2a2a]" title="Delete" onClick={() => { void removeObjectWithHistory(canvas, active, "Delete object"); }}>
           <Trash2 size={14} />
         </button>
       </div>
