@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 
+const strict = process.argv.includes("--strict");
 const path = "docs/history-migration-signoff.md";
 const content = readFileSync(path, "utf8");
 
@@ -31,3 +32,8 @@ console.log("History migration signoff status:");
 console.log(`- Automated verification: checked`);
 console.log(`- Remaining manual items: ${remainingManual.length}`);
 remainingManual.forEach((line) => console.log(`  - ${line.replace(/^- \[ \] /, "")}`));
+
+if (strict && remainingManual.length > 0) {
+  console.error(`Strict signoff check failed: ${remainingManual.length} manual checklist items remain.`);
+  process.exit(1);
+}
