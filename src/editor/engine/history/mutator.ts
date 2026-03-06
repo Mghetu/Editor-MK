@@ -4,6 +4,12 @@ import type { CommandHistoryManager } from "./transactionHistory";
 
 const getCommandHistory = (): CommandHistoryManager | undefined => (window as any).__commandHistory;
 
+const markObjectVisualDirty = (obj: any) => {
+  if (!obj) return;
+  obj.dirty = true;
+  if (obj.group) obj.group.dirty = true;
+};
+
 export const applyObjectProperties = async (canvas: any, obj: any, values: Record<string, unknown>, label = "Update object") => {
   const commandHistory = getCommandHistory();
   const objectId = getFabricObjectId(obj);
@@ -44,6 +50,7 @@ export const applyObjectMutation = async (
 
   if (!commandHistory || !objectId) {
     mutate(obj, canvas);
+    markObjectVisualDirty(obj);
     obj.setCoords?.();
     canvas?.requestRenderAll?.();
     return;
@@ -52,6 +59,7 @@ export const applyObjectMutation = async (
   const ctx = createFabricHistoryContext(canvas);
   const before = ctx.serializeObject(obj);
   mutate(obj, canvas);
+  markObjectVisualDirty(obj);
   obj.setCoords?.();
   canvas?.requestRenderAll?.();
   const after = ctx.serializeObject(obj);
