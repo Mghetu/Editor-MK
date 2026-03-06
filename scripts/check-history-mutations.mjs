@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
@@ -20,6 +20,12 @@ const collectFiles = (dir) => {
     files.push(relative(process.cwd(), full));
   }
   return files;
+};
+
+
+const hasRipgrep = () => {
+  const probe = spawnSync("rg", ["--version"], { stdio: "ignore" });
+  return probe.status === 0;
 };
 
 const scanWithNode = () => {
@@ -51,28 +57,32 @@ const scanWithRipgrep = () => {
 };
 
 let files;
-try {
-  files = scanWithRipgrep();
-} catch (error) {
-  const isMissingRg = Boolean(
-    error &&
-      typeof error === "object" &&
-      "status" in error &&
-      Number(error.status) === 127
-  );
-  const isNoMatches = Boolean(
-    error &&
-      typeof error === "object" &&
-      "status" in error &&
-      Number(error.status) === 1
-  );
+if (!hasRipgrep()) {
+  files = scanWithNode();
+} else {
+  try {
+    files = scanWithRipgrep();
+  } catch (error) {
+    const isMissingRg = Boolean(
+      error &&
+        typeof error === "object" &&
+        "status" in error &&
+        Number(error.status) === 127
+    );
+    const isNoMatches = Boolean(
+      error &&
+        typeof error === "object" &&
+        "status" in error &&
+        Number(error.status) === 1
+    );
 
-  if (isNoMatches) {
-    files = new Set();
-  } else if (isMissingRg) {
-    files = scanWithNode();
-  } else {
-    throw error;
+    if (isNoMatches) {
+      files = new Set();
+    } else if (isMissingRg) {
+      files = scanWithNode();
+    } else {
+      throw error;
+    }
   }
 }
 
