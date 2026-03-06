@@ -64,11 +64,18 @@ const applyCornerAwareRendering = (obj: any) => {
   };
 
   obj.__cornerAwareRenderingApplied = true;
+  markShapeVisualDirty(obj);
 };
 
 const abs = (n: unknown, fallback = 1) => Math.abs(Number.isFinite(Number(n)) ? Number(n) : fallback);
 
 const getScaleSign = (n: unknown) => (Number(n) < 0 ? -1 : 1);
+
+const markShapeVisualDirty = (obj: any) => {
+  if (!obj) return;
+  obj.dirty = true;
+  if (obj.group) obj.group.dirty = true;
+};
 
 const getVisualCornerRadiusFromObject = (obj: any) => {
   const rx = Math.max(0, Number(obj?.rx ?? obj?.ry ?? 0));
@@ -139,6 +146,7 @@ export const setRectRadiusPx = (obj: any, radiusPx: number) => {
   const data = obj?.data ?? {};
   obj.data = { ...data, cornerRadiusPx: next, cornerRadii: nextRadii };
   Object.assign(obj, { rx: next, ry: next });
+  markShapeVisualDirty(obj);
 };
 
 export const setRectCornerRadiiPx = (obj: any, radii: Partial<RectCornerRadii>) => {
@@ -149,6 +157,7 @@ export const setRectCornerRadiiPx = (obj: any, radii: Partial<RectCornerRadii>) 
   obj.data = { ...data, cornerRadiusPx: uniform, cornerRadii: nextRadii };
   // Fabric Rect supports uniform radius only; keep the largest one to avoid clipping artifacts.
   Object.assign(obj, { rx: uniform, ry: uniform });
+  markShapeVisualDirty(obj);
 };
 
 export const setRectRadiusPxPreserveSize = (obj: any, radiusPx: number) => {
@@ -168,6 +177,7 @@ export const setRectRadiusPxPreserveSize = (obj: any, radiusPx: number) => {
     scaleY: signY,
     strokeUniform: true
   });
+  markShapeVisualDirty(obj);
 };
 
 export const normalizeRectAfterTransform = (obj: any) => {
@@ -195,4 +205,5 @@ export const normalizeRectAfterTransform = (obj: any) => {
   });
 
   setRectCornerRadiiPx(obj, getRectCornerRadiiPx(obj));
+  markShapeVisualDirty(obj);
 };
