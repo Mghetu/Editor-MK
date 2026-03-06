@@ -28,15 +28,17 @@ export const bindSelectionEvents = (
 ) => {
   let lastId: string | undefined;
   let lastType: EditorSelectionType | undefined;
+  let clearToken = 0;
 
-  const emitIfChanged = (id?: string, type?: EditorSelectionType) => {
-    if (id === lastId && type === lastType) return;
+  const emitIfChanged = (id?: string, type?: EditorSelectionType, force = false) => {
+    if (!force && id === lastId && type === lastType) return;
     lastId = id;
     lastType = type;
     onSelectionChange(id, type);
   };
 
   const update = () => {
+    clearToken += 1;
     const obj = canvas.getActiveObject() as any;
     if (obj?.data?.isCropOverlay) return;
 
@@ -51,10 +53,11 @@ export const bindSelectionEvents = (
 
     const id = (obj?.data?.id ?? obj?.id) as string | undefined;
 
-    emitIfChanged(id, type);
+    emitIfChanged(id, type, true);
   };
 
   const clear = () => {
+    const token = ++clearToken;
     const hasCropOverlay = canvas.getObjects().some((obj: any) => obj?.data?.isCropOverlay);
     if (hasCropOverlay) {
       // During crop mode we intentionally avoid clearing the inspector state,
@@ -64,7 +67,16 @@ export const bindSelectionEvents = (
       lastType = undefined;
       return;
     }
-    emitIfChanged(undefined, undefined);
+
+    queueMicrotask(() => {
+      if (token !== clearToken) return;
+      const active = canvas.getActiveObject() as any;
+      if (active && !active?.data?.isCropOverlay) {
+        update();
+        return;
+      }
+      emitIfChanged(undefined, undefined);
+    });
   };
 
   canvas.on("selection:created", update);
