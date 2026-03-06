@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { inferSelectionType } from "../engine/selection";
 import { useEditorStore } from "../state/useEditorStore";
 import { ImageInspector } from "./inspector/ImageInspector";
@@ -12,20 +12,45 @@ import { AutoLayoutInspector } from "./inspector/AutoLayoutInspector";
 export function RightInspector() {
   const { selectedObjectType } = useEditorStore();
   const [tick, setTick] = useState(0);
+  const unbindRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    const canvas = (window as any).__editorCanvas;
-    if (!canvas) return;
-    const refresh = () => setTick((v) => v + 1);
-    canvas.on("selection:created", refresh);
-    canvas.on("selection:updated", refresh);
-    canvas.on("selection:cleared", refresh);
-    canvas.on("object:modified", refresh);
+    const bindIfReady = () => {
+      if (unbindRef.current) return true;
+      const canvas = (window as any).__editorCanvas;
+      if (!canvas) return false;
+
+      const refresh = () => setTick((v) => v + 1);
+      canvas.on("selection:created", refresh);
+      canvas.on("selection:updated", refresh);
+      canvas.on("selection:cleared", refresh);
+      canvas.on("object:modified", refresh);
+      canvas.on("object:added", refresh);
+      canvas.on("object:removed", refresh);
+
+      unbindRef.current = () => {
+        canvas.off("selection:created", refresh);
+        canvas.off("selection:updated", refresh);
+        canvas.off("selection:cleared", refresh);
+        canvas.off("object:modified", refresh);
+        canvas.off("object:added", refresh);
+        canvas.off("object:removed", refresh);
+        unbindRef.current = null;
+      };
+      return true;
+    };
+
+    if (bindIfReady()) return () => unbindRef.current?.();
+
+    const interval = window.setInterval(() => {
+      if (bindIfReady()) {
+        window.clearInterval(interval);
+      }
+    }, 100);
+
     return () => {
-      canvas.off("selection:created", refresh);
-      canvas.off("selection:updated", refresh);
-      canvas.off("selection:cleared", refresh);
-      canvas.off("object:modified", refresh);
+      window.clearInterval(interval);
+      unbindRef.current?.();
     };
   }, []);
 

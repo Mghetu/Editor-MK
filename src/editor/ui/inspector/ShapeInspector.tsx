@@ -27,8 +27,7 @@ export function ShapeInspector() {
   const canvas = (window as any).__editorCanvas;
   const obj = canvas?.getActiveObject?.() as any;
 
-  const shapeKind = obj?.data?.shapeKind as "rect" | "square" | "circle" | undefined;
-  const isRectangle = shapeKind === "rect";
+  const isRectangle = isRectLikeShape(obj);
 
   const initial = useMemo(() => readRenderedSize(obj), [obj]);
   const [width, setWidth] = useState(initial.width);
