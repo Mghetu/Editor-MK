@@ -60,6 +60,27 @@ This checklist is the final closeout step after direct `.set(...)` migration has
    - Run `npm run verify:history-ready` for automated readiness checks.
    - Run `npm run verify:history-ready:strict` for final release signoff (requires manual checklist completion).
 
+
+## Verification Command Reference
+
+- `npm run verify:history-migration`
+  - Runs mutation guard + tests + build in both history-disabled and history-enabled modes.
+- `npm run verify:history-ready`
+  - CI-safe readiness check (automation only).
+- `npm run verify:history-ready:strict`
+  - Final release gate: readiness checks + strict signoff checklist enforcement.
+- `npm run check:history-signoff`
+  - Prints current signoff progress.
+- `npm run check:history-signoff:json`
+  - Machine-readable signoff progress for bots/dashboards.
+- `npm run check:history-signoff:strict`
+  - Fails until all manual checklist items are completed.
+
+### CI behavior
+
+- `.github/workflows/history-ready.yml` push runs execute automation checks (`verify:history-ready`).
+- Manual `workflow_dispatch` runs additionally enforce strict signoff (`check:history-signoff:strict`).
+
 ## Signoff Template
 
 Copy/paste into the PR description and fill in:
