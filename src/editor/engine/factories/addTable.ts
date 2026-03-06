@@ -1,7 +1,9 @@
 import { Group, IText, Line, Rect } from "fabric";
 import type { Canvas } from "fabric";
+import { AddObjectCommand } from "../history/commands/basic";
+import { createFabricHistoryContext } from "../history/fabricHistoryContext";
 
-export const addTable = (canvas: Canvas, rows = 3, cols = 3) => {
+export const addTable = async (canvas: Canvas, rows = 3, cols = 3) => {
   const cellW = 140;
   const cellH = 52;
   const children: any[] = [new Rect({ left: 0, top: 0, width: cols * cellW, height: rows * cellH, fill: "#fff" })];
@@ -26,9 +28,17 @@ export const addTable = (canvas: Canvas, rows = 3, cols = 3) => {
   }
 
   const group = new Group(children as any, { left: 120, top: 120 }) as any;
-  group.set("data", { id: crypto.randomUUID(), type: "table", name: "Table" });
-  group.set("table", { rows, cols, cellW, cellH, borderColor: "#334155", bgColor: "#ffffff" });
-  canvas.add(group);
-  canvas.setActiveObject(group);
-  canvas.renderAll();
+  group.data = { id: crypto.randomUUID(), type: "table", name: "Table" };
+  group.table = { rows, cols, cellW, cellH, borderColor: "#334155", bgColor: "#ffffff" };
+
+  const commandHistory = (window as any).__commandHistory;
+  if (!commandHistory) {
+    canvas.add(group);
+    canvas.setActiveObject(group);
+    canvas.renderAll();
+    return;
+  }
+
+  const ctx = createFabricHistoryContext(canvas);
+  await commandHistory.execute(AddObjectCommand.fromObject(group, ctx, "Add table"), { source: "ui" });
 };
