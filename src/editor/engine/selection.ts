@@ -29,8 +29,8 @@ export const bindSelectionEvents = (
   let lastId: string | undefined;
   let lastType: EditorSelectionType | undefined;
 
-  const emitIfChanged = (id?: string, type?: EditorSelectionType) => {
-    if (id === lastId && type === lastType) return;
+  const emitIfChanged = (id?: string, type?: EditorSelectionType, force = false) => {
+    if (!force && id === lastId && type === lastType) return;
     lastId = id;
     lastType = type;
     onSelectionChange(id, type);
@@ -51,7 +51,7 @@ export const bindSelectionEvents = (
 
     const id = (obj?.data?.id ?? obj?.id) as string | undefined;
 
-    emitIfChanged(id, type);
+    emitIfChanged(id, type, true);
   };
 
   const clear = () => {
