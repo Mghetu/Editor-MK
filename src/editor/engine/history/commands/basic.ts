@@ -162,6 +162,7 @@ export class ReplaceObjectStateCommand implements HistoryCommand {
     const next = await ctx.enlivenObject(snapshot);
     ctx.addObject(next, index);
     ctx.canvas.setActiveObject?.(next);
+    ctx.canvas.fire?.("selection:updated", { target: next, selected: [next] });
     ctx.render();
   }
 

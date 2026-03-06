@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AddObjectCommand, ApplyCropCommand, BatchSetPropertyCommand, RemoveObjectCommand, ReorderObjectCommand, ReplaceObjectStateCommand } from "./commands/basic";
 import { CommandHistoryManager } from "./transactionHistory";
 import type { HistoryContext } from "./commands/types";
@@ -23,6 +23,9 @@ const createMockContext = () => {
   };
   add(withObjectRuntime({ id: "a", data: { id: "a" }, x: 0 }));
 
+  const setActiveObject = vi.fn();
+  const fire = vi.fn();
+
   const ctx: HistoryContext = {
     canvas: {
       getObjects: () => ordered,
@@ -31,7 +34,9 @@ const createMockContext = () => {
         if (current < 0) return;
         ordered.splice(current, 1);
         ordered.splice(index, 0, obj);
-      }
+      },
+      setActiveObject,
+      fire
     } as any,
     getObjectId: (obj: any) => obj?.id,
     findObjectById: (id: string) => objects.get(id),
@@ -49,7 +54,7 @@ const createMockContext = () => {
     render: () => {}
   };
 
-  return { ctx, objects, ordered };
+  return { ctx, objects, ordered, setActiveObject, fire };
 };
 
 describe("BatchSetPropertyCommand", () => {
@@ -77,12 +82,14 @@ describe("BatchSetPropertyCommand", () => {
   });
 
   it("replaces serialized object state symmetrically", async () => {
-    const { ctx, objects } = createMockContext();
+    const { ctx, objects, setActiveObject, fire } = createMockContext();
     const manager = new CommandHistoryManager(ctx);
     await manager.execute(new ReplaceObjectStateCommand("a", { id: "a", x: 0 }, { id: "a", x: 22 }), { source: "ui" });
     expect(objects.get("a")?.x).toBe(22);
     await manager.undo();
     expect(objects.get("a")?.x).toBe(0);
+    expect(setActiveObject).toHaveBeenCalled();
+    expect(fire).toHaveBeenCalledWith("selection:updated", expect.objectContaining({ selected: expect.any(Array) }));
   });
 
   it("supports optimistic replace commands without re-applying on initial execute", async () => {
