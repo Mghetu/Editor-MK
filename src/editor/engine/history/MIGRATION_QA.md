@@ -57,7 +57,8 @@ This checklist is the final closeout step after direct `.set(...)` migration has
    - Re-run `npm run verify:history-migration`.
 
 9. **Release-readiness gate**
-   - Run `npm run verify:history-ready` (automated checks + strict signoff).
+   - Run `npm run verify:history-ready` for automated readiness checks.
+   - Run `npm run verify:history-ready:strict` for final release signoff (requires manual checklist completion).
 
 ## Signoff Template
 
@@ -86,3 +87,4 @@ Migration is complete when:
 - Undo/redo parity is visually and structurally stable.
 - Guardrail/tests/build all pass.
 - `npm run verify:history-ready` passes.
+- `npm run verify:history-ready:strict` passes for final release signoff.
