@@ -76,4 +76,16 @@ describe("inferSelectionType", () => {
     const grid = { type: "group", data: { id: "g1", slots: [{ id: "s1" }], frameWidth: 300, frameHeight: 200 } };
     expect(inferSelectionType({ type: "activeSelection", _objects: [grid] })).toBe("imageGrid");
   });
+
+  it("infers imageGrid from group children roles when slots metadata is missing", () => {
+    const grid = {
+      type: "group",
+      data: { id: "g1" },
+      _objects: [
+        { data: { role: "slot", slotId: "s1" } },
+        { data: { role: "slot-label" } }
+      ]
+    };
+    expect(inferSelectionType(grid)).toBe("imageGrid");
+  });
 });

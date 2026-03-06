@@ -11,6 +11,15 @@ const unwrapSelectionTarget = (obj: any) => {
   return obj;
 };
 
+const looksLikeImageGridGroup = (obj: any) => {
+  const children = Array.isArray(obj?._objects) ? obj._objects : [];
+  if (!children.length) return false;
+  return children.some((child: any) => {
+    const role = child?.data?.role;
+    return role === "slot" || role === "slot-label" || role === "slot-outline";
+  });
+};
+
 export const inferSelectionType = (obj: any): EditorSelectionType | undefined => {
   const target = unwrapSelectionTarget(obj);
   const explicitType = target?.data?.type;
@@ -36,6 +45,7 @@ export const inferSelectionType = (obj: any): EditorSelectionType | undefined =>
 
   if (fabricType === "group") {
     if (Array.isArray(target?.data?.slots)) return "imageGrid";
+    if (looksLikeImageGridGroup(target)) return "imageGrid";
     if (target?.table) return "table";
   }
 
