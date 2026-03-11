@@ -88,4 +88,17 @@ describe("inferSelectionType", () => {
     };
     expect(inferSelectionType(grid)).toBe("imageGrid");
   });
+
+  it("infers imageGrid from activeSelection with grid-role children", () => {
+    const activeSelection = {
+      type: "activeSelection",
+      _objects: [
+        { data: { role: "slot", slotId: "s1" } },
+        { data: { role: "slot", slotId: "s2" } },
+        { data: { role: "slot-outline" } },
+        { data: { role: "slot-label" } }
+      ]
+    };
+    expect(inferSelectionType(activeSelection)).toBe("imageGrid");
+  });
 });

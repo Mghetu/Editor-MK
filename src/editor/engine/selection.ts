@@ -20,6 +20,15 @@ const looksLikeImageGridGroup = (obj: any) => {
   });
 };
 
+const looksLikeImageGridSelection = (obj: any) => {
+  const children = Array.isArray(obj?._objects) ? obj._objects : [];
+  if (!children.length) return false;
+  return children.every((child: any) => {
+    const role = child?.data?.role;
+    return role === "slot" || role === "slot-label" || role === "slot-outline";
+  });
+};
+
 export const inferSelectionType = (obj: any): EditorSelectionType | undefined => {
   const target = unwrapSelectionTarget(obj);
   const explicitType = target?.data?.type;
@@ -35,6 +44,13 @@ export const inferSelectionType = (obj: any): EditorSelectionType | undefined =>
   }
 
   const fabricType = String(target?.type ?? "").toLowerCase();
+  if (fabricType === "activeselection") {
+    if (looksLikeImageGridSelection(target)) return "imageGrid";
+    if (Array.isArray(target?._objects) && target._objects.length === 1) {
+      return inferSelectionType(target._objects[0]);
+    }
+  }
+
   if (fabricType === "textbox" || fabricType === "i-text" || fabricType === "text") return "text";
   if (fabricType === "image") return "image";
 
