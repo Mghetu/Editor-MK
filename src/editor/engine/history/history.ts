@@ -7,6 +7,7 @@ type HistoryEntry = {
   snapshot: unknown;
   action: HistoryAction;
   objectId?: string;
+  selectedObjectId?: string;
   timestamp: number;
 };
 
@@ -24,6 +25,11 @@ const COALESCE_WINDOW_MS = 450;
 const getObjectId = (event?: any): string | undefined => {
   const target = event?.target as any;
   return target?.data?.id ?? target?.id;
+};
+
+const getCanvasActiveObjectId = (canvas: Canvas): string | undefined => {
+  const active = (canvas as any)?.getActiveObject?.() as any;
+  return active?.data?.id ?? active?.id;
 };
 
 export class HistoryManager {
@@ -147,6 +153,7 @@ export class HistoryManager {
       snapshot,
       action: meta.action,
       objectId: meta.objectId,
+      selectedObjectId: getCanvasActiveObjectId(this.canvas),
       timestamp: Date.now()
     };
 
@@ -172,11 +179,19 @@ export class HistoryManager {
     this.redoStack = [];
   }
 
-  async loadSnapshot(json: unknown, options?: { capture?: boolean }): Promise<void> {
+  async loadSnapshot(json: unknown, options?: { capture?: boolean; selectedObjectId?: string }): Promise<void> {
     this.cancelPendingCaptures();
     this.isApplyingSnapshot = true;
     try {
       await loadCanvasJson(this.canvas, json);
+      const selectedObjectId = options?.selectedObjectId;
+      if (selectedObjectId) {
+        const target = (this.canvas as any).getObjects?.().find((obj: any) => (obj?.data?.id ?? obj?.id) === selectedObjectId);
+        if (target) {
+          (this.canvas as any).setActiveObject?.(target);
+          (this.canvas as any).fire?.("selection:updated", { selected: [target], deselected: [] });
+        }
+      }
       this.lastSnapshotKey = JSON.stringify(json);
       if (options?.capture) {
         this.capture({ action: "snapshot", coalesce: false });
@@ -198,7 +213,8 @@ export class HistoryManager {
     }
 
     this.redoStack.push(current);
-    return this.loadSnapshot(this.undoStack[this.undoStack.length - 1].snapshot);
+    const previous = this.undoStack[this.undoStack.length - 1];
+    return this.loadSnapshot(previous.snapshot, { selectedObjectId: previous.selectedObjectId });
   }
 
   redo(): Promise<void> {
@@ -209,7 +225,7 @@ export class HistoryManager {
     }
 
     this.undoStack.push(next);
-    return this.loadSnapshot(next.snapshot);
+    return this.loadSnapshot(next.snapshot, { selectedObjectId: next.selectedObjectId });
   }
 }
 

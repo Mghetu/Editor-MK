@@ -2,11 +2,20 @@ import { useEffect, useRef } from "react";
 import { createCanvas } from "./engine/createCanvas";
 import { bindSelectionEvents } from "./engine/selection";
 import HistoryManager from "./engine/history/history";
+import { CommandHistoryManager } from "./engine/history/transactionHistory";
+import { createFabricHistoryContext, getFabricObjectId } from "./engine/history/fabricHistoryContext";
+import { TransformObjectCommand } from "./engine/history/commands/basic";
+import { USE_COMMAND_HISTORY } from "./engine/history/flags";
 import { useEditorStore } from "./state/useEditorStore";
 import { saveCanvasJson } from "./engine/serialize";
 import { refreshImageGrids } from "./features/imageGrid";
 
-export type StageApi = { canvas: any; history: HistoryManager; persistNow: () => void };
+export type StageApi = {
+  canvas: any;
+  history: HistoryManager;
+  commandHistory?: CommandHistoryManager;
+  persistNow: () => void;
+};
 
 const AUTOSAVE_DEBOUNCE_MS = 350;
 const PAGE_THUMBNAIL_MULTIPLIER = 0.15;
@@ -44,9 +53,15 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
   const canvasEl = useRef<HTMLCanvasElement>(null);
   const canvasRef = useRef<any>(null);
   const historyRef = useRef<HistoryManager | null>(null);
+  const commandHistoryRef = useRef<CommandHistoryManager | null>(null);
   const autosaveTimer = useRef<number>();
   const previousActivePageIdRef = useRef<string>();
   const isHydratingRef = useRef(false);
+  const activeTransformRef = useRef<{
+    objectId: string;
+    start: Record<string, unknown>;
+    hasCommands: boolean;
+  } | null>(null);
   const { doc, setSelection, updateDoc } = useEditorStore();
 
   useEffect(() => {
@@ -54,8 +69,10 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
 
     const canvas = createCanvas(canvasEl.current, doc.canvas.width, doc.canvas.height, doc.canvas.background);
     const history = new HistoryManager(canvas);
+    const commandHistory = USE_COMMAND_HISTORY ? new CommandHistoryManager(createFabricHistoryContext(canvas)) : null;
     canvasRef.current = canvas;
     historyRef.current = history;
+    commandHistoryRef.current = commandHistory;
 
     applyCanvasFrame(canvas, doc.canvas);
 
@@ -96,7 +113,70 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
     canvas.on("object:modified", trackSave);
     canvas.on("text:editing:exited", trackSave);
 
-    onReady({ canvas, history, persistNow });
+    const readTransformState = (obj: any) => ({
+      left: Number(obj?.left ?? 0),
+      top: Number(obj?.top ?? 0),
+      angle: Number(obj?.angle ?? 0),
+      scaleX: Number(obj?.scaleX ?? 1),
+      scaleY: Number(obj?.scaleY ?? 1),
+      skewX: Number(obj?.skewX ?? 0),
+      skewY: Number(obj?.skewY ?? 0),
+      flipX: Boolean(obj?.flipX),
+      flipY: Boolean(obj?.flipY),
+      width: Number(obj?.width ?? 0),
+      height: Number(obj?.height ?? 0)
+    });
+
+    const queueTransformCommand = (target: any) => {
+      if (!commandHistory || !target) return;
+      const session = activeTransformRef.current;
+      const objectId = getFabricObjectId(target);
+      if (!session || !objectId || session.objectId !== objectId) return;
+
+      const nextState = readTransformState(target);
+      const command = new TransformObjectCommand(objectId, nextState, session.hasCommands ? undefined : session.start);
+      void commandHistory.execute(command, { source: "interaction", objectIds: [objectId] });
+      session.hasCommands = true;
+    };
+
+    const beginTransform = (event: any) => {
+      if (!commandHistory) return;
+      const target = event?.target as any;
+      const objectId = getFabricObjectId(target);
+      if (!target || !objectId) return;
+
+      activeTransformRef.current = {
+        objectId,
+        start: readTransformState(target),
+        hasCommands: false
+      };
+      try {
+        commandHistory.beginTransaction("Transform object", { source: "interaction", objectIds: [objectId] });
+      } catch {
+        activeTransformRef.current = null;
+      }
+    };
+
+    const commitTransform = () => {
+      if (!commandHistory || !activeTransformRef.current) return;
+      commandHistory.commitTransaction();
+      activeTransformRef.current = null;
+    };
+
+    const onMoving = (event: any) => queueTransformCommand(event?.target);
+    const onScaling = (event: any) => queueTransformCommand(event?.target);
+    const onRotating = (event: any) => queueTransformCommand(event?.target);
+
+    canvas.on("mouse:down", beginTransform);
+    canvas.on("mouse:up", commitTransform);
+    canvas.on("object:moving", onMoving);
+    canvas.on("object:scaling", onScaling);
+    canvas.on("object:rotating", onRotating);
+
+    if (commandHistory) (window as any).__commandHistory = commandHistory;
+    else delete (window as any).__commandHistory;
+
+    onReady({ canvas, history, commandHistory: commandHistory ?? undefined, persistNow });
 
     return () => {
       unbindSelection?.();
@@ -105,9 +185,16 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
       canvas.off("object:removed", trackSave);
       canvas.off("object:modified", trackSave);
       canvas.off("text:editing:exited", trackSave);
+      canvas.off("mouse:down", beginTransform);
+      canvas.off("mouse:up", commitTransform);
+      canvas.off("object:moving", onMoving);
+      canvas.off("object:scaling", onScaling);
+      canvas.off("object:rotating", onRotating);
       window.clearTimeout(autosaveTimer.current);
       canvasRef.current = null;
       historyRef.current = null;
+      commandHistoryRef.current = null;
+      delete (window as any).__commandHistory;
       void canvas.dispose();
     };
   }, []);
