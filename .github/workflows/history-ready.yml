@@ -1,0 +1,36 @@
+name: History Migration Readiness
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master, work]
+    paths:
+      - "src/editor/**"
+      - "scripts/**"
+      - "docs/history-migration-signoff.md"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/history-ready.yml"
+
+jobs:
+  verify-history-ready:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify history migration automation
+        run: npm run verify:history-ready
+
+      - name: Verify strict signoff gate (manual run only)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: npm run check:history-signoff:strict

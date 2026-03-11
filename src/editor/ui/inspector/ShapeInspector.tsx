@@ -1,3 +1,4 @@
+import { applyObjectMutation } from "../../engine/history/mutator";
 import { Lock, Unlock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -26,8 +27,7 @@ export function ShapeInspector() {
   const canvas = (window as any).__editorCanvas;
   const obj = canvas?.getActiveObject?.() as any;
 
-  const shapeKind = obj?.data?.shapeKind as "rect" | "square" | "circle" | undefined;
-  const isRectangle = shapeKind === "rect";
+  const isRectangle = isRectLikeShape(obj);
 
   const initial = useMemo(() => readRenderedSize(obj), [obj]);
   const [width, setWidth] = useState(initial.width);
@@ -75,34 +75,35 @@ export function ShapeInspector() {
 
   if (!obj || obj?.data?.type !== "shape") return null;
 
-  const mutate = (fn: () => void) => {
-    fn();
-    obj.setCoords();
-    canvas?.requestRenderAll?.();
+  const mutate = (fn: (target: any) => void, label = "Update shape") => {
+    void applyObjectMutation(canvas, obj, (target) => {
+      fn(target);
+      target.setCoords?.();
+    }, label);
   };
 
   const mutateSize = (nextW: number, nextH: number) => {
     const widthPx = Math.max(1, Number.isFinite(nextW) ? nextW : 1);
     const heightPx = Math.max(1, Number.isFinite(nextH) ? nextH : 1);
 
-    mutate(() => {
-      if (isRectLikeShape(obj)) {
-        const signX = (obj.scaleX ?? 1) < 0 ? -1 : 1;
-        const signY = (obj.scaleY ?? 1) < 0 ? -1 : 1;
-        obj.set({ width: widthPx, height: heightPx, scaleX: signX, scaleY: signY });
-        normalizeRectAfterTransform(obj);
+    mutate((target) => {
+      if (isRectLikeShape(target)) {
+        const signX = (target.scaleX ?? 1) < 0 ? -1 : 1;
+        const signY = (target.scaleY ?? 1) < 0 ? -1 : 1;
+        Object.assign(target, { width: widthPx, height: heightPx, scaleX: signX, scaleY: signY });
+        normalizeRectAfterTransform(target);
       } else {
-        const baseW = Math.max(1, Number(obj.width ?? 1));
-        const baseH = Math.max(1, Number(obj.height ?? 1));
-        const scaleSignX = (obj.scaleX ?? 1) < 0 ? -1 : 1;
-        const scaleSignY = (obj.scaleY ?? 1) < 0 ? -1 : 1;
-        obj.set({
+        const baseW = Math.max(1, Number(target.width ?? 1));
+        const baseH = Math.max(1, Number(target.height ?? 1));
+        const scaleSignX = (target.scaleX ?? 1) < 0 ? -1 : 1;
+        const scaleSignY = (target.scaleY ?? 1) < 0 ? -1 : 1;
+        Object.assign(target, {
           scaleX: scaleSignX * (widthPx / baseW),
           scaleY: scaleSignY * (heightPx / baseH),
           strokeUniform: true
         });
       }
-    });
+    }, "Resize shape");
 
     setWidth(Math.round(widthPx));
     setHeight(Math.round(heightPx));
@@ -130,9 +131,9 @@ export function ShapeInspector() {
 
   const onCornerRadiusChange = (value: number) => {
     const next = Math.max(0, Number.isFinite(value) ? value : 0);
-    mutate(() => {
-      setRectRadiusPxPreserveSize(obj, next);
-    });
+    mutate((target) => {
+      setRectRadiusPxPreserveSize(target, next);
+    }, "Set corner radius");
     setRadius(next);
     setCornerRadii({ tl: next, tr: next, br: next, bl: next });
     setLockCornerSides(true);
@@ -141,10 +142,10 @@ export function ShapeInspector() {
   const onCornerRadiusSideChange = (key: "tl" | "tr" | "br" | "bl", value: number) => {
     const next = Math.max(0, Number.isFinite(value) ? value : 0);
     const nextRadii = { ...cornerRadii, [key]: next };
-    mutate(() => {
-      setRectCornerRadiiPx(obj, nextRadii);
-      normalizeRectAfterTransform(obj);
-    });
+    mutate((target) => {
+      setRectCornerRadiiPx(target, nextRadii);
+      normalizeRectAfterTransform(target);
+    }, "Set corner radii");
     const normalized = getRectCornerRadiiPx(obj);
     setCornerRadii(normalized);
     setRadius(Math.max(normalized.tl, normalized.tr, normalized.br, normalized.bl));
@@ -152,18 +153,25 @@ export function ShapeInspector() {
 
   const onFillColorChange = (value: string) => {
     setFillColor(value);
-    mutate(() => obj.set({ fill: value }));
+    mutate((target) => {
+      target.fill = value;
+    }, "Set fill color");
   };
 
   const onStrokeColorChange = (value: string) => {
     setStrokeColor(value);
-    mutate(() => obj.set({ stroke: value }));
+    mutate((target) => {
+      target.stroke = value;
+    }, "Set stroke color");
   };
 
   const onStrokeWidthChange = (value: number) => {
     const next = Math.max(0, Number.isFinite(value) ? value : 0);
     setStrokeWidth(next);
-    mutate(() => obj.set({ strokeWidth: next, strokeUniform: true }));
+    mutate((target) => {
+      target.strokeWidth = next;
+      target.strokeUniform = true;
+    }, "Set stroke width");
   };
 
   return (

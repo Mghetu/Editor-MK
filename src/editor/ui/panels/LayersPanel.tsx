@@ -62,10 +62,10 @@ export function LayersPanel() {
               </button>
               <button className="rounded p-1 hover:bg-[#2f2f2f]" title="Bring forward" onClick={() => { bringForward(canvas, layer.id); setLayers(listLayers(canvas)); }}><ArrowUp size={13} /></button>
               <button className="rounded p-1 hover:bg-[#2f2f2f]" title="Send backward" onClick={() => { sendBackward(canvas, layer.id); setLayers(listLayers(canvas)); }}><ArrowDown size={13} /></button>
-              <button className="rounded p-1 hover:bg-[#2f2f2f]" title={layer.locked ? "Unlock" : "Lock"} onClick={() => { toggleLockLayer(canvas, layer.id); setLayers(listLayers(canvas)); }}>
+              <button className="rounded p-1 hover:bg-[#2f2f2f]" title={layer.locked ? "Unlock" : "Lock"} onClick={async () => { await toggleLockLayer(canvas, layer.id); setLayers(listLayers(canvas)); }}>
                 {layer.locked ? <Lock size={13} /> : <Unlock size={13} />}
               </button>
-              <button className="rounded p-1 hover:bg-[#2f2f2f]" title={layer.hidden ? "Show" : "Hide"} onClick={() => { toggleHideLayer(canvas, layer.id); setLayers(listLayers(canvas)); }}>
+              <button className="rounded p-1 hover:bg-[#2f2f2f]" title={layer.hidden ? "Show" : "Hide"} onClick={async () => { await toggleHideLayer(canvas, layer.id); setLayers(listLayers(canvas)); }}>
                 {layer.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
               </button>
             </div>
