@@ -8,6 +8,7 @@ type HistoryEntry = {
   action: HistoryAction;
   objectId?: string;
   selectedObjectId?: string;
+  selectedObjectType?: string;
   timestamp: number;
 };
 
@@ -30,6 +31,38 @@ const getObjectId = (event?: any): string | undefined => {
 const getCanvasActiveObjectId = (canvas: Canvas): string | undefined => {
   const active = (canvas as any)?.getActiveObject?.() as any;
   return active?.data?.id ?? active?.id;
+};
+
+const inferObjectType = (obj: any): string | undefined => {
+  const explicit = obj?.data?.type;
+  if (typeof explicit === "string" && explicit) return explicit;
+
+  const fabricType = String(obj?.type ?? "").toLowerCase();
+  if (fabricType === "group") {
+    const children = Array.isArray(obj?._objects) ? obj._objects : [];
+    if (children.some((child: any) => ["slot", "slot-label", "slot-outline"].includes(child?.data?.role))) {
+      return "imageGrid";
+    }
+  }
+  return undefined;
+};
+
+const getCanvasActiveObjectType = (canvas: Canvas): string | undefined => {
+  const active = (canvas as any)?.getActiveObject?.() as any;
+  return inferObjectType(active);
+};
+
+const findObjectBySelection = (canvas: Canvas, selectedObjectId?: string, selectedObjectType?: string) => {
+  const objects = ((canvas as any).getObjects?.() ?? []) as any[];
+  if (selectedObjectId) {
+    const byId = objects.find((obj) => (obj?.data?.id ?? obj?.id) === selectedObjectId);
+    if (byId) return byId;
+  }
+  if (selectedObjectType) {
+    const byType = objects.find((obj) => inferObjectType(obj) === selectedObjectType);
+    if (byType) return byType;
+  }
+  return undefined;
 };
 
 export class HistoryManager {
@@ -154,6 +187,7 @@ export class HistoryManager {
       action: meta.action,
       objectId: meta.objectId,
       selectedObjectId: getCanvasActiveObjectId(this.canvas),
+      selectedObjectType: getCanvasActiveObjectType(this.canvas),
       timestamp: Date.now()
     };
 
@@ -179,18 +213,15 @@ export class HistoryManager {
     this.redoStack = [];
   }
 
-  async loadSnapshot(json: unknown, options?: { capture?: boolean; selectedObjectId?: string }): Promise<void> {
+  async loadSnapshot(json: unknown, options?: { capture?: boolean; selectedObjectId?: string; selectedObjectType?: string }): Promise<void> {
     this.cancelPendingCaptures();
     this.isApplyingSnapshot = true;
     try {
       await loadCanvasJson(this.canvas, json);
-      const selectedObjectId = options?.selectedObjectId;
-      if (selectedObjectId) {
-        const target = (this.canvas as any).getObjects?.().find((obj: any) => (obj?.data?.id ?? obj?.id) === selectedObjectId);
-        if (target) {
-          (this.canvas as any).setActiveObject?.(target);
-          (this.canvas as any).fire?.("selection:updated", { selected: [target], deselected: [] });
-        }
+      const target = findObjectBySelection(this.canvas, options?.selectedObjectId, options?.selectedObjectType);
+      if (target) {
+        (this.canvas as any).setActiveObject?.(target);
+        (this.canvas as any).fire?.("selection:updated", { selected: [target], deselected: [] });
       }
       this.lastSnapshotKey = JSON.stringify(json);
       if (options?.capture) {
@@ -214,7 +245,10 @@ export class HistoryManager {
 
     this.redoStack.push(current);
     const previous = this.undoStack[this.undoStack.length - 1];
-    return this.loadSnapshot(previous.snapshot, { selectedObjectId: previous.selectedObjectId });
+    return this.loadSnapshot(previous.snapshot, {
+      selectedObjectId: previous.selectedObjectId,
+      selectedObjectType: previous.selectedObjectType
+    });
   }
 
   redo(): Promise<void> {
@@ -225,7 +259,10 @@ export class HistoryManager {
     }
 
     this.undoStack.push(next);
-    return this.loadSnapshot(next.snapshot, { selectedObjectId: next.selectedObjectId });
+    return this.loadSnapshot(next.snapshot, {
+      selectedObjectId: next.selectedObjectId,
+      selectedObjectType: next.selectedObjectType
+    });
   }
 }
 
