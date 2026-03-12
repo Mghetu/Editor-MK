@@ -1,3 +1,4 @@
+import { applyObjectProperties } from "../../engine/history/mutator";
 import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, Italic, Strikethrough, Underline } from "lucide-react";
 import { useState } from "react";
 
@@ -6,15 +7,14 @@ export function TextInspector() {
   const canvas = (window as any).__editorCanvas;
   const obj = canvas?.getActiveObject() as any;
 
-  const mutate = (fn: () => void) => {
+  const mutate = (values: Record<string, unknown>, label = "Edit text") => {
     if (!obj) return;
-    fn();
-    canvas?.renderAll();
+    void applyObjectProperties(canvas, obj, values, label);
     setTick((v) => v + 1);
   };
 
   const setTextAlign = (value: "left" | "center" | "right" | "justify") => {
-    mutate(() => obj.set("textAlign", value));
+    mutate({ textAlign: value }, "Set text align");
   };
 
   return (
@@ -22,10 +22,10 @@ export function TextInspector() {
       <h3 className="font-semibold text-slate-100">Text</h3>
 
       <div className="grid grid-cols-4 gap-1">
-        <button className={`rounded border border-[#555] p-2 ${obj?.fontWeight >= 700 ? "bg-[#3a3a3a]" : "bg-[#252525]"}`} onClick={() => mutate(() => obj.set("fontWeight", obj.fontWeight >= 700 ? 400 : 700))}><Bold size={14} /></button>
-        <button className={`rounded border border-[#555] p-2 ${obj?.fontStyle === "italic" ? "bg-[#3a3a3a]" : "bg-[#252525]"}`} onClick={() => mutate(() => obj.set("fontStyle", obj.fontStyle === "italic" ? "normal" : "italic"))}><Italic size={14} /></button>
-        <button className={`rounded border border-[#555] p-2 ${obj?.underline ? "bg-[#3a3a3a]" : "bg-[#252525]"}`} onClick={() => mutate(() => obj.set("underline", !obj.underline))}><Underline size={14} /></button>
-        <button className={`rounded border border-[#555] p-2 ${obj?.linethrough ? "bg-[#3a3a3a]" : "bg-[#252525]"}`} onClick={() => mutate(() => obj.set("linethrough", !obj.linethrough))}><Strikethrough size={14} /></button>
+        <button className={`rounded border border-[#555] p-2 ${obj?.fontWeight >= 700 ? "bg-[#3a3a3a]" : "bg-[#252525]"}`} onClick={() => mutate({ fontWeight: obj.fontWeight >= 700 ? 400 : 700 }, "Toggle bold")}><Bold size={14} /></button>
+        <button className={`rounded border border-[#555] p-2 ${obj?.fontStyle === "italic" ? "bg-[#3a3a3a]" : "bg-[#252525]"}`} onClick={() => mutate({ fontStyle: obj.fontStyle === "italic" ? "normal" : "italic" }, "Toggle italic")}><Italic size={14} /></button>
+        <button className={`rounded border border-[#555] p-2 ${obj?.underline ? "bg-[#3a3a3a]" : "bg-[#252525]"}`} onClick={() => mutate({ underline: !obj.underline }, "Toggle underline")}><Underline size={14} /></button>
+        <button className={`rounded border border-[#555] p-2 ${obj?.linethrough ? "bg-[#3a3a3a]" : "bg-[#252525]"}`} onClick={() => mutate({ linethrough: !obj.linethrough }, "Toggle strikethrough")}><Strikethrough size={14} /></button>
       </div>
 
       <div>
@@ -34,7 +34,7 @@ export function TextInspector() {
           type="number"
           defaultValue={obj?.fontSize || 48}
           className="w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
-          onChange={(e) => mutate(() => obj.set("fontSize", Number(e.target.value)))}
+          onChange={(e) => mutate({ fontSize: Number(e.target.value) }, "Set font size")}
         />
       </div>
 
@@ -53,7 +53,7 @@ export function TextInspector() {
           min="0.5"
           defaultValue={obj?.lineHeight ?? 1.16}
           className="w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
-          onChange={(e) => mutate(() => obj.set("lineHeight", Number(e.target.value)))}
+          onChange={(e) => mutate({ lineHeight: Number(e.target.value) }, "Set line height")}
         />
       </div>
 
@@ -64,7 +64,7 @@ export function TextInspector() {
           step="10"
           defaultValue={obj?.charSpacing ?? 0}
           className="w-full rounded border border-[#555] bg-[#141414] p-2 text-slate-100"
-          onChange={(e) => mutate(() => obj.set("charSpacing", Number(e.target.value)))}
+          onChange={(e) => mutate({ charSpacing: Number(e.target.value) }, "Set letter spacing")}
         />
       </div>
     </div>
