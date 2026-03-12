@@ -101,4 +101,8 @@ describe("inferSelectionType", () => {
     };
     expect(inferSelectionType(activeSelection)).toBe("imageGrid");
   });
+
+  it("infers imageGrid from a single slot object selection", () => {
+    expect(inferSelectionType({ type: "rect", data: { role: "slot", slotId: "s1" } })).toBe("imageGrid");
+  });
 });

@@ -38,6 +38,9 @@ export const inferSelectionType = (obj: any): EditorSelectionType | undefined =>
 
   if (target?.table) return "table";
 
+  const role = target?.data?.role;
+  if (role === "slot" || role === "slot-label" || role === "slot-outline") return "imageGrid";
+
 
   if (Array.isArray(target?.data?.slots) && Number.isFinite(Number(target?.data?.frameWidth ?? NaN)) && Number.isFinite(Number(target?.data?.frameHeight ?? NaN))) {
     return "imageGrid";
