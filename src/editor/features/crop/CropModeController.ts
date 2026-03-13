@@ -8,6 +8,12 @@ import type { CropState, RectBox } from "./cropTypes";
 
 const MIN_CROP_SIZE = 40;
 
+const readScaleAbs = (value: unknown, fallback = 1) => {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n === 0) return fallback;
+  return Math.abs(n);
+};
+
 const toCanvasRect = (rect: any): RectBox => ({
   left: Number(rect.left ?? 0),
   top: Number(rect.top ?? 0),
@@ -106,8 +112,8 @@ export class CropModeController {
     const hasSavedCrop = Boolean(savedCrop?.enabled);
 
     if (hasSavedCrop) {
-      const scaleX = Number(image.scaleX ?? 1);
-      const scaleY = Number(image.scaleY ?? 1);
+      const scaleX = readScaleAbs(image.scaleX);
+      const scaleY = readScaleAbs(image.scaleY);
       Object.assign(image, {
         left: this.snapshot.left - this.snapshot.cropX * scaleX,
         top: this.snapshot.top - this.snapshot.cropY * scaleY,
@@ -165,8 +171,8 @@ export class CropModeController {
     const crop = canvasCropRectToSourceParams(this.image, rect);
     crop.aspect = this.currentAspect;
 
-    const scaleX = Number(this.image.scaleX ?? 1);
-    const scaleY = Number(this.image.scaleY ?? 1);
+    const scaleX = readScaleAbs(this.image.scaleX);
+    const scaleY = readScaleAbs(this.image.scaleY);
 
     const before = {
       left: this.snapshot.left,
@@ -241,8 +247,8 @@ export class CropModeController {
       this.image._element = bitmap;
     }
 
-    const scaleX = Number(this.image.scaleX ?? 1);
-    const scaleY = Number(this.image.scaleY ?? 1);
+    const scaleX = readScaleAbs(this.image.scaleX);
+    const scaleY = readScaleAbs(this.image.scaleY);
 
     Object.assign(this.image, {
       left: (this.imageBounds.left ?? 0) + crop.cropX * scaleX,
