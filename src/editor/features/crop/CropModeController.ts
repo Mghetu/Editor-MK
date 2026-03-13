@@ -60,6 +60,7 @@ type ImageSnapshot = {
   height: number;
   cropX: number;
   cropY: number;
+  angle: number;
   cropState?: CropState | null;
   __cropState?: CropState | null;
 };
@@ -76,6 +77,7 @@ export class CropModeController {
   private snapshot: ImageSnapshot | null = null;
   private onUpdated?: () => void;
   private listeners: Array<{ event: string; fn: (e: any) => void }> = [];
+  private normalizedRotation = false;
 
   constructor(canvas: Canvas, onUpdated?: () => void) {
     this.canvas = canvas;
@@ -84,6 +86,10 @@ export class CropModeController {
 
   isActive() {
     return Boolean(this.image && this.cropRect);
+  }
+
+  isRotationNormalizedForCrop() {
+    return this.normalizedRotation;
   }
 
   enter(image: any) {
@@ -98,6 +104,7 @@ export class CropModeController {
       height: Number(image.height ?? 1),
       cropX: Number(image.cropX ?? 0),
       cropY: Number(image.cropY ?? 0),
+      angle: Number(image.angle ?? 0),
       cropState: (image.cropState ?? null) as CropState | null,
       __cropState: (image.__cropState ?? null) as CropState | null
     };
@@ -122,6 +129,11 @@ export class CropModeController {
         width: sourceW,
         height: sourceH
       });
+    }
+
+    this.normalizedRotation = Math.abs(this.snapshot.angle) > 0.01;
+    if (this.normalizedRotation) {
+      image.set({ angle: 0 });
     }
 
     image.setCoords();
@@ -181,6 +193,7 @@ export class CropModeController {
       height: this.snapshot.height,
       cropX: this.snapshot.cropX,
       cropY: this.snapshot.cropY,
+      angle: this.snapshot.angle,
       cropState: this.snapshot.cropState,
       __cropState: this.snapshot.__cropState
     };
@@ -192,6 +205,7 @@ export class CropModeController {
       height: crop.cropH,
       left: (this.imageBounds.left ?? 0) + crop.cropX * scaleX,
       top: (this.imageBounds.top ?? 0) + crop.cropY * scaleY,
+      angle: this.snapshot.angle,
       cropState: crop,
       __cropState: crop
     };
@@ -255,6 +269,7 @@ export class CropModeController {
       top: (this.imageBounds.top ?? 0) + crop.cropY * scaleY,
       width: cropW,
       height: cropH,
+      angle: this.snapshot.angle,
       cropX: 0,
       cropY: 0,
       cropState: null,
@@ -290,6 +305,7 @@ export class CropModeController {
       height: this.snapshot.height,
       cropX: this.snapshot.cropX,
       cropY: this.snapshot.cropY,
+      angle: this.snapshot.angle,
       cropState: this.snapshot.cropState,
       __cropState: this.snapshot.__cropState
     });
@@ -312,6 +328,7 @@ export class CropModeController {
     this.imageBounds = null;
     this.currentAspect = null;
     this.snapshot = null;
+    this.normalizedRotation = false;
 
     this.restoreInteractions();
 

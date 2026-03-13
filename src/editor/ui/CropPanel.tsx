@@ -11,6 +11,8 @@ const PRESETS: CropPreset[] = [
 
 export function CropPanel({
   active,
+  selectedAspect,
+  rotationNormalized,
   onStart,
   onPreset,
   onApply,
@@ -18,6 +20,8 @@ export function CropPanel({
   onCancel
 }: {
   active: boolean;
+  selectedAspect: number | null;
+  rotationNormalized?: boolean;
   onStart: () => void;
   onPreset: (aspect: number | null) => void;
   onApply: () => void;
@@ -34,9 +38,18 @@ export function CropPanel({
 
   return (
     <div className="mt-3 space-y-3 rounded border border-[#555] bg-[#1a1a1a] p-3 text-slate-200">
+      {rotationNormalized && (
+        <div className="rounded border border-amber-700/70 bg-amber-900/20 px-2 py-1 text-xs text-amber-300">
+          Rotation is temporarily normalized while cropping for stable bounds.
+        </div>
+      )}
       <div className="flex flex-wrap gap-2">
         {PRESETS.map((preset) => (
-          <button key={preset.label} className="rounded border border-[#555] bg-[#252525] px-2 py-1 hover:bg-[#333]" onClick={() => onPreset(preset.aspect)}>
+          <button
+            key={preset.label}
+            className={`rounded border px-2 py-1 ${selectedAspect === preset.aspect ? "border-violet-400 bg-violet-600/30 text-violet-100" : "border-[#555] bg-[#252525] hover:bg-[#333]"}`}
+            onClick={() => onPreset(preset.aspect)}
+          >
             {preset.label}
           </button>
         ))}

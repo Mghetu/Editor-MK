@@ -15,6 +15,9 @@ export function ImageInspector() {
   const [selectedImage, setSelectedImage] = useState<any>(() => getActiveImage(canvas));
   const [cropImage, setCropImage] = useState<any>(null);
   const [cropActive, setCropActive] = useState(false);
+  const [selectedAspect, setSelectedAspect] = useState<number | null>(null);
+  const [customWidth, setCustomWidth] = useState("16");
+  const [customHeight, setCustomHeight] = useState("9");
 
   const cropController = useMemo(() => {
     if (!canvas) return null;
@@ -54,6 +57,8 @@ export function ImageInspector() {
   const onStartCrop = () => {
     if (!selectedImage || !cropController) return;
     setCropImage(selectedImage);
+    const existing = (selectedImage.cropState ?? selectedImage.__cropState ?? null) as { aspect?: number | null } | null;
+    setSelectedAspect(existing?.aspect ?? null);
     cropController.enter(selectedImage);
     setCropActive(true);
   };
@@ -83,7 +88,15 @@ export function ImageInspector() {
   };
 
   const onPreset = (aspect: number | null) => {
+    setSelectedAspect(aspect);
     cropController?.setPreset(aspect);
+  };
+
+  const onApplyCustomAspect = () => {
+    const w = Math.max(1, Number(customWidth) || 1);
+    const h = Math.max(1, Number(customHeight) || 1);
+    const next = w / h;
+    onPreset(next);
   };
 
   return (
@@ -92,12 +105,38 @@ export function ImageInspector() {
       {(selectedImage || cropImage) && (
         <CropPanel
           active={cropActive}
+          selectedAspect={selectedAspect}
+          rotationNormalized={cropController?.isRotationNormalizedForCrop()}
           onStart={onStartCrop}
           onPreset={onPreset}
           onApply={onApplyCrop}
           onApplyPermanently={onApplyCropPermanently}
           onCancel={onCancelCrop}
         />
+      )}
+
+      {cropActive && (
+        <div className="space-y-2 rounded border border-[#3a3a3a] bg-[#181818] p-2">
+          <div className="text-xs text-slate-400">Custom ratio</div>
+          <div className="flex items-center gap-2">
+            <input
+              className="w-16 rounded border border-[#555] bg-[#121212] px-2 py-1 text-xs text-slate-100"
+              inputMode="numeric"
+              value={customWidth}
+              onChange={(e) => setCustomWidth(e.target.value)}
+            />
+            <span className="text-slate-400">:</span>
+            <input
+              className="w-16 rounded border border-[#555] bg-[#121212] px-2 py-1 text-xs text-slate-100"
+              inputMode="numeric"
+              value={customHeight}
+              onChange={(e) => setCustomHeight(e.target.value)}
+            />
+            <button className="rounded border border-[#555] bg-[#252525] px-2 py-1 text-xs hover:bg-[#333]" onClick={onApplyCustomAspect}>
+              Set
+            </button>
+          </div>
+        </div>
       )}
 
       <button
