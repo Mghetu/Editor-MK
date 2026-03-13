@@ -7,6 +7,8 @@ type HistoryEntry = {
   snapshot: unknown;
   action: HistoryAction;
   objectId?: string;
+  selectedObjectId?: string;
+  selectedObjectType?: string;
   timestamp: number;
 };
 
@@ -16,15 +18,53 @@ type CommitMeta = {
   coalesce?: boolean;
 };
 
+type HistoryStateListener = (state: { canUndo: boolean; canRedo: boolean; lastLabel?: string }) => void;
+
 const MAX_HISTORY_ENTRIES = 120;
 const DEFAULT_DEBOUNCE_MS = 280;
 const TEXT_DEBOUNCE_MS = 600;
 const COALESCE_WINDOW_MS = 450;
 
-
 const getObjectId = (event?: any): string | undefined => {
   const target = event?.target as any;
   return target?.data?.id ?? target?.id;
+};
+
+const getCanvasActiveObjectId = (canvas: Canvas): string | undefined => {
+  const active = (canvas as any)?.getActiveObject?.() as any;
+  return active?.data?.id ?? active?.id;
+};
+
+const inferObjectType = (obj: any): string | undefined => {
+  const explicit = obj?.data?.type;
+  if (typeof explicit === "string" && explicit) return explicit;
+
+  const fabricType = String(obj?.type ?? "").toLowerCase();
+  if (fabricType === "group") {
+    const children = Array.isArray(obj?._objects) ? obj._objects : [];
+    if (children.some((child: any) => ["slot", "slot-label", "slot-outline"].includes(child?.data?.role))) {
+      return "imageGrid";
+    }
+  }
+  return undefined;
+};
+
+const getCanvasActiveObjectType = (canvas: Canvas): string | undefined => {
+  const active = (canvas as any)?.getActiveObject?.() as any;
+  return inferObjectType(active);
+};
+
+const findObjectBySelection = (canvas: Canvas, selectedObjectId?: string, selectedObjectType?: string) => {
+  const objects = ((canvas as any).getObjects?.() ?? []) as any[];
+  if (selectedObjectId) {
+    const byId = objects.find((obj) => (obj?.data?.id ?? obj?.id) === selectedObjectId);
+    if (byId) return byId;
+  }
+  if (selectedObjectType) {
+    const byType = objects.find((obj) => inferObjectType(obj) === selectedObjectType);
+    if (byType) return byType;
+  }
+  return undefined;
 };
 
 export class HistoryManager {
@@ -32,7 +72,11 @@ export class HistoryManager {
   private redoStack: HistoryEntry[] = [];
   private timer?: number;
   private textTimer?: number;
+  private pendingMeta?: CommitMeta;
+  private pendingTextMeta?: CommitMeta;
+  private lastSnapshotKey?: string;
   private isApplyingSnapshot = false;
+  private stateListeners = new Set<HistoryStateListener>();
   private listeners?: {
     onAdded: (event: any) => void;
     onRemoved: (event: any) => void;
@@ -43,15 +87,44 @@ export class HistoryManager {
 
   constructor(private canvas: Canvas) {}
 
+  subscribe(listener: HistoryStateListener) {
+    this.stateListeners.add(listener);
+    listener(this.getState());
+    return () => {
+      this.stateListeners.delete(listener);
+    };
+  }
+
+  get canUndo() {
+    return this.undoStack.length >= 2;
+  }
+
+  get canRedo() {
+    return this.redoStack.length > 0;
+  }
+
+  get lastActionLabel() {
+    return this.undoStack[this.undoStack.length - 1]?.action;
+  }
+
+  private getState() {
+    return { canUndo: this.canUndo, canRedo: this.canRedo, lastLabel: this.lastActionLabel };
+  }
+
+  private emitState() {
+    const state = this.getState();
+    this.stateListeners.forEach((listener) => listener(state));
+  }
+
   bind(): void {
     if (this.listeners) return;
 
     this.listeners = {
-      onAdded: (event) => this.track({ action: "add", objectId: getObjectId(event), coalesce: false }, event),
-      onRemoved: (event) => this.track({ action: "remove", objectId: getObjectId(event), coalesce: false }, event),
-      onModified: (event) => this.track({ action: "modify", objectId: getObjectId(event), coalesce: true }, event),
+      onAdded: (event) => this.track({ action: "add", objectId: getObjectId(event), coalesce: false }),
+      onRemoved: (event) => this.track({ action: "remove", objectId: getObjectId(event), coalesce: false }),
+      onModified: (event) => this.track({ action: "modify", objectId: getObjectId(event), coalesce: true }),
       onTextChanged: (event) => this.captureDebounced(TEXT_DEBOUNCE_MS, { action: "text-edit", objectId: getObjectId(event), coalesce: true }),
-      onTextEditExit: (event) => this.track({ action: "text-edit", objectId: getObjectId(event), coalesce: true }, event)
+      onTextEditExit: (event) => this.track({ action: "text-edit", objectId: getObjectId(event), coalesce: true })
     };
 
     this.canvas.on("object:added", this.listeners.onAdded);
@@ -71,34 +144,83 @@ export class HistoryManager {
     this.canvas.off("text:editing:exited", this.listeners.onTextEditExit);
     this.listeners = undefined;
 
+    this.cancelPendingCaptures();
+    this.stateListeners.clear();
+  }
+
+  private track(meta: CommitMeta): void {
+    if (this.isApplyingSnapshot) return;
+
+    const shouldCaptureImmediately = meta.action === "add" || meta.action === "remove";
+    if (shouldCaptureImmediately) {
+      this.flushPendingCaptures();
+      this.capture(meta);
+      return;
+    }
+
+    this.captureDebounced(DEFAULT_DEBOUNCE_MS, meta);
+  }
+
+  private cancelPendingCaptures(): void {
     clearTimeout(this.timer);
     clearTimeout(this.textTimer);
     this.timer = undefined;
     this.textTimer = undefined;
+    this.pendingMeta = undefined;
+    this.pendingTextMeta = undefined;
   }
 
-  private track(meta: CommitMeta, event?: any): void {
-    if (this.isApplyingSnapshot) return;
-    this.captureDebounced(DEFAULT_DEBOUNCE_MS, meta);
+  private flushPendingCaptures(): void {
+    const pendingTextMeta = this.pendingTextMeta;
+    const pendingMeta = this.pendingMeta;
+    this.cancelPendingCaptures();
+    if (pendingTextMeta) {
+      this.capture(pendingTextMeta);
+    }
+    if (pendingMeta) {
+      this.capture(pendingMeta);
+    }
   }
 
   captureDebounced(wait = DEFAULT_DEBOUNCE_MS, meta: CommitMeta = { action: "snapshot", coalesce: false }): void {
     const isText = meta.action === "text-edit";
     if (isText) {
       clearTimeout(this.textTimer);
-      this.textTimer = window.setTimeout(() => this.capture(meta), wait);
+      this.pendingTextMeta = meta;
+      this.textTimer = window.setTimeout(() => {
+        const pending = this.pendingTextMeta;
+        this.textTimer = undefined;
+        this.pendingTextMeta = undefined;
+        if (pending) this.capture(pending);
+      }, wait);
       return;
     }
 
     clearTimeout(this.timer);
-    this.timer = window.setTimeout(() => this.capture(meta), wait);
+    this.pendingMeta = meta;
+    this.timer = window.setTimeout(() => {
+      const pending = this.pendingMeta;
+      this.timer = undefined;
+      this.pendingMeta = undefined;
+      if (pending) this.capture(pending);
+    }, wait);
   }
 
   capture(meta: CommitMeta = { action: "snapshot", coalesce: false }): void {
+    if (this.isApplyingSnapshot) return;
+
+    const snapshot = saveCanvasJson(this.canvas);
+    const snapshotKey = JSON.stringify(snapshot);
+    if (snapshotKey === this.lastSnapshotKey) {
+      return;
+    }
+
     const entry: HistoryEntry = {
-      snapshot: saveCanvasJson(this.canvas),
+      snapshot,
       action: meta.action,
       objectId: meta.objectId,
+      selectedObjectId: getCanvasActiveObjectId(this.canvas),
+      selectedObjectType: getCanvasActiveObjectType(this.canvas),
       timestamp: Date.now()
     };
 
@@ -120,43 +242,65 @@ export class HistoryManager {
       }
     }
 
+    this.lastSnapshotKey = snapshotKey;
     this.redoStack = [];
+    this.emitState();
   }
 
-  async loadSnapshot(json: unknown, options?: { capture?: boolean }): Promise<void> {
+  async loadSnapshot(json: unknown, options?: { capture?: boolean; selectedObjectId?: string; selectedObjectType?: string }): Promise<void> {
+    this.cancelPendingCaptures();
     this.isApplyingSnapshot = true;
     try {
       await loadCanvasJson(this.canvas, json);
+      const target = findObjectBySelection(this.canvas, options?.selectedObjectId, options?.selectedObjectType);
+      if (target) {
+        (this.canvas as any).setActiveObject?.(target);
+        (this.canvas as any).fire?.("selection:updated", { selected: [target], deselected: [] });
+      }
+      this.lastSnapshotKey = JSON.stringify(json);
       if (options?.capture) {
         this.capture({ action: "snapshot", coalesce: false });
       }
     } finally {
       this.isApplyingSnapshot = false;
+      this.emitState();
     }
   }
 
   undo(): Promise<void> {
+    this.flushPendingCaptures();
     if (this.undoStack.length < 2) {
+      this.emitState();
       return Promise.resolve();
     }
 
     const current = this.undoStack.pop();
     if (!current) {
+      this.emitState();
       return Promise.resolve();
     }
 
     this.redoStack.push(current);
-    return this.loadSnapshot(this.undoStack[this.undoStack.length - 1].snapshot);
+    const previous = this.undoStack[this.undoStack.length - 1];
+    return this.loadSnapshot(previous.snapshot, {
+      selectedObjectId: previous.selectedObjectId,
+      selectedObjectType: previous.selectedObjectType
+    });
   }
 
   redo(): Promise<void> {
+    this.flushPendingCaptures();
     const next = this.redoStack.pop();
     if (!next) {
+      this.emitState();
       return Promise.resolve();
     }
 
     this.undoStack.push(next);
-    return this.loadSnapshot(next.snapshot);
+    return this.loadSnapshot(next.snapshot, {
+      selectedObjectId: next.selectedObjectId,
+      selectedObjectType: next.selectedObjectType
+    });
   }
 }
 

@@ -7,7 +7,7 @@ Static Canva-like browser editor built with React + TypeScript + Fabric.js for G
 - Multi-page documents with add/duplicate/delete and page switching.
 - Template workflow using `public/templates/manifest.json` with JSON plus a preview URL (data URI or image file).
 - Image crop mode with rectangle/circle masking, presets, custom width/height, apply/cancel.
-- Exports: current page PNG/JPG and all pages ZIP.
+- Exports: current page PNG/JPG and selected-image export.
 - Snapshot undo/redo and Ctrl/Cmd hotkeys.
 
 ## Development

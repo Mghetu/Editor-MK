@@ -1,67 +1,77 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { inferSelectionType } from "../engine/selection";
 import { useEditorStore } from "../state/useEditorStore";
 import { ImageInspector } from "./inspector/ImageInspector";
+import { ObjectContextMenu } from "./inspector/ObjectContextMenu";
 import { ShapeInspector } from "./inspector/ShapeInspector";
 import { TableInspector } from "./inspector/TableInspector";
 import { TextInspector } from "./inspector/TextInspector";
-
-type Dimensions = { width: number; height: number } | null;
-
-const readActiveDimensions = (): Dimensions => {
-  const canvas = (window as any).__editorCanvas;
-  const obj = canvas?.getActiveObject?.() as any;
-  if (!obj) return null;
-  return {
-    width: Math.max(1, Math.round(obj.getScaledWidth?.() ?? obj.width ?? 0)),
-    height: Math.max(1, Math.round(obj.getScaledHeight?.() ?? obj.height ?? 0))
-  };
-};
+import { ImageGridInspector } from "./inspector/ImageGridInspector";
+import { AutoLayoutInspector } from "./inspector/AutoLayoutInspector";
 
 export function RightInspector() {
   const { selectedObjectType } = useEditorStore();
-  const [dimensions, setDimensions] = useState<Dimensions>(null);
+  const [tick, setTick] = useState(0);
+  const unbindRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    const canvas = (window as any).__editorCanvas;
-    if (!canvas) return;
+    const bindIfReady = () => {
+      if (unbindRef.current) return true;
+      const canvas = (window as any).__editorCanvas;
+      if (!canvas) return false;
 
-    const sync = () => setDimensions(readActiveDimensions());
-    sync();
+      const refresh = () => setTick((v) => v + 1);
+      canvas.on("selection:created", refresh);
+      canvas.on("selection:updated", refresh);
+      canvas.on("selection:cleared", refresh);
+      canvas.on("object:modified", refresh);
+      canvas.on("object:added", refresh);
+      canvas.on("object:removed", refresh);
 
-    canvas.on("selection:created", sync);
-    canvas.on("selection:updated", sync);
-    canvas.on("selection:cleared", sync);
-    canvas.on("object:moving", sync);
-    canvas.on("object:scaling", sync);
-    canvas.on("object:modified", sync);
+      unbindRef.current = () => {
+        canvas.off("selection:created", refresh);
+        canvas.off("selection:updated", refresh);
+        canvas.off("selection:cleared", refresh);
+        canvas.off("object:modified", refresh);
+        canvas.off("object:added", refresh);
+        canvas.off("object:removed", refresh);
+        unbindRef.current = null;
+      };
+      return true;
+    };
+
+    if (bindIfReady()) return () => unbindRef.current?.();
+
+    const interval = window.setInterval(() => {
+      if (bindIfReady()) {
+        window.clearInterval(interval);
+      }
+    }, 100);
 
     return () => {
-      canvas.off("selection:created", sync);
-      canvas.off("selection:updated", sync);
-      canvas.off("selection:cleared", sync);
-      canvas.off("object:moving", sync);
-      canvas.off("object:scaling", sync);
-      canvas.off("object:modified", sync);
+      window.clearInterval(interval);
+      unbindRef.current?.();
     };
-  }, [selectedObjectType]);
+  }, []);
+
+  void tick;
+  const canvas = (window as any).__editorCanvas;
+  const active = canvas?.getActiveObject?.() as any;
+  const inferredType = inferSelectionType(active);
+  const effectiveType = selectedObjectType ?? inferredType;
 
   return (
-    <div className="h-full border-l bg-white p-3 text-sm">
-      {!selectedObjectType && <p className="text-slate-500">Select an object to edit</p>}
-      {selectedObjectType === "text" && <TextInspector />}
-      {selectedObjectType === "image" && <ImageInspector />}
-      {selectedObjectType === "table" && <TableInspector />}
-      {selectedObjectType === "shape" && <ShapeInspector />}
+    <div className="h-full border-l border-[#313131] bg-[#1f1f1f] p-3 text-sm text-slate-200">
+      {!effectiveType && <p className="text-slate-400">Select an object to edit</p>}
+      {effectiveType && <ObjectContextMenu />}
 
-      <div className="mt-4 border-t pt-3">
-        <h4 className="mb-1 font-semibold">Dimensions</h4>
-        {dimensions ? (
-          <p className="text-slate-700">
-            W: {dimensions.width}px · H: {dimensions.height}px
-          </p>
-        ) : (
-          <p className="text-slate-500">No object selected</p>
-        )}
+      <div className="mt-4">
+        {effectiveType === "text" && <TextInspector />}
+        {effectiveType === "image" && <ImageInspector />}
+        {effectiveType === "table" && <TableInspector />}
+        {effectiveType === "shape" && <ShapeInspector />}
+        {effectiveType === "imageGrid" && <ImageGridInspector />}
+        {effectiveType === "autoLayout" && <AutoLayoutInspector />}
       </div>
     </div>
   );
