@@ -226,6 +226,7 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
       isHydratingRef.current = true;
       try {
         await history.loadSnapshot(active.fabricJson, { capture: true });
+        commandHistoryRef.current?.clear();
         applyCanvasFrame(canvas, useEditorStore.getState().doc.canvas);
       } finally {
         isHydratingRef.current = false;

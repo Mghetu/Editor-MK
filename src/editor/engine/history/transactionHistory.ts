@@ -6,10 +6,11 @@ type HistoryStateListener = (state: { canUndo: boolean; canRedo: boolean; lastLa
 type TransactionOptions = Omit<HistoryTransactionMeta, "startedAt" | "label">;
 
 const CHECKPOINT_INTERVAL = 25;
+const MAX_TRANSACTIONS = 120;
 
 export class CommandHistoryManager {
-  private undoStack: HistoryTransaction[] = [];
-  private redoStack: HistoryTransaction[] = [];
+  private timeline: HistoryTransaction[] = [];
+  private cursor = 0;
   private inFlight?: HistoryTransaction;
   private listeners = new Set<HistoryStateListener>();
   private checkpointCounter = 0;
@@ -26,15 +27,15 @@ export class CommandHistoryManager {
   }
 
   get canUndo() {
-    return this.undoStack.length > 0;
+    return this.cursor > 0;
   }
 
   get canRedo() {
-    return this.redoStack.length > 0;
+    return this.cursor < this.timeline.length;
   }
 
   get lastActionLabel() {
-    return this.undoStack[this.undoStack.length - 1]?.meta.label;
+    return this.timeline[this.cursor - 1]?.meta.label;
   }
 
   getState() {
@@ -102,33 +103,55 @@ export class CommandHistoryManager {
 
   async undo() {
     if (this.inFlight) await this.rollbackTransaction();
-    const tx = this.undoStack.pop();
+    if (this.cursor <= 0) return;
+    const tx = this.timeline[this.cursor - 1];
     if (!tx) return;
     for (let i = tx.commands.length - 1; i >= 0; i -= 1) {
       await tx.commands[i].revert(this.ctx);
     }
-    this.redoStack.push(tx);
+    this.cursor -= 1;
     this.emit();
   }
 
   async redo() {
     if (this.inFlight) await this.rollbackTransaction();
-    const tx = this.redoStack.pop();
+    if (this.cursor >= this.timeline.length) return;
+    const tx = this.timeline[this.cursor];
     if (!tx) return;
     for (const command of tx.commands) {
       await command.apply(this.ctx);
     }
-    this.undoStack.push(tx);
+    this.cursor += 1;
     this.emit();
   }
 
   private pushCommitted(transaction: HistoryTransaction) {
-    this.undoStack.push(transaction);
-    this.redoStack = [];
+    if (this.cursor < this.timeline.length) {
+      this.timeline.splice(this.cursor, this.timeline.length - this.cursor);
+    }
+
+    this.timeline.push(transaction);
+    this.cursor = this.timeline.length;
+
+    if (this.timeline.length > MAX_TRANSACTIONS) {
+      const overflow = this.timeline.length - MAX_TRANSACTIONS;
+      this.timeline.splice(0, overflow);
+      this.cursor = Math.max(0, this.cursor - overflow);
+    }
+
     this.checkpointCounter += 1;
     if (this.checkpointCounter % CHECKPOINT_INTERVAL === 0) {
       this.checkpointJson = saveCanvasJson(this.ctx.canvas);
     }
+    this.emit();
+  }
+
+  clear() {
+    this.timeline = [];
+    this.cursor = 0;
+    this.inFlight = undefined;
+    this.checkpointCounter = 0;
+    this.checkpointJson = undefined;
     this.emit();
   }
 
