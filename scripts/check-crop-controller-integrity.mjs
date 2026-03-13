@@ -21,6 +21,11 @@ lines.forEach((line, idx) => {
   if (line.includes('{ target }')) shorthandTargetLines.push(idx + 1);
 });
 
+const explicitTargetLines = [];
+lines.forEach((line, idx) => {
+  if (line.includes('{ target: modifiedTarget }')) explicitTargetLines.push(idx + 1);
+});
+
 const applyLines = findMethodLines("applyPermanently", { async: true, allowPrivate: false });
 const cancelLines = findMethodLines("cancel", { async: false, allowPrivate: false });
 const bindLines = findMethodLines("bindCropEvents", { async: false, allowPrivate: true });
@@ -37,6 +42,9 @@ if (bindLines.length !== 1) {
 }
 if (shorthandTargetLines.length > 0) {
   errors.push(`no shorthand object:modified target usage (found at lines ${shorthandTargetLines.join(", ")})`);
+}
+if (explicitTargetLines.length !== 1) {
+  errors.push(`single explicit object:modified target usage (found ${explicitTargetLines.length} at lines ${explicitTargetLines.join(", ") || "none"})`);
 }
 
 if (errors.length > 0) {
