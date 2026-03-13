@@ -60,11 +60,13 @@ export function EditorShell() {
   const leftWidth = activeTab === "select" ? "74px" : "360px";
 
   useEffect(() => {
-    if (!stage?.commandHistory) {
-      setHistoryState({ canUndo: true, canRedo: true, lastLabel: undefined });
+    if (!stage) {
+      setHistoryState({ canUndo: false, canRedo: false, lastLabel: undefined });
       return;
     }
-    return stage.commandHistory.subscribe((state) => {
+
+    const historyController = stage.commandHistory ?? stage.history;
+    return historyController.subscribe((state) => {
       setHistoryState({ canUndo: state.canUndo, canRedo: state.canRedo, lastLabel: state.lastLabel });
     });
   }, [stage]);
