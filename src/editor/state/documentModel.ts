@@ -11,6 +11,13 @@ export type DocModel = {
   version: 1;
   title: string;
   canvas: { width: number; height: number; background: string };
+  grid: {
+    enabled: boolean;
+    size: number;
+    color: string;
+    opacity: number;
+    snap: boolean;
+  };
   pages: PageModel[];
   activePageId: string;
   export: { format: ExportFormat; multiplier: number };
@@ -29,6 +36,7 @@ export const createBlankDoc = (): DocModel => {
     version: 1,
     title: "Untitled",
     canvas: { width: 1080, height: 1080, background: "#ffffff" },
+    grid: { enabled: false, size: 20, color: "#ffffff", opacity: 0.12, snap: false },
     pages: [page],
     activePageId: page.id,
     export: { format: "png", multiplier: 1 },

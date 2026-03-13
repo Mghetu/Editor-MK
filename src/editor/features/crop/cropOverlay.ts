@@ -37,7 +37,7 @@ const makeMaskRect = (type: string) => {
     originY: "top",
     fill: OVERLAY_DIM,
     strokeWidth: 0,
-    evented: false,
+    evented: true,
     selectable: false,
     hasBorders: false,
     hasControls: false,
@@ -45,6 +45,7 @@ const makeMaskRect = (type: string) => {
   }) as any;
 
   rect.data = { id: crypto.randomUUID(), type, isCropOverlay: true };
+  rect.hoverCursor = "default";
   return rect;
 };
 
