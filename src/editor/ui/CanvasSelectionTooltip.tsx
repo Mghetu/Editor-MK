@@ -42,35 +42,55 @@ export function CanvasSelectionTooltip() {
   const [state, setState] = useState<TooltipState>(() => toTooltipState());
 
   useEffect(() => {
-    const canvas = (window as any).__editorCanvas;
-    if (!canvas) return;
+    let unbind: (() => void) | null = null;
 
-    const sync = () => setState(toTooltipState());
+    const bindIfReady = () => {
+      if (unbind) return true;
+      const canvas = (window as any).__editorCanvas;
+      if (!canvas) return false;
 
-    sync();
-    canvas.on("selection:created", sync);
-    canvas.on("selection:updated", sync);
-    canvas.on("selection:cleared", sync);
-    canvas.on("object:moving", sync);
-    canvas.on("object:scaling", sync);
-    canvas.on("object:rotating", sync);
-    canvas.on("object:modified", sync);
-    canvas.on("after:render", sync);
+      const sync = () => setState(toTooltipState());
+      sync();
 
-    window.addEventListener("resize", sync);
-    window.addEventListener("scroll", sync, true);
+      canvas.on("selection:created", sync);
+      canvas.on("selection:updated", sync);
+      canvas.on("selection:cleared", sync);
+      canvas.on("object:moving", sync);
+      canvas.on("object:scaling", sync);
+      canvas.on("object:rotating", sync);
+      canvas.on("object:modified", sync);
+      canvas.on("after:render", sync);
+      window.addEventListener("resize", sync);
+      window.addEventListener("scroll", sync, true);
+
+      unbind = () => {
+        canvas.off("selection:created", sync);
+        canvas.off("selection:updated", sync);
+        canvas.off("selection:cleared", sync);
+        canvas.off("object:moving", sync);
+        canvas.off("object:scaling", sync);
+        canvas.off("object:rotating", sync);
+        canvas.off("object:modified", sync);
+        canvas.off("after:render", sync);
+        window.removeEventListener("resize", sync);
+        window.removeEventListener("scroll", sync, true);
+        unbind = null;
+      };
+
+      return true;
+    };
+
+    if (bindIfReady()) return () => unbind?.();
+
+    const interval = window.setInterval(() => {
+      if (bindIfReady()) {
+        window.clearInterval(interval);
+      }
+    }, 100);
 
     return () => {
-      canvas.off("selection:created", sync);
-      canvas.off("selection:updated", sync);
-      canvas.off("selection:cleared", sync);
-      canvas.off("object:moving", sync);
-      canvas.off("object:scaling", sync);
-      canvas.off("object:rotating", sync);
-      canvas.off("object:modified", sync);
-      canvas.off("after:render", sync);
-      window.removeEventListener("resize", sync);
-      window.removeEventListener("scroll", sync, true);
+      window.clearInterval(interval);
+      unbind?.();
     };
   }, []);
 
@@ -119,4 +139,3 @@ export function CanvasSelectionTooltip() {
     </div>
   );
 }
-
