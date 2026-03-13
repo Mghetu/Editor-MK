@@ -10,8 +10,8 @@
     "test": "vitest run",
     "verify:history-migration": "node scripts/verify-history-migration.mjs",
     "verify:history-ready": "npm run verify:history-migration",
-    "check:history-mutations": "node scripts/check-history-mutations.mjs"
-
+    "verify:history-ready:strict": "npm run verify:history-migration && npm run check:history-signoff:strict",
+    "check:crop-controller-integrity": "node scripts/check-crop-controller-integrity.mjs"
   },
   "dependencies": {
     "fabric": "^7.1.0",
