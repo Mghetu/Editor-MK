@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "verify:history-migration": "node scripts/verify-history-migration.mjs",
-    "verify:history-ready": "npm run verify:history-migration"
+    "verify:history-ready": "npm run verify:history-migration",
+    "check:history-mutations": "node scripts/check-history-mutations.mjs"
 
   },
   "dependencies": {
