@@ -26,6 +26,8 @@ UI guardrails for all phases:
 - Add controls incrementally inside existing inspectors/panels first.
 - Avoid disruptive interaction model changes unless required for correctness/performance.
 - Preserve current shortcut patterns and context menu mental model while adding capabilities.
+- If component acceleration helps delivery, use `shadcn/ui` primitives, but skin them to match the existing editor layout and behavior.
+- Default editor theme must be **dark**; light mode can be optional later.
 
 ### 1) Keep Fabric.js core, add modular “interaction engines”
 Introduce dedicated engines around Fabric instead of mixing all logic in panels/components:
@@ -105,6 +107,8 @@ Replace existing crop implementation with a non-destructive, transform-safe crop
 - No PSD import in V1
 - No backward compatibility guarantee for all previously saved Editor-MK documents
 - Use current UI shell/components; feature parity is implemented within the existing UI structure
+- `shadcn/ui` is allowed for new/updated controls where it improves speed/consistency
+- Dark theme is the default UX baseline for all new panels/controls
 
 ## Phase 1 (Milestone 1 - highest priority)
 **Target:** 2–3 weeks
@@ -202,6 +206,7 @@ Ship a size preset library for:
 - `comlink` (worker communication ergonomics)
 - `gl-matrix` (optional if transform bugs persist)
 - `browser-image-compression` (optional; upload stability)
+- `shadcn/ui` + required peer utilities (optional, only for UI acceleration inside current shell)
 
 Only add packages per phase to reduce surface area and upgrade risk.
 
@@ -245,3 +250,9 @@ This order maximizes immediate UX value while reducing refactor conflicts.
 - `RightInspector`: context-sensitive controls for crop, text, shapes, corners, image effects.
 
 New capabilities should be added to these existing surfaces first; no separate YFT-style shell clone in V1.
+
+### UI toolkit and theming guidance
+- Keep the existing page/frame layout and navigation hierarchy.
+- `shadcn/ui` components can replace or support control-level widgets (inputs, popovers, tabs, dialogs, dropdowns).
+- Enforce dark tokens/styles by default across all new components.
+- Validate contrast and focus states for dark mode before merging.
