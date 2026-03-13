@@ -14,12 +14,14 @@ export function CropPanel({
   onStart,
   onPreset,
   onApply,
+  onApplyPermanently,
   onCancel
 }: {
   active: boolean;
   onStart: () => void;
   onPreset: (aspect: number | null) => void;
   onApply: () => void;
+  onApplyPermanently: () => void;
   onCancel: () => void;
 }) {
   if (!active) {
@@ -42,6 +44,9 @@ export function CropPanel({
       <div className="space-x-2">
         <button className="rounded bg-violet-600 px-2 py-1 text-white hover:bg-violet-500" onClick={onApply}>
           Apply
+        </button>
+        <button className="rounded bg-amber-600 px-2 py-1 text-white hover:bg-amber-500" onClick={onApplyPermanently}>
+          Apply Permanently
         </button>
         <button className="rounded border border-[#555] bg-[#252525] px-2 py-1 hover:bg-[#333]" onClick={onCancel}>
           Cancel

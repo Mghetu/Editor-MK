@@ -74,6 +74,14 @@ export function ImageInspector() {
     setSelectedImage(getActiveImage(canvas));
   };
 
+  const onApplyCropPermanently = async () => {
+    if (!cropController) return;
+    await cropController.applyPermanently();
+    setCropActive(false);
+    setCropImage(null);
+    setSelectedImage(getActiveImage(canvas));
+  };
+
   const onPreset = (aspect: number | null) => {
     cropController?.setPreset(aspect);
   };
@@ -82,7 +90,14 @@ export function ImageInspector() {
     <div className="space-y-3 rounded-xl border border-[#3f3f3f] bg-[#1f1f1f] p-3">
       <h3 className="font-semibold text-slate-100">Image</h3>
       {(selectedImage || cropImage) && (
-        <CropPanel active={cropActive} onStart={onStartCrop} onPreset={onPreset} onApply={onApplyCrop} onCancel={onCancelCrop} />
+        <CropPanel
+          active={cropActive}
+          onStart={onStartCrop}
+          onPreset={onPreset}
+          onApply={onApplyCrop}
+          onApplyPermanently={onApplyCropPermanently}
+          onCancel={onCancelCrop}
+        />
       )}
 
       <button
