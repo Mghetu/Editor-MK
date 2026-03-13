@@ -5,13 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run check:crop-controller-integrity && tsc -b && vite build",
+    "build": "npm run repair:crop-controller && npm run check:crop-controller-integrity && tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "verify:history-migration": "node scripts/verify-history-migration.mjs",
     "verify:history-ready": "npm run verify:history-migration",
     "verify:history-ready:strict": "npm run verify:history-migration && npm run check:history-signoff:strict",
-    "check:crop-controller-integrity": "node scripts/check-crop-controller-integrity.mjs"
+    "check:crop-controller-integrity": "node scripts/check-crop-controller-integrity.mjs",
+    "repair:crop-controller": "node scripts/repair-crop-controller.mjs"
   },
   "dependencies": {
     "fabric": "^7.1.0",
