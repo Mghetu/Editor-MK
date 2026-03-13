@@ -3,37 +3,45 @@ import { join } from "node:path";
 
 const file = join(process.cwd(), "src/editor/features/crop/CropModeController.ts");
 const source = readFileSync(file, "utf8");
+const lines = source.split(/\r?\n/);
 
-const methodCount = (name, { async = false, allowPrivate = true } = {}) => {
+const findMethodLines = (name, { async = false, allowPrivate = true } = {}) => {
   const asyncPart = async ? "(?:async\\s+)" : "(?:async\\s+)?";
   const privatePart = allowPrivate ? "(?:private\\s+)?" : "";
-  const rx = new RegExp(`^\\s{2}${privatePart}${asyncPart}${name}\\s*\\(`, "gm");
-  return (source.match(rx) ?? []).length;
+  const rx = new RegExp(`^\\s{2}${privatePart}${asyncPart}${name}\\s*\\(`);
+  const matches = [];
+  lines.forEach((line, idx) => {
+    if (rx.test(line)) matches.push(idx + 1);
+  });
+  return matches;
 };
 
-const checks = [
-  {
-    name: "single applyPermanently implementation",
-    ok: methodCount("applyPermanently", { async: true, allowPrivate: false }) === 1
-  },
-  {
-    name: "single cancel implementation",
-    ok: methodCount("cancel", { async: false, allowPrivate: false }) === 1
-  },
-  {
-    name: "single bindCropEvents implementation",
-    ok: methodCount("bindCropEvents", { async: false, allowPrivate: true }) === 1
-  },
-  {
-    name: "no shorthand object:modified target usage",
-    ok: !source.includes('{ target }')
-  }
-];
+const shorthandTargetLines = [];
+lines.forEach((line, idx) => {
+  if (line.includes('{ target }')) shorthandTargetLines.push(idx + 1);
+});
 
-const failed = checks.filter((check) => !check.ok);
-if (failed.length > 0) {
+const applyLines = findMethodLines("applyPermanently", { async: true, allowPrivate: false });
+const cancelLines = findMethodLines("cancel", { async: false, allowPrivate: false });
+const bindLines = findMethodLines("bindCropEvents", { async: false, allowPrivate: true });
+
+const errors = [];
+if (applyLines.length !== 1) {
+  errors.push(`single applyPermanently implementation (found ${applyLines.length} at lines ${applyLines.join(", ") || "none"})`);
+}
+if (cancelLines.length !== 1) {
+  errors.push(`single cancel implementation (found ${cancelLines.length} at lines ${cancelLines.join(", ") || "none"})`);
+}
+if (bindLines.length !== 1) {
+  errors.push(`single bindCropEvents implementation (found ${bindLines.length} at lines ${bindLines.join(", ") || "none"})`);
+}
+if (shorthandTargetLines.length > 0) {
+  errors.push(`no shorthand object:modified target usage (found at lines ${shorthandTargetLines.join(", ")})`);
+}
+
+if (errors.length > 0) {
   console.error("CropModeController integrity check failed:");
-  failed.forEach((check) => console.error(` - ${check.name}`));
+  errors.forEach((error) => console.error(` - ${error}`));
   process.exit(1);
 }
 
