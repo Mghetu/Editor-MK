@@ -16,7 +16,8 @@
     "check:history-signoff:strict": "node scripts/check-history-signoff.mjs --strict",
     "check:history-signoff:json": "node scripts/check-history-signoff.mjs --json",
     "verify:history-ready": "npm run verify:history-migration",
-    "verify:history-ready:strict": "npm run verify:history-migration && npm run check:history-signoff:strict"
+    "verify:history-ready:strict": "npm run verify:history-migration && npm run check:history-signoff:strict",
+    "check:crop-controller-integrity": "node scripts/check-crop-controller-integrity.mjs"
   },
   "dependencies": {
     "fabric": "^7.1.0",
