@@ -1,6 +1,6 @@
 import type { Canvas } from "fabric";
-import { ApplyCropCommand } from "../../engine/history/commands/basic";
-import { getFabricObjectId } from "../../engine/history/fabricHistoryContext";
+import { ApplyCropCommand, ReplaceObjectStateCommand } from "../../engine/history/commands/basic";
+import { createFabricHistoryContext, getFabricObjectId } from "../../engine/history/fabricHistoryContext";
 import { clampRectWithinBounds, canvasCropRectToSourceParams, fitRectToAspectWithinBounds, getImageDisplayRect, sourceParamsToCanvasCropRect } from "./cropMath";
 import { createCropRect, createGrid, createMask, updateGrid, updateMask } from "./cropOverlay";
 import type { CropMask } from "./cropOverlay";
@@ -206,6 +206,11 @@ export class CropModeController {
   async applyPermanently() {
     if (!this.image || !this.cropRect || !this.imageBounds || !this.snapshot) return;
 
+    const commandHistory = (window as any).__commandHistory;
+    const objectId = getFabricObjectId(this.image);
+    const historyCtx = commandHistory ? createFabricHistoryContext(this.canvas) : null;
+    const beforeSerialized = historyCtx && objectId ? historyCtx.serializeObject(this.image) : null;
+
     const rect = clampRectWithinBounds(toAppliedCropRect(this.cropRect), this.imageBounds);
     const crop = canvasCropRectToSourceParams(this.image, rect);
     const sourceEl = this.image.getElement?.();
@@ -250,6 +255,15 @@ export class CropModeController {
     });
 
     this.image.setCoords();
+
+    if (commandHistory && historyCtx && objectId && beforeSerialized) {
+      const afterSerialized = historyCtx.serializeObject(this.image);
+      const command = new ReplaceObjectStateCommand(objectId, beforeSerialized, afterSerialized, {
+        alreadyApplied: true
+      });
+      await commandHistory.execute(command, { source: "ui", objectIds: [objectId] });
+    }
+
     const target = this.image;
     this.exit(false);
     this.canvas.requestRenderAll();
