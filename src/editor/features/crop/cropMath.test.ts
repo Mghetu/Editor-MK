@@ -49,4 +49,51 @@ describe("cropMath", () => {
     expect(Math.round(canvasRect.width)).toBe(200);
     expect(Math.round(canvasRect.height)).toBe(150);
   });
+
+  it("falls back to object geometry when getBoundingRect is unavailable", () => {
+    const fallbackImageMock = {
+      left: 40,
+      top: 60,
+      width: 500,
+      height: 250,
+      scaleX: -0.5,
+      scaleY: -2,
+      getElement: () => ({ naturalWidth: 1000, naturalHeight: 500 }),
+      getBoundingRect: () => null
+    };
+
+    const sourceCrop = canvasCropRectToSourceParams(fallbackImageMock, {
+      left: 60,
+      top: 120,
+      width: 200,
+      height: 200
+    });
+
+    expect(Math.round(sourceCrop.cropX)).toBe(80);
+    expect(Math.round(sourceCrop.cropY)).toBe(60);
+    expect(Math.round(sourceCrop.cropW)).toBe(800);
+    expect(Math.round(sourceCrop.cropH)).toBe(200);
+
+    const canvasRect = sourceParamsToCanvasCropRect(fallbackImageMock, sourceCrop);
+    expect(Math.round(canvasRect.left)).toBe(60);
+    expect(Math.round(canvasRect.top)).toBe(120);
+    expect(Math.round(canvasRect.width)).toBe(200);
+    expect(Math.round(canvasRect.height)).toBe(200);
+  });
+
+  it("clamps source crop parameters within source bounds", () => {
+    const oversizedCrop = canvasCropRectToSourceParams(imageMock, {
+      left: -999,
+      top: -999,
+      width: 9999,
+      height: 9999
+    });
+
+    expect(oversizedCrop.cropX).toBeGreaterThanOrEqual(0);
+    expect(oversizedCrop.cropY).toBeGreaterThanOrEqual(0);
+    expect(oversizedCrop.cropW).toBeLessThanOrEqual(800);
+    expect(oversizedCrop.cropH).toBeLessThanOrEqual(600);
+    expect(oversizedCrop.cropW).toBeGreaterThan(0);
+    expect(oversizedCrop.cropH).toBeGreaterThan(0);
+  });
 });

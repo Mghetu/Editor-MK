@@ -1,7 +1,7 @@
 import { Group, Line, Rect } from "fabric";
 import type { RectBox } from "./cropTypes";
 
-const OVERLAY_DIM = "rgba(2, 6, 23, 0.45)";
+const OVERLAY_DIM = "rgba(2, 6, 23, 0.62)";
 
 export type CropMask = {
   top: any;
@@ -37,7 +37,7 @@ const makeMaskRect = (type: string) => {
     originY: "top",
     fill: OVERLAY_DIM,
     strokeWidth: 0,
-    evented: false,
+    evented: true,
     selectable: false,
     hasBorders: false,
     hasControls: false,
@@ -45,6 +45,7 @@ const makeMaskRect = (type: string) => {
   }) as any;
 
   rect.data = { id: crypto.randomUUID(), type, isCropOverlay: true };
+  rect.hoverCursor = "default";
   return rect;
 };
 
