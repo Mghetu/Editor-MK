@@ -16,14 +16,25 @@ const findMethodLines = (name, { async = false, allowPrivate = true } = {}) => {
   return matches;
 };
 
-const shorthandTargetLines = [];
+const methodMatches = [];
+const methodRx = /^\s{2}(?:private\s+)?(?:async\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\(/;
 lines.forEach((line, idx) => {
-  if (line.includes('{ target }')) shorthandTargetLines.push(idx + 1);
+  const match = methodRx.exec(line);
+  if (match) methodMatches.push({ name: match[1], line: idx + 1 });
 });
 
+const duplicateMethods = new Map();
+for (const method of methodMatches) {
+  const current = duplicateMethods.get(method.name) ?? [];
+  current.push(method.line);
+  duplicateMethods.set(method.name, current);
+}
+
+const shorthandTargetLines = [];
 const explicitTargetLines = [];
 lines.forEach((line, idx) => {
-  if (line.includes('{ target: modifiedTarget }')) explicitTargetLines.push(idx + 1);
+  if (line.includes("{ target }")) shorthandTargetLines.push(idx + 1);
+  if (line.includes("{ target: modifiedTarget }")) explicitTargetLines.push(idx + 1);
 });
 
 const applyLines = findMethodLines("applyPermanently", { async: true, allowPrivate: false });
@@ -45,6 +56,16 @@ if (shorthandTargetLines.length > 0) {
 }
 if (explicitTargetLines.length !== 1) {
   errors.push(`single explicit object:modified target usage (found ${explicitTargetLines.length} at lines ${explicitTargetLines.join(", ") || "none"})`);
+}
+
+const duplicateReports = [...duplicateMethods.entries()]
+  .filter(([, methodLines]) => methodLines.length > 1)
+  .sort((a, b) => a[0].localeCompare(b[0]));
+
+if (duplicateReports.length > 0) {
+  duplicateReports.forEach(([methodName, methodLines]) => {
+    errors.push(`duplicate method '${methodName}' (found ${methodLines.length} at lines ${methodLines.join(", ")})`);
+  });
 }
 
 if (errors.length > 0) {
