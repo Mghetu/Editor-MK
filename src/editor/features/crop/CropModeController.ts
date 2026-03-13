@@ -85,7 +85,6 @@ export class CropModeController {
   private listeners: Array<{ event: string; fn: (e: any) => void }> = [];
   private normalizedRotation = false;
   private cropZoomPercent = 100;
-  private imageFocusLayer: any | null = null;
 
   constructor(canvas: Canvas, onUpdated?: () => void) {
     this.canvas = canvas;
@@ -162,7 +161,7 @@ export class CropModeController {
       transparentCorners: false,
       stroke: "#38bdf8",
       strokeWidth: Math.max(1, Number(this.snapshot.prevStrokeWidth ?? 0)),
-      opacity: 0.7
+      opacity: 1
     });
     image.setControlsVisibility?.({
       mt: false,
@@ -203,65 +202,6 @@ export class CropModeController {
     this.bindCropEvents();
     this.canvas.requestRenderAll();
     this.onUpdated?.();
-  }
-
-
-  private removeFocusLayer() {
-    if (!this.imageFocusLayer) return;
-    this.canvas.remove(this.imageFocusLayer);
-    this.imageFocusLayer = null;
-  }
-
-  private async ensureFocusLayer() {
-    if (!this.image || !this.cropRect) return;
-    this.removeFocusLayer();
-    if (typeof this.image.clone !== "function") return;
-
-    const cloned = await this.image.clone();
-    const clip = this.cropRect.clone();
-    Object.assign(clip, { evented: false, selectable: false, hasControls: false, hasBorders: false, absolutePositioned: true });
-    Object.assign(cloned, {
-      evented: false,
-      selectable: false,
-      opacity: 1,
-      clipPath: clip,
-      stroke: undefined,
-      strokeWidth: 0
-    });
-    this.imageFocusLayer = cloned;
-    this.canvas.add(cloned);
-    this.canvas.bringObjectToFront?.(cloned);
-    this.canvas.bringObjectToFront?.(this.grid);
-    this.canvas.bringObjectToFront?.(this.cropRect);
-    this.canvas.requestRenderAll?.();
-  }
-
-  private refreshFocusLayer() {
-    if (!this.image || !this.imageFocusLayer || !this.cropRect) return;
-    Object.assign(this.imageFocusLayer, {
-      left: this.image.left,
-      top: this.image.top,
-      width: this.image.width,
-      height: this.image.height,
-      scaleX: this.image.scaleX,
-      scaleY: this.image.scaleY,
-      angle: this.image.angle
-    });
-
-    const clip = this.imageFocusLayer.clipPath;
-    if (clip) {
-      Object.assign(clip, {
-        left: this.cropRect.left,
-        top: this.cropRect.top,
-        width: this.cropRect.width,
-        height: this.cropRect.height,
-        scaleX: this.cropRect.scaleX,
-        scaleY: this.cropRect.scaleY
-      });
-      clip.setCoords?.();
-    }
-
-    this.imageFocusLayer.setCoords?.();
   }
 
   setCropZoomPercent(percent: number) {
@@ -569,9 +509,19 @@ export class CropModeController {
       this.refreshOverlay();
     };
 
+    const onWheel = (evt: any) => {
+      const e = evt?.e as WheelEvent | undefined;
+      if (!e) return;
+      e.preventDefault?.();
+      e.stopPropagation?.();
+      const delta = e.deltaY > 0 ? -5 : 5;
+      this.setCropZoomPercent(this.cropZoomPercent + delta);
+    };
+
     this.listeners = [
       { event: "object:moving", fn: moving },
-      { event: "object:scaling", fn: scaling }
+      { event: "object:scaling", fn: scaling },
+      { event: "mouse:wheel", fn: onWheel }
     ];
 
     this.listeners.forEach(({ event, fn }) => this.canvas.on(event as any, fn as any));
