@@ -133,7 +133,7 @@ export class CropModeController {
 
     this.normalizedRotation = Math.abs(this.snapshot.angle) > 0.01;
     if (this.normalizedRotation) {
-      image.set({ angle: 0 });
+      Object.assign(image, { angle: 0 });
     }
 
     image.setCoords();
