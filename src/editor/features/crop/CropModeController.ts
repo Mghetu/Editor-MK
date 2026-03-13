@@ -43,6 +43,7 @@ const setRectFromBounds = (rect: any, bounds: RectBox) => {
 type PreviousInteractionState = {
   canvasSelection: boolean;
   activeImageState: { selectable: boolean; evented: boolean; hasControls: boolean };
+  activeObject: any | null;
   objectStates: Array<{ obj: any; selectable: boolean; evented: boolean }>;
 };
 
@@ -388,16 +389,9 @@ export class CropModeController {
       this.refreshOverlay();
     };
 
-    const imageTransforming = (evt: any) => {
-      if (evt?.target !== this.image) return;
-      this.syncImageBoundsAndCropRect();
-    };
-
     this.listeners = [
       { event: "object:moving", fn: moving },
-      { event: "object:scaling", fn: scaling },
-      { event: "object:moving", fn: imageTransforming },
-      { event: "object:scaling", fn: imageTransforming }
+      { event: "object:scaling", fn: scaling }
     ];
 
     this.listeners.forEach(({ event, fn }) => this.canvas.on(event as any, fn as any));
@@ -418,6 +412,7 @@ export class CropModeController {
   private disableOtherInteractions(activeImage: any) {
     this.previousInteractionState = {
       canvasSelection: this.canvas.selection,
+      activeObject: this.canvas.getActiveObject?.() ?? null,
       activeImageState: {
         selectable: Boolean(activeImage.selectable),
         evented: Boolean(activeImage.evented),
@@ -438,7 +433,8 @@ export class CropModeController {
       Object.assign(obj, { selectable: false, evented: false });
     });
 
-    Object.assign(activeImage, { selectable: true, evented: true, hasControls: true });
+    Object.assign(activeImage, { selectable: false, evented: false, hasControls: false });
+    this.canvas.discardActiveObject?.();
   }
 
   private restoreInteractions() {
@@ -456,6 +452,11 @@ export class CropModeController {
         evented: activeImageState.evented,
         hasControls: activeImageState.hasControls
       });
+    }
+
+    const previousActive = this.previousInteractionState.activeObject;
+    if (previousActive && this.canvas.getObjects().includes(previousActive)) {
+      this.canvas.setActiveObject(previousActive);
     }
 
     this.previousInteractionState = null;
