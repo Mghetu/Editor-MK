@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Pattern } from "fabric";
 import { createCanvas } from "./engine/createCanvas";
 import { bindSelectionEvents } from "./engine/selection";
 import HistoryManager from "./engine/history/history";
@@ -71,6 +72,8 @@ const applyGridOverlay = (
   if (!ctx) return;
 
   ctx.clearRect(0, 0, spacing, spacing);
+  ctx.fillStyle = "rgba(0,0,0,0)";
+  ctx.fillRect(0, 0, spacing, spacing);
   ctx.strokeStyle = grid.color;
   ctx.globalAlpha = alpha;
   ctx.lineWidth = 1;
@@ -81,10 +84,10 @@ const applyGridOverlay = (
   ctx.lineTo(spacing, spacing - 0.5);
   ctx.stroke();
 
-  canvas.overlayColor = {
+  canvas.overlayColor = new Pattern({
     source: patternCanvas,
     repeat: "repeat"
-  };
+  });
   canvas.requestRenderAll?.();
 };
 
