@@ -18,6 +18,8 @@ type CommitMeta = {
   coalesce?: boolean;
 };
 
+type HistoryStateListener = (state: { canUndo: boolean; canRedo: boolean; lastLabel?: string }) => void;
+
 const MAX_HISTORY_ENTRIES = 120;
 const DEFAULT_DEBOUNCE_MS = 280;
 const TEXT_DEBOUNCE_MS = 600;
@@ -74,6 +76,7 @@ export class HistoryManager {
   private pendingTextMeta?: CommitMeta;
   private lastSnapshotKey?: string;
   private isApplyingSnapshot = false;
+  private stateListeners = new Set<HistoryStateListener>();
   private listeners?: {
     onAdded: (event: any) => void;
     onRemoved: (event: any) => void;
@@ -83,6 +86,35 @@ export class HistoryManager {
   };
 
   constructor(private canvas: Canvas) {}
+
+  subscribe(listener: HistoryStateListener) {
+    this.stateListeners.add(listener);
+    listener(this.getState());
+    return () => {
+      this.stateListeners.delete(listener);
+    };
+  }
+
+  get canUndo() {
+    return this.undoStack.length >= 2;
+  }
+
+  get canRedo() {
+    return this.redoStack.length > 0;
+  }
+
+  get lastActionLabel() {
+    return this.undoStack[this.undoStack.length - 1]?.action;
+  }
+
+  private getState() {
+    return { canUndo: this.canUndo, canRedo: this.canRedo, lastLabel: this.lastActionLabel };
+  }
+
+  private emitState() {
+    const state = this.getState();
+    this.stateListeners.forEach((listener) => listener(state));
+  }
 
   bind(): void {
     if (this.listeners) return;
@@ -113,6 +145,7 @@ export class HistoryManager {
     this.listeners = undefined;
 
     this.cancelPendingCaptures();
+    this.stateListeners.clear();
   }
 
   private track(meta: CommitMeta): void {
@@ -211,6 +244,7 @@ export class HistoryManager {
 
     this.lastSnapshotKey = snapshotKey;
     this.redoStack = [];
+    this.emitState();
   }
 
   async loadSnapshot(json: unknown, options?: { capture?: boolean; selectedObjectId?: string; selectedObjectType?: string }): Promise<void> {
@@ -229,17 +263,20 @@ export class HistoryManager {
       }
     } finally {
       this.isApplyingSnapshot = false;
+      this.emitState();
     }
   }
 
   undo(): Promise<void> {
     this.flushPendingCaptures();
     if (this.undoStack.length < 2) {
+      this.emitState();
       return Promise.resolve();
     }
 
     const current = this.undoStack.pop();
     if (!current) {
+      this.emitState();
       return Promise.resolve();
     }
 
@@ -255,6 +292,7 @@ export class HistoryManager {
     this.flushPendingCaptures();
     const next = this.redoStack.pop();
     if (!next) {
+      this.emitState();
       return Promise.resolve();
     }
 
