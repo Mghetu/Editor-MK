@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Pattern } from "fabric";
 import { createCanvas } from "./engine/createCanvas";
 import { bindSelectionEvents } from "./engine/selection";
 import HistoryManager from "./engine/history/history";
@@ -49,6 +50,54 @@ const applyCanvasFrame = (canvas: any, docCanvas: { width: number; height: numbe
   canvas.requestRenderAll?.();
 };
 
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const applyGridOverlay = (
+  canvas: any,
+  grid: { enabled: boolean; size: number; color: string; opacity: number }
+) => {
+  if (!grid.enabled) {
+    canvas.overlayColor = undefined;
+    canvas.requestRenderAll?.();
+    return;
+  }
+
+  const spacing = clamp(Number(grid.size) || 20, 8, 400);
+  const alpha = clamp(Number(grid.opacity) || 0.12, 0.04, 0.9);
+  const patternCanvas = document.createElement("canvas");
+  patternCanvas.width = spacing;
+  patternCanvas.height = spacing;
+
+  const ctx = patternCanvas.getContext("2d");
+  if (!ctx) return;
+
+  ctx.clearRect(0, 0, spacing, spacing);
+  ctx.fillStyle = "rgba(0,0,0,0)";
+  ctx.fillRect(0, 0, spacing, spacing);
+  ctx.strokeStyle = grid.color;
+  ctx.globalAlpha = alpha;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(spacing - 0.5, 0);
+  ctx.lineTo(spacing - 0.5, spacing);
+  ctx.moveTo(0, spacing - 0.5);
+  ctx.lineTo(spacing, spacing - 0.5);
+  ctx.stroke();
+
+  canvas.overlayColor = new Pattern({
+    source: patternCanvas,
+    repeat: "repeat"
+  });
+  canvas.requestRenderAll?.();
+};
+
+const snapToGrid = (target: any, size: number) => {
+  if (!target) return;
+  const spacing = clamp(Number(size) || 20, 8, 400);
+  if (Number.isFinite(target.left)) target.left = Math.round(target.left / spacing) * spacing;
+  if (Number.isFinite(target.top)) target.top = Math.round(target.top / spacing) * spacing;
+};
+
 export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
   const canvasEl = useRef<HTMLCanvasElement>(null);
   const canvasRef = useRef<any>(null);
@@ -75,6 +124,7 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
     commandHistoryRef.current = commandHistory;
 
     applyCanvasFrame(canvas, doc.canvas);
+    applyGridOverlay(canvas, doc.grid);
 
     history.bind();
     history.capture();
@@ -163,7 +213,11 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
       activeTransformRef.current = null;
     };
 
-    const onMoving = (event: any) => queueTransformCommand(event?.target);
+    const onMoving = (event: any) => {
+      const { grid } = useEditorStore.getState().doc;
+      if (grid.enabled && grid.snap) snapToGrid(event?.target, grid.size);
+      queueTransformCommand(event?.target);
+    };
     const onScaling = (event: any) => queueTransformCommand(event?.target);
     const onRotating = (event: any) => queueTransformCommand(event?.target);
 
@@ -228,6 +282,7 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
         await history.loadSnapshot(active.fabricJson, { capture: true });
         commandHistoryRef.current?.clear();
         applyCanvasFrame(canvas, useEditorStore.getState().doc.canvas);
+        applyGridOverlay(canvas, useEditorStore.getState().doc.grid);
       } finally {
         isHydratingRef.current = false;
       }
@@ -240,6 +295,12 @@ export function CanvasStage({ onReady }: { onReady: (api: StageApi) => void }) {
     applyCanvasFrame(canvas, doc.canvas);
     refreshImageGrids(canvas);
   }, [doc.canvas.width, doc.canvas.height, doc.canvas.background]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    applyGridOverlay(canvas, doc.grid);
+  }, [doc.grid]);
 
   return (
     <div className="flex h-full w-full items-center justify-center bg-[#1a1a1a] p-6">
