@@ -41,6 +41,11 @@ lines.forEach((line, idx) => {
   }
 });
 
+const staleModifiedTargetLines = [];
+lines.forEach((line, idx) => {
+  if (line.includes("modifiedTarget")) staleModifiedTargetLines.push(idx + 1);
+});
+
 const applyLines = findMethodLines("applyPermanently", { async: true, allowPrivate: false });
 const cancelLines = findMethodLines("cancel", { async: false, allowPrivate: false });
 const bindLines = findMethodLines("bindCropEvents", { async: false, allowPrivate: true });
@@ -60,6 +65,9 @@ if (objectModifiedShorthandLines.length > 0) {
 }
 if (objectModifiedExplicitLines.length < 1) {
   errors.push(`at least one explicit object:modified target usage (found ${objectModifiedExplicitLines.length} at lines ${objectModifiedExplicitLines.join(", ") || "none"})`);
+}
+if (staleModifiedTargetLines.length > 0) {
+  errors.push(`no stale modifiedTarget references (found at lines ${staleModifiedTargetLines.join(", ")})`);
 }
 
 const duplicateReports = [...duplicateMethods.entries()]
