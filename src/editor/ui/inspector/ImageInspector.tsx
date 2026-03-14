@@ -126,7 +126,7 @@ export function ImageInspector() {
   return (
     <div className="space-y-3 rounded-xl border border-[#3f3f3f] bg-[#1f1f1f] p-3">
       <h3 className="font-semibold text-slate-100">Image</h3>
-      {(selectedImage || cropImage) && (
+      {(cropActive || selectedImage || cropImage) && (
         <CropPanel
           active={cropActive}
           selectedAspect={selectedAspect}
@@ -137,6 +137,13 @@ export function ImageInspector() {
           onApplyPermanently={onApplyCropPermanently}
           onCancel={onCancelCrop}
         />
+      )}
+
+      {cropActive && (
+        <div className="rounded border-2 border-emerald-500/70 bg-emerald-900/25 p-2 text-xs text-emerald-100">
+          <div className="font-semibold">You are in Crop Mode</div>
+          <div>Use <strong>Apply Crop</strong> to keep non-destructive crop, <strong>Exit Crop Mode</strong> to cancel, or keyboard <strong>Enter/Esc</strong>.</div>
+        </div>
       )}
 
       {cropActive && (
