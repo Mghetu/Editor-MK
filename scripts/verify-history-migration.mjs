@@ -1,6 +1,8 @@
 import { execSync } from "node:child_process";
 
 const COMMANDS = [
+  "npm run repair:crop-controller",
+  "npm run check:crop-controller-integrity",
   "npm run check:history-mutations",
   "npm test",
   "npm run build"
