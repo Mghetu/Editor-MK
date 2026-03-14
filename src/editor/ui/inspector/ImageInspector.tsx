@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useEditorStore } from "../../state/useEditorStore";
 import { exportSelectedImage } from "../../engine/export/exportImage";
 import { CropModeController } from "../../features/crop/CropModeController";
@@ -15,10 +15,30 @@ export function ImageInspector() {
   const [selectedImage, setSelectedImage] = useState<any>(() => getActiveImage(canvas));
   const [cropImage, setCropImage] = useState<any>(null);
   const [cropActive, setCropActive] = useState(false);
+  const [selectedAspect, setSelectedAspect] = useState<number | null>(null);
+  const [customWidth, setCustomWidth] = useState("16");
+  const [customHeight, setCustomHeight] = useState("9");
+  const [cropZoom, setCropZoom] = useState(100);
 
+  const cropControllerRef = useRef<CropModeController | null>(null);
   const cropController = useMemo(() => {
-    if (!canvas) return null;
-    return new CropModeController(canvas, () => setCropActive(false));
+    if (!canvas) {
+      cropControllerRef.current = null;
+      return null;
+    }
+
+    let controller: CropModeController;
+    controller = new CropModeController(canvas, () => {
+      const active = controller.isActive();
+      setCropActive(active);
+      if (!active) {
+        setCropImage(null);
+        setSelectedImage(getActiveImage(canvas));
+      }
+    });
+
+    cropControllerRef.current = controller;
+    return controller;
   }, [canvas]);
 
   useEffect(() => {
@@ -54,7 +74,11 @@ export function ImageInspector() {
   const onStartCrop = () => {
     if (!selectedImage || !cropController) return;
     setCropImage(selectedImage);
+    const existing = (selectedImage.cropState ?? selectedImage.__cropState ?? null) as { aspect?: number | null } | null;
+    setSelectedAspect(existing?.aspect ?? null);
     cropController.enter(selectedImage);
+    cropController.setCropZoomPercent(100);
+    setCropZoom(100);
     setCropActive(true);
   };
 
@@ -74,15 +98,94 @@ export function ImageInspector() {
     setSelectedImage(getActiveImage(canvas));
   };
 
+  const onApplyCropPermanently = async () => {
+    if (!cropController) return;
+    await cropController.applyPermanently();
+    setCropActive(false);
+    setCropImage(null);
+    setSelectedImage(getActiveImage(canvas));
+  };
+
   const onPreset = (aspect: number | null) => {
+    setSelectedAspect(aspect);
     cropController?.setPreset(aspect);
+  };
+
+  const onApplyCustomAspect = () => {
+    const w = Math.max(1, Number(customWidth) || 1);
+    const h = Math.max(1, Number(customHeight) || 1);
+    const next = w / h;
+    onPreset(next);
+  };
+
+  const onCropZoomChange = (value: number) => {
+    setCropZoom(value);
+    cropController?.setCropZoomPercent(value);
   };
 
   return (
     <div className="space-y-3 rounded-xl border border-[#3f3f3f] bg-[#1f1f1f] p-3">
       <h3 className="font-semibold text-slate-100">Image</h3>
-      {(selectedImage || cropImage) && (
-        <CropPanel active={cropActive} onStart={onStartCrop} onPreset={onPreset} onApply={onApplyCrop} onCancel={onCancelCrop} />
+      {(cropActive || selectedImage || cropImage) && (
+        <CropPanel
+          active={cropActive}
+          selectedAspect={selectedAspect}
+          rotationNormalized={cropController?.isRotationNormalizedForCrop()}
+          onStart={onStartCrop}
+          onPreset={onPreset}
+          onApply={onApplyCrop}
+          onApplyPermanently={onApplyCropPermanently}
+          onCancel={onCancelCrop}
+        />
+      )}
+
+      {cropActive && (
+        <div className="rounded border-2 border-emerald-500/70 bg-emerald-900/25 p-2 text-xs text-emerald-100">
+          <div className="font-semibold">You are in Crop Mode</div>
+          <div>Use <strong>Apply Crop</strong> to keep non-destructive crop, <strong>Exit Crop Mode</strong> to cancel, or keyboard <strong>Enter/Esc</strong>.</div>
+        </div>
+      )}
+
+      {cropActive && (
+        <div className="space-y-2 rounded border border-[#3a3a3a] bg-[#181818] p-2">
+          <div className="text-xs text-slate-300">
+            Drag image inside crop frame to reposition. Use <strong>Apply Crop</strong>, <strong>Exit Crop Mode</strong>, or keyboard shortcuts <strong>Enter/Esc</strong>.
+          </div>
+          <div>
+            <div className="mb-1 flex items-center justify-between text-xs text-slate-400">
+              <span>Zoomed crop viewport</span>
+              <span>{cropZoom}%</span>
+            </div>
+            <input
+              className="w-full"
+              type="range"
+              min={50}
+              max={300}
+              step={5}
+              value={cropZoom}
+              onChange={(e) => onCropZoomChange(Number(e.target.value))}
+            />
+          </div>
+          <div className="text-xs text-slate-400">Custom ratio</div>
+          <div className="flex items-center gap-2">
+            <input
+              className="w-16 rounded border border-[#555] bg-[#121212] px-2 py-1 text-xs text-slate-100"
+              inputMode="numeric"
+              value={customWidth}
+              onChange={(e) => setCustomWidth(e.target.value)}
+            />
+            <span className="text-slate-400">:</span>
+            <input
+              className="w-16 rounded border border-[#555] bg-[#121212] px-2 py-1 text-xs text-slate-100"
+              inputMode="numeric"
+              value={customHeight}
+              onChange={(e) => setCustomHeight(e.target.value)}
+            />
+            <button className="rounded border border-[#555] bg-[#252525] px-2 py-1 text-xs hover:bg-[#333]" onClick={onApplyCustomAspect}>
+              Set
+            </button>
+          </div>
+        </div>
       )}
 
       <button
