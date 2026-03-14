@@ -199,6 +199,7 @@ export class CropModeController {
     this.canvas.add(this.cropRect);
     this.canvas.setActiveObject(this.image);
 
+    void this.ensureFocusLayer();
     this.bindCropEvents();
     this.canvas.requestRenderAll();
     this.onUpdated?.();
@@ -286,6 +287,231 @@ export class CropModeController {
 
     this.exit(false);
     this.canvas.requestRenderAll();
+    if (modifiedTarget) {
+      this.canvas.fire("object:modified", { target: this.image });
+    }
+  }
+
+  async applyPermanently() {
+    if (!this.image || !this.cropRect || !this.imageBounds || !this.snapshot) return;
+
+    const commandHistory = (window as any).__commandHistory;
+    const objectId = getFabricObjectId(this.image);
+    const historyCtx = commandHistory ? createFabricHistoryContext(this.canvas) : null;
+    const beforeSerialized = historyCtx && objectId ? historyCtx.serializeObject(this.image) : null;
+
+    const rect = clampRectWithinBounds(toAppliedCropRect(this.cropRect), this.imageBounds);
+    const crop = canvasCropRectToSourceParams(this.image, rect);
+    const sourceEl = this.image.getElement?.();
+    const cropW = Math.max(1, Math.round(crop.cropW));
+    const cropH = Math.max(1, Math.round(crop.cropH));
+
+    if (!sourceEl) {
+      this.apply();
+      return;
+    }
+
+    const bitmap = document.createElement("canvas");
+    bitmap.width = cropW;
+    bitmap.height = cropH;
+    const ctx = bitmap.getContext("2d");
+    if (!ctx) {
+      this.apply();
+      return;
+    }
+
+    ctx.drawImage(sourceEl, crop.cropX, crop.cropY, crop.cropW, crop.cropH, 0, 0, cropW, cropH);
+    const url = bitmap.toDataURL("image/png");
+
+    if (typeof this.image.setSrc === "function") {
+      await this.image.setSrc(url);
+    } else {
+      this.image._element = bitmap;
+    }
+
+    const scaleX = readScaleAbs(this.image.scaleX);
+    const scaleY = readScaleAbs(this.image.scaleY);
+
+    Object.assign(this.image, {
+      left: (this.imageBounds.left ?? 0) + crop.cropX * scaleX,
+      top: (this.imageBounds.top ?? 0) + crop.cropY * scaleY,
+      width: cropW,
+      height: cropH,
+      angle: this.snapshot.angle,
+      cropX: 0,
+      cropY: 0,
+      cropState: null,
+      __cropState: null
+    });
+
+    Object.assign(this.image, {
+      opacity: this.snapshot.prevOpacity,
+      stroke: this.snapshot.prevStroke,
+      strokeWidth: this.snapshot.prevStrokeWidth
+    });
+    this.image.setCoords();
+
+    if (commandHistory && historyCtx && objectId && beforeSerialized) {
+      const afterSerialized = historyCtx.serializeObject(this.image);
+      const command = new ReplaceObjectStateCommand(objectId, beforeSerialized, afterSerialized, {
+        alreadyApplied: true
+      });
+      await commandHistory.execute(command, { source: "ui", objectIds: [objectId] });
+    }
+
+    const modifiedTarget = this.image;
+    this.exit(false);
+    this.canvas.requestRenderAll();
+    if (modifiedTarget) {
+      this.canvas.fire("object:modified", { target: this.image });
+    }
+  }
+
+  async applyPermanently() {
+    if (!this.image || !this.cropRect || !this.imageBounds || !this.snapshot) return;
+
+    const commandHistory = (window as any).__commandHistory;
+    const objectId = getFabricObjectId(this.image);
+    const historyCtx = commandHistory ? createFabricHistoryContext(this.canvas) : null;
+    const beforeSerialized = historyCtx && objectId ? historyCtx.serializeObject(this.image) : null;
+
+    const rect = clampRectWithinBounds(toAppliedCropRect(this.cropRect), this.imageBounds);
+    const crop = canvasCropRectToSourceParams(this.image, rect);
+    const sourceEl = this.image.getElement?.();
+    const cropW = Math.max(1, Math.round(crop.cropW));
+    const cropH = Math.max(1, Math.round(crop.cropH));
+
+    if (!sourceEl) {
+      this.apply();
+      return;
+    }
+
+    const bitmap = document.createElement("canvas");
+    bitmap.width = cropW;
+    bitmap.height = cropH;
+    const ctx = bitmap.getContext("2d");
+    if (!ctx) {
+      this.apply();
+      return;
+    }
+
+    ctx.drawImage(sourceEl, crop.cropX, crop.cropY, crop.cropW, crop.cropH, 0, 0, cropW, cropH);
+    const url = bitmap.toDataURL("image/png");
+
+    if (typeof this.image.setSrc === "function") {
+      await this.image.setSrc(url);
+    } else {
+      this.image._element = bitmap;
+    }
+
+    const scaleX = readScaleAbs(this.image.scaleX);
+    const scaleY = readScaleAbs(this.image.scaleY);
+
+    Object.assign(this.image, {
+      left: (this.imageBounds.left ?? 0) + crop.cropX * scaleX,
+      top: (this.imageBounds.top ?? 0) + crop.cropY * scaleY,
+      width: cropW,
+      height: cropH,
+      angle: this.snapshot.angle,
+      cropX: 0,
+      cropY: 0,
+      cropState: null,
+      __cropState: null
+    });
+
+    Object.assign(this.image, {
+      opacity: this.snapshot.prevOpacity,
+      stroke: this.snapshot.prevStroke,
+      strokeWidth: this.snapshot.prevStrokeWidth
+    });
+    this.image.setCoords();
+
+    if (commandHistory && historyCtx && objectId && beforeSerialized) {
+      const afterSerialized = historyCtx.serializeObject(this.image);
+      const command = new ReplaceObjectStateCommand(objectId, beforeSerialized, afterSerialized, {
+        alreadyApplied: true
+      });
+      await commandHistory.execute(command, { source: "ui", objectIds: [objectId] });
+    }
+
+    const modifiedTarget = this.image;
+    this.exit(false);
+    this.canvas.requestRenderAll();
+    if (modifiedTarget) {
+      this.canvas.fire("object:modified", { target: this.image });
+    }
+  }
+
+  async applyPermanently() {
+    if (!this.image || !this.cropRect || !this.imageBounds || !this.snapshot) return;
+
+    const commandHistory = (window as any).__commandHistory;
+    const objectId = getFabricObjectId(this.image);
+    const historyCtx = commandHistory ? createFabricHistoryContext(this.canvas) : null;
+    const beforeSerialized = historyCtx && objectId ? historyCtx.serializeObject(this.image) : null;
+
+    const rect = clampRectWithinBounds(toAppliedCropRect(this.cropRect), this.imageBounds);
+    const crop = canvasCropRectToSourceParams(this.image, rect);
+    const sourceEl = this.image.getElement?.();
+    const cropW = Math.max(1, Math.round(crop.cropW));
+    const cropH = Math.max(1, Math.round(crop.cropH));
+
+    if (!sourceEl) {
+      this.apply();
+      return;
+    }
+
+    const bitmap = document.createElement("canvas");
+    bitmap.width = cropW;
+    bitmap.height = cropH;
+    const ctx = bitmap.getContext("2d");
+    if (!ctx) {
+      this.apply();
+      return;
+    }
+
+    ctx.drawImage(sourceEl, crop.cropX, crop.cropY, crop.cropW, crop.cropH, 0, 0, cropW, cropH);
+    const url = bitmap.toDataURL("image/png");
+
+    if (typeof this.image.setSrc === "function") {
+      await this.image.setSrc(url);
+    } else {
+      this.image._element = bitmap;
+    }
+
+    const scaleX = readScaleAbs(this.image.scaleX);
+    const scaleY = readScaleAbs(this.image.scaleY);
+
+    Object.assign(this.image, {
+      left: (this.imageBounds.left ?? 0) + crop.cropX * scaleX,
+      top: (this.imageBounds.top ?? 0) + crop.cropY * scaleY,
+      width: cropW,
+      height: cropH,
+      angle: this.snapshot.angle,
+      cropX: 0,
+      cropY: 0,
+      cropState: null,
+      __cropState: null
+    });
+
+    Object.assign(this.image, {
+      opacity: this.snapshot.prevOpacity,
+      stroke: this.snapshot.prevStroke,
+      strokeWidth: this.snapshot.prevStrokeWidth
+    });
+    this.image.setCoords();
+
+    if (commandHistory && historyCtx && objectId && beforeSerialized) {
+      const afterSerialized = historyCtx.serializeObject(this.image);
+      const command = new ReplaceObjectStateCommand(objectId, beforeSerialized, afterSerialized, {
+        alreadyApplied: true
+      });
+      await commandHistory.execute(command, { source: "ui", objectIds: [objectId] });
+    }
+
+    this.exit(false);
+    this.canvas.requestRenderAll();
+    this.canvas.fire("object:modified", { target: this.image });
   }
 
   async applyPermanently() {
@@ -392,6 +618,7 @@ export class CropModeController {
     if (this.cropRect) this.canvas.remove(this.cropRect);
     if (this.grid) this.grid.objects.forEach((line) => this.canvas.remove(line));
     if (this.mask) this.mask.objects.forEach((segment) => this.canvas.remove(segment));
+    this.removeFocusLayer();
 
     this.cropRect = null;
     this.grid = null;
@@ -559,6 +786,7 @@ export class CropModeController {
     if (!this.cropRect || !this.grid || !this.mask || !this.imageBounds) return;
     updateGrid(this.grid, this.cropRect);
     updateMask(this.mask, this.cropRect, this.imageBounds);
+    this.refreshFocusLayer();
     this.canvas.requestRenderAll();
   }
 
