@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useEditorStore } from "../../state/useEditorStore";
 import { exportSelectedImage } from "../../engine/export/exportImage";
 import { CropModeController } from "../../features/crop/CropModeController";
@@ -20,9 +20,25 @@ export function ImageInspector() {
   const [customHeight, setCustomHeight] = useState("9");
   const [cropZoom, setCropZoom] = useState(100);
 
+  const cropControllerRef = useRef<CropModeController | null>(null);
   const cropController = useMemo(() => {
-    if (!canvas) return null;
-    return new CropModeController(canvas, () => setCropActive(false));
+    if (!canvas) {
+      cropControllerRef.current = null;
+      return null;
+    }
+
+    let controller: CropModeController;
+    controller = new CropModeController(canvas, () => {
+      const active = controller.isActive();
+      setCropActive(active);
+      if (!active) {
+        setCropImage(null);
+        setSelectedImage(getActiveImage(canvas));
+      }
+    });
+
+    cropControllerRef.current = controller;
+    return controller;
   }, [canvas]);
 
   useEffect(() => {

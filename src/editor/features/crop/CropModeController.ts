@@ -85,6 +85,7 @@ export class CropModeController {
   private listeners: Array<{ event: string; fn: (e: any) => void }> = [];
   private normalizedRotation = false;
   private cropZoomPercent = 100;
+  private windowKeydownHandler: ((e: KeyboardEvent) => void) | null = null;
 
   constructor(canvas: Canvas, onUpdated?: () => void) {
     this.canvas = canvas;
@@ -286,6 +287,9 @@ export class CropModeController {
 
     this.exit(false);
     this.canvas.requestRenderAll();
+    if (modifiedTarget) {
+      this.canvas.fire("object:modified", { target: this.image });
+    }
   }
 
   async applyPermanently() {
@@ -528,32 +532,35 @@ export class CropModeController {
       }
     };
 
-    const onKeyDown = (evt: any) => {
-      const e = evt?.e as KeyboardEvent | undefined;
-      if (!e) return;
-      if (e.key === "Escape") {
-        e.preventDefault?.();
-        this.cancel();
-      } else if (e.key === "Enter") {
-        e.preventDefault?.();
-        this.apply();
-      }
-    };
-
     this.listeners = [
       { event: "object:moving", fn: moving },
       { event: "object:scaling", fn: scaling },
       { event: "mouse:wheel", fn: onWheel },
-      { event: "mouse:down", fn: onMouseDown },
-      { event: "key:down", fn: onKeyDown }
+      { event: "mouse:down", fn: onMouseDown }
     ];
 
+    this.windowKeydownHandler = (e: KeyboardEvent) => {
+      if (!this.isActive()) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        this.cancel();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        this.apply();
+      }
+    };
+
+    window.addEventListener("keydown", this.windowKeydownHandler);
     this.listeners.forEach(({ event, fn }) => this.canvas.on(event as any, fn as any));
   }
 
   private unbindCropEvents() {
     this.listeners.forEach(({ event, fn }) => this.canvas.off(event as any, fn as any));
     this.listeners = [];
+    if (this.windowKeydownHandler) {
+      window.removeEventListener("keydown", this.windowKeydownHandler);
+      this.windowKeydownHandler = null;
+    }
   }
 
   private refreshOverlay() {
