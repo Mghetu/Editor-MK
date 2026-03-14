@@ -81,12 +81,14 @@ export function ImageInspector() {
     cropController.setCropZoomPercent(100);
     setCropZoom(100);
     setCropActive(true);
+    announceCropMode(true);
   };
 
   const onCancelCrop = () => {
     if (!cropController) return;
     cropController.cancel();
     setCropActive(false);
+    announceCropMode(false);
     setCropImage(null);
     setSelectedImage(getActiveImage(canvas));
   };
@@ -94,6 +96,24 @@ export function ImageInspector() {
   const onApplyCrop = () => {
     if (!cropController) return;
     cropController.apply();
+    setCropActive(false);
+    announceCropMode(false);
+    setCropImage(null);
+    setSelectedImage(getActiveImage(canvas));
+  };
+
+  const onApplyCropPermanently = async () => {
+    if (!cropController) return;
+    await cropController.applyPermanently();
+    setCropActive(false);
+    announceCropMode(false);
+    setCropImage(null);
+    setSelectedImage(getActiveImage(canvas));
+  };
+
+  const onApplyCropPermanently = async () => {
+    if (!cropController) return;
+    await cropController.applyPermanently();
     setCropActive(false);
     setCropImage(null);
     setSelectedImage(getActiveImage(canvas));
