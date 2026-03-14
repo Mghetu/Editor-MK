@@ -9,6 +9,11 @@ const getActiveImage = (canvas: any) => {
   return active?.data?.type === "image" ? active : null;
 };
 
+const announceCropMode = (active: boolean) => {
+  (window as any).__cropModeActive = active;
+  window.dispatchEvent(new CustomEvent("editor:crop-mode-changed", { detail: { active } }));
+};
+
 export function ImageInspector() {
   const { doc, selectedObjectType } = useEditorStore();
   const canvas = (window as any).__editorCanvas;
@@ -80,12 +85,14 @@ export function ImageInspector() {
     cropController.setCropZoomPercent(100);
     setCropZoom(100);
     setCropActive(true);
+    announceCropMode(true);
   };
 
   const onCancelCrop = () => {
     if (!cropController) return;
     cropController.cancel();
     setCropActive(false);
+    announceCropMode(false);
     setCropImage(null);
     setSelectedImage(getActiveImage(canvas));
   };
@@ -94,6 +101,16 @@ export function ImageInspector() {
     if (!cropController) return;
     cropController.apply();
     setCropActive(false);
+    announceCropMode(false);
+    setCropImage(null);
+    setSelectedImage(getActiveImage(canvas));
+  };
+
+  const onApplyCropPermanently = async () => {
+    if (!cropController) return;
+    await cropController.applyPermanently();
+    setCropActive(false);
+    announceCropMode(false);
     setCropImage(null);
     setSelectedImage(getActiveImage(canvas));
   };
@@ -131,6 +148,7 @@ export function ImageInspector() {
     };
 
     return () => {
+      announceCropMode(false);
       delete (window as any).__cropModeActions;
     };
   }, [onApplyCrop, onCancelCrop, onApplyCropPermanently]);
