@@ -115,6 +115,14 @@ export function ImageInspector() {
     setSelectedImage(getActiveImage(canvas));
   };
 
+  const onApplyCropPermanently = async () => {
+    if (!cropController) return;
+    await cropController.applyPermanently();
+    setCropActive(false);
+    setCropImage(null);
+    setSelectedImage(getActiveImage(canvas));
+  };
+
   const onPreset = (aspect: number | null) => {
     setSelectedAspect(aspect);
     cropController?.setPreset(aspect);
