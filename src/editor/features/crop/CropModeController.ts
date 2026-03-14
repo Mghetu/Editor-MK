@@ -198,6 +198,7 @@ export class CropModeController {
     this.canvas.add(this.cropRect);
     this.canvas.setActiveObject(this.image);
 
+    void this.ensureFocusLayer();
     this.bindCropEvents();
     this.canvas.requestRenderAll();
     this.onUpdated?.();
@@ -394,6 +395,7 @@ export class CropModeController {
     if (this.cropRect) this.canvas.remove(this.cropRect);
     if (this.grid) this.grid.objects.forEach((line) => this.canvas.remove(line));
     if (this.mask) this.mask.objects.forEach((segment) => this.canvas.remove(segment));
+    this.removeFocusLayer();
 
     this.cropRect = null;
     this.grid = null;
@@ -558,6 +560,7 @@ export class CropModeController {
     if (!this.cropRect || !this.grid || !this.mask || !this.imageBounds) return;
     updateGrid(this.grid, this.cropRect);
     updateMask(this.mask, this.cropRect, this.imageBounds);
+    this.refreshFocusLayer();
     this.canvas.requestRenderAll();
   }
 
