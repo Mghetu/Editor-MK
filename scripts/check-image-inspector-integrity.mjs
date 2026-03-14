@@ -14,7 +14,16 @@ const countConst = (name) => {
   return matches;
 };
 
+const staleAnnounceLines = [];
+lines.forEach((line, idx) => {
+  if (line.includes("announceCropMode(")) staleAnnounceLines.push(idx + 1);
+});
+
 const errors = [];
+if (staleAnnounceLines.length > 0) {
+  errors.push(`no stale announceCropMode references (found at lines ${staleAnnounceLines.join(", ")})`);
+}
+
 for (const handler of ["onApplyCropPermanently", "onApplyCrop", "onCancelCrop", "onStartCrop"]) {
   const matches = countConst(handler);
   if (matches.length !== 1) {

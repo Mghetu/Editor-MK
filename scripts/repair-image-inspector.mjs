@@ -50,7 +50,8 @@ for (const block of toRemove) {
   lines.splice(block.start, block.end - block.start + 1);
 }
 
-source = lines.join("\n");
+source = lines.join("\n")
+  .replace(/\n?\s*announceCropMode\((?:true|false)\);?/g, "");
 
 if (source !== readFileSync(file, "utf8")) {
   writeFileSync(file, source);
