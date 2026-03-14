@@ -205,10 +205,24 @@ export class CropModeController {
     this.canvas.add(this.cropRect);
     this.canvas.setActiveObject(this.image);
 
+    void this.ensureFocusLayer();
     this.bindCropEvents();
     this.canvas.requestRenderAll();
     this.onUpdated?.();
     this.announceCropModeState();
+  }
+
+  setCropZoomPercent(percent: number) {
+    const canvas: any = this.canvas;
+    const next = Math.max(50, Math.min(300, Number(percent) || 100));
+    this.cropZoomPercent = next;
+    const zoom = next / 100;
+
+    if (typeof canvas.setZoom === "function") {
+      canvas.setZoom(zoom);
+    }
+
+    canvas.requestRenderAll?.();
   }
 
   setCropZoomPercent(percent: number) {
@@ -399,6 +413,7 @@ export class CropModeController {
     if (this.cropRect) this.canvas.remove(this.cropRect);
     if (this.grid) this.grid.objects.forEach((line) => this.canvas.remove(line));
     if (this.mask) this.mask.objects.forEach((segment) => this.canvas.remove(segment));
+    this.removeFocusLayer();
 
     this.cropRect = null;
     this.grid = null;
@@ -567,6 +582,7 @@ export class CropModeController {
     if (!this.cropRect || !this.grid || !this.mask || !this.imageBounds) return;
     updateGrid(this.grid, this.cropRect);
     updateMask(this.mask, this.cropRect, this.imageBounds);
+    this.refreshFocusLayer();
     this.canvas.requestRenderAll();
   }
 
