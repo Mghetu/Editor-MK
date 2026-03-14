@@ -12,6 +12,7 @@ import { AutoLayoutInspector } from "./inspector/AutoLayoutInspector";
 export function RightInspector() {
   const { selectedObjectType } = useEditorStore();
   const [tick, setTick] = useState(0);
+  const [cropModeActive, setCropModeActive] = useState(Boolean((window as any).__cropModeActive));
   const unbindRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -54,11 +55,21 @@ export function RightInspector() {
     };
   }, []);
 
+  useEffect(() => {
+    const onCropModeChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ active?: boolean }>).detail;
+      setCropModeActive(Boolean(detail?.active ?? (window as any).__cropModeActive));
+    };
+
+    window.addEventListener("editor:crop-mode-changed", onCropModeChanged as EventListener);
+    return () => window.removeEventListener("editor:crop-mode-changed", onCropModeChanged as EventListener);
+  }, []);
+
   void tick;
   const canvas = (window as any).__editorCanvas;
   const active = canvas?.getActiveObject?.() as any;
   const inferredType = inferSelectionType(active);
-  const effectiveType = selectedObjectType ?? inferredType;
+  const effectiveType = cropModeActive ? "image" : (selectedObjectType ?? inferredType);
 
   return (
     <div className="h-full border-l border-[#313131] bg-[#1f1f1f] p-3 text-sm text-slate-200">
