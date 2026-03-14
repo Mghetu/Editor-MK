@@ -1,14 +1,19 @@
 import { Check, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
-type CropModeActions = {
+type CropControllerBridge = {
+  isActive?: () => boolean;
   apply?: () => void;
   cancel?: () => void;
-  applyPermanently?: () => Promise<void> | void;
 };
 
-const readCropActive = () => Boolean((window as any).__cropModeActive);
-const readActions = (): CropModeActions => ((window as any).__cropModeActions ?? {}) as CropModeActions;
+const readController = () => ((window as any).__cropController ?? null) as CropControllerBridge | null;
+
+const readCropActive = () => {
+  const controller = readController();
+  if (controller?.isActive) return Boolean(controller.isActive());
+  return Boolean((window as any).__cropModeActive);
+};
 
 export function CanvasCropToolbar() {
   const [active, setActive] = useState(readCropActive);
@@ -19,16 +24,20 @@ export function CanvasCropToolbar() {
       setActive(Boolean(detail?.active ?? readCropActive()));
     };
 
+    const interval = window.setInterval(() => setActive(readCropActive()), 250);
     window.addEventListener("editor:crop-mode-changed", sync as EventListener);
-    return () => window.removeEventListener("editor:crop-mode-changed", sync as EventListener);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("editor:crop-mode-changed", sync as EventListener);
+    };
   }, []);
 
   if (!active) return null;
 
   const onApply = () => {
-    const actions = readActions();
-    if (typeof actions.apply === "function") {
-      actions.apply();
+    const controller = readController();
+    if (typeof controller?.apply === "function") {
+      controller.apply();
       return;
     }
 
@@ -36,9 +45,9 @@ export function CanvasCropToolbar() {
   };
 
   const onCancel = () => {
-    const actions = readActions();
-    if (typeof actions.cancel === "function") {
-      actions.cancel();
+    const controller = readController();
+    if (typeof controller?.cancel === "function") {
+      controller.cancel();
       return;
     }
 

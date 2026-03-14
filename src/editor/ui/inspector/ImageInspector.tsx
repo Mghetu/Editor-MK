@@ -9,10 +9,6 @@ const getActiveImage = (canvas: any) => {
   return active?.data?.type === "image" ? active : null;
 };
 
-const announceCropMode = (active: boolean) => {
-  (window as any).__cropModeActive = active;
-  window.dispatchEvent(new CustomEvent("editor:crop-mode-changed", { detail: { active } }));
-};
 
 export function ImageInspector() {
   const { doc, selectedObjectType } = useEditorStore();
@@ -115,6 +111,14 @@ export function ImageInspector() {
     setSelectedImage(getActiveImage(canvas));
   };
 
+  const onApplyCropPermanently = async () => {
+    if (!cropController) return;
+    await cropController.applyPermanently();
+    setCropActive(false);
+    setCropImage(null);
+    setSelectedImage(getActiveImage(canvas));
+  };
+
   const onPreset = (aspect: number | null) => {
     setSelectedAspect(aspect);
     cropController?.setPreset(aspect);
@@ -132,18 +136,6 @@ export function ImageInspector() {
     cropController?.setCropZoomPercent(value);
   };
 
-  useEffect(() => {
-    (window as any).__cropModeActions = {
-      apply: onApplyCrop,
-      cancel: onCancelCrop,
-      applyPermanently: onApplyCropPermanently
-    };
-
-    return () => {
-      announceCropMode(false);
-      delete (window as any).__cropModeActions;
-    };
-  }, [onApplyCrop, onCancelCrop, onApplyCropPermanently]);
 
   return (
     <div className="space-y-3 rounded-xl border border-[#3f3f3f] bg-[#1f1f1f] p-3">

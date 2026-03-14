@@ -107,6 +107,11 @@ export class CropModeController {
   private announceCropModeState() {
     const active = this.isActive();
     (window as any).__cropModeActive = active;
+    if (active) {
+      (window as any).__cropController = this;
+    } else if ((window as any).__cropController === this) {
+      delete (window as any).__cropController;
+    }
     window.dispatchEvent(new CustomEvent("editor:crop-mode-changed", { detail: { active } }));
   }
 
@@ -294,6 +299,7 @@ export class CropModeController {
 
     this.exit(false);
     this.canvas.requestRenderAll();
+    this.canvas.fire("object:modified", { target: this.image });
   }
 
   async applyPermanently() {
