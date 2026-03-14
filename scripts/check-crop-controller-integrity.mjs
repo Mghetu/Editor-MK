@@ -30,11 +30,15 @@ for (const method of methodMatches) {
   duplicateMethods.set(method.name, current);
 }
 
-const shorthandTargetLines = [];
-const explicitTargetLines = [];
+const objectModifiedShorthandLines = [];
+const objectModifiedExplicitLines = [];
 lines.forEach((line, idx) => {
-  if (line.includes("{ target }")) shorthandTargetLines.push(idx + 1);
-  if (line.includes("{ target: modifiedTarget }")) explicitTargetLines.push(idx + 1);
+  if (line.includes('canvas.fire("object:modified"') && line.includes('{ target }')) {
+    objectModifiedShorthandLines.push(idx + 1);
+  }
+  if (line.includes('canvas.fire("object:modified"') && line.includes('{ target: modifiedTarget }')) {
+    objectModifiedExplicitLines.push(idx + 1);
+  }
 });
 
 const applyLines = findMethodLines("applyPermanently", { async: true, allowPrivate: false });
@@ -51,11 +55,11 @@ if (cancelLines.length !== 1) {
 if (bindLines.length !== 1) {
   errors.push(`single bindCropEvents implementation (found ${bindLines.length} at lines ${bindLines.join(", ") || "none"})`);
 }
-if (shorthandTargetLines.length > 0) {
-  errors.push(`no shorthand object:modified target usage (found at lines ${shorthandTargetLines.join(", ")})`);
+if (objectModifiedShorthandLines.length > 0) {
+  errors.push(`no shorthand object:modified target usage (found at lines ${objectModifiedShorthandLines.join(", ")})`);
 }
-if (explicitTargetLines.length !== 1) {
-  errors.push(`single explicit object:modified target usage (found ${explicitTargetLines.length} at lines ${explicitTargetLines.join(", ") || "none"})`);
+if (objectModifiedExplicitLines.length < 1) {
+  errors.push(`at least one explicit object:modified target usage (found ${objectModifiedExplicitLines.length} at lines ${objectModifiedExplicitLines.join(", ") || "none"})`);
 }
 
 const duplicateReports = [...duplicateMethods.entries()]

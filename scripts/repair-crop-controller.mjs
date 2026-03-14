@@ -61,7 +61,7 @@ for (const block of toRemove) {
   lines.splice(block.start, block.end - block.start + 1);
 }
 
-source = lines.join("\n").replace(/\{ target \}/g, "{ target: modifiedTarget }");
+source = lines.join("\n").replace(/canvas\.fire\("object:modified",\s*\{ target \}\)/g, "canvas.fire(\"object:modified\", { target: modifiedTarget })");
 
 if (source !== readFileSync(file, "utf8")) {
   writeFileSync(file, source);
