@@ -40,7 +40,7 @@ for (let i = 0; i < lines.length; i++) {
   i = end;
 }
 
-const dedupeNames = new Set(["applyPermanently", "cancel", "bindCropEvents"]);
+const dedupeNames = new Set(["applyPermanently", "cancel", "bindCropEvents", "setCropZoomPercent", "announceCropModeState"]);
 const byName = new Map();
 for (const block of blocks) {
   if (!dedupeNames.has(block.name)) continue;
