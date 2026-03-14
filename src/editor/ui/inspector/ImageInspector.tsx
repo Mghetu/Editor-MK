@@ -141,7 +141,9 @@ export function ImageInspector() {
 
       {cropActive && (
         <div className="space-y-2 rounded border border-[#3a3a3a] bg-[#181818] p-2">
-          <div className="text-xs text-slate-400">Drag image inside crop frame to reposition</div>
+          <div className="text-xs text-slate-300">
+            Drag image inside crop frame to reposition. Use <strong>Apply Crop</strong>, <strong>Exit Crop Mode</strong>, or keyboard shortcuts <strong>Enter/Esc</strong>.
+          </div>
           <div>
             <div className="mb-1 flex items-center justify-between text-xs text-slate-400">
               <span>Zoomed crop viewport</span>
