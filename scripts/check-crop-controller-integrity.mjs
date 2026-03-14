@@ -36,7 +36,7 @@ lines.forEach((line, idx) => {
   if (line.includes('canvas.fire("object:modified"') && line.includes('{ target }')) {
     objectModifiedShorthandLines.push(idx + 1);
   }
-  if (line.includes('canvas.fire("object:modified"') && line.includes('{ target: modifiedTarget }')) {
+  if (line.includes('canvas.fire("object:modified"') && /\{\s*target\s*:\s*[^}]+\}/.test(line)) {
     objectModifiedExplicitLines.push(idx + 1);
   }
 });
