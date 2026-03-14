@@ -123,6 +123,18 @@ export function ImageInspector() {
     cropController?.setCropZoomPercent(value);
   };
 
+  useEffect(() => {
+    (window as any).__cropModeActions = {
+      apply: onApplyCrop,
+      cancel: onCancelCrop,
+      applyPermanently: onApplyCropPermanently
+    };
+
+    return () => {
+      delete (window as any).__cropModeActions;
+    };
+  }, [onApplyCrop, onCancelCrop, onApplyCropPermanently]);
+
   return (
     <div className="space-y-3 rounded-xl border border-[#3f3f3f] bg-[#1f1f1f] p-3">
       <h3 className="font-semibold text-slate-100">Image</h3>

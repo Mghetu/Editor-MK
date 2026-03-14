@@ -7,6 +7,7 @@ import { TopBar } from "./ui/TopBar";
 import { Footer } from "./ui/Footer";
 import { Toolbar } from "./ui/Toolbar";
 import { CanvasSelectionTooltip } from "./ui/CanvasSelectionTooltip";
+import { CanvasCropToolbar } from "./ui/CanvasCropToolbar";
 import { useEditorStore } from "./state/useEditorStore";
 import { setActivePageByOffset } from "./features/pages/pagesController";
 import { inferSelectionType } from "./engine/selection";
@@ -99,6 +100,7 @@ export function EditorShell() {
         <div className="grid h-full grid-rows-[1fr_48px]">
           <CanvasStage onReady={setStage} />
           <CanvasSelectionTooltip />
+          <CanvasCropToolbar />
           <Footer />
         </div>
         <RightInspector />
