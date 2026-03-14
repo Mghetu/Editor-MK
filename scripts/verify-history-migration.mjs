@@ -29,7 +29,9 @@ if (!historyMutationCommand) {
 
 const COMMANDS = [
   "npm run repair:crop-controller",
+  "npm run repair:image-inspector",
   "npm run check:crop-controller-integrity",
+  "npm run check:image-inspector-integrity",
   historyMutationCommand,
   "npm test",
   "npm run build"
