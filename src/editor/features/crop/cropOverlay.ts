@@ -1,13 +1,21 @@
-import { Group, Line, Rect } from "fabric";
+import { Line, Rect } from "fabric";
 import type { RectBox } from "./cropTypes";
 
-const OVERLAY_DIM = "rgba(2, 6, 23, 0.45)";
+const OVERLAY_DIM = "rgba(2, 6, 23, 0.72)";
 
 export type CropMask = {
   top: any;
   right: any;
   bottom: any;
   left: any;
+  objects: any[];
+};
+
+export type CropGrid = {
+  v1: any;
+  v2: any;
+  h1: any;
+  h2: any;
   objects: any[];
 };
 
@@ -20,8 +28,9 @@ const toRectBounds = (rect: any): RectBox => ({
 
 const makeLine = () =>
   new Line([0, 0, 1, 1], {
-    stroke: "rgba(255,255,255,0.75)",
+    stroke: "rgba(255,255,255,0.95)",
     strokeWidth: 1,
+    strokeUniform: true,
     evented: false,
     selectable: false,
     excludeFromExport: true
@@ -37,7 +46,7 @@ const makeMaskRect = (type: string) => {
     originY: "top",
     fill: OVERLAY_DIM,
     strokeWidth: 0,
-    evented: false,
+    evented: true,
     selectable: false,
     hasBorders: false,
     hasControls: false,
@@ -45,6 +54,7 @@ const makeMaskRect = (type: string) => {
   }) as any;
 
   rect.data = { id: crypto.randomUUID(), type, isCropOverlay: true };
+  rect.hoverCursor = "default";
   return rect;
 };
 
@@ -75,15 +85,20 @@ export const createCropRect = (initialRect: RectBox) => {
   return cropRect;
 };
 
-export const createGrid = (rect: any) => {
-  const grid = new Group([makeLine(), makeLine(), makeLine(), makeLine()], {
-    evented: false,
-    selectable: false,
-    hasBorders: false,
-    hasControls: false,
-    excludeFromExport: true
-  }) as any;
-  grid.data = { id: crypto.randomUUID(), type: "crop-grid", isCropOverlay: true };
+export const createGrid = (rect: any): CropGrid => {
+  const grid: CropGrid = {
+    v1: makeLine(),
+    v2: makeLine(),
+    h1: makeLine(),
+    h2: makeLine(),
+    objects: []
+  };
+
+  grid.objects = [grid.v1, grid.v2, grid.h1, grid.h2];
+  grid.objects.forEach((line) => {
+    line.data = { id: crypto.randomUUID(), type: "crop-grid-line", isCropOverlay: true };
+  });
+
   updateGrid(grid, rect);
   return grid;
 };
@@ -102,16 +117,15 @@ export const createMask = (rect: any, imageBounds: RectBox): CropMask => {
   return mask;
 };
 
-export const updateGrid = (grid: any, cropRect: any) => {
+export const updateGrid = (grid: CropGrid, cropRect: any) => {
   const b = toRectBounds(cropRect);
-  const [v1, v2, h1, h2] = grid.getObjects();
 
-  Object.assign(v1, { x1: b.left + b.width / 3, y1: b.top, x2: b.left + b.width / 3, y2: b.top + b.height });
-  Object.assign(v2, { x1: b.left + (2 * b.width) / 3, y1: b.top, x2: b.left + (2 * b.width) / 3, y2: b.top + b.height });
-  Object.assign(h1, { x1: b.left, y1: b.top + b.height / 3, x2: b.left + b.width, y2: b.top + b.height / 3 });
-  Object.assign(h2, { x1: b.left, y1: b.top + (2 * b.height) / 3, x2: b.left + b.width, y2: b.top + (2 * b.height) / 3 });
+  Object.assign(grid.v1, { x1: b.left + b.width / 3, y1: b.top, x2: b.left + b.width / 3, y2: b.top + b.height });
+  Object.assign(grid.v2, { x1: b.left + (2 * b.width) / 3, y1: b.top, x2: b.left + (2 * b.width) / 3, y2: b.top + b.height });
+  Object.assign(grid.h1, { x1: b.left, y1: b.top + b.height / 3, x2: b.left + b.width, y2: b.top + b.height / 3 });
+  Object.assign(grid.h2, { x1: b.left, y1: b.top + (2 * b.height) / 3, x2: b.left + b.width, y2: b.top + (2 * b.height) / 3 });
 
-  grid.setCoords();
+  grid.objects.forEach((line) => line.setCoords());
 };
 
 export const updateMask = (mask: CropMask, cropRect: any, imageBounds: RectBox) => {
